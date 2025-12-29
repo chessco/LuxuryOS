@@ -5,6 +5,13 @@ import { MOCK_ORDERS, OrderMock } from '../mockData';
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [order, setOrder] = useState<OrderMock | null>(null);
+    const [currentStep, setCurrentStep] = useState(2);
+    const [activities, setActivities] = useState([
+        { user: "Juan Pérez", action: "movió el estado a", target: "Fundición", time: "Hace 2 horas", dotColor: "bg-indigo-500" },
+        { user: "Sistema", action: "confirmó recepción de", target: "Diamante 2.01ct", time: "Ayer, 14:30" },
+        { user: "Alejandra Gómez", action: "realizó un pago de", target: "9.250 €", time: "12 Oct 2023, 10:15" },
+        { user: "Sistema", action: "Pedido creado por", target: "Carlos Joyero", time: "12 Oct 2023, 09:00" }
+    ]);
 
     useEffect(() => {
         const foundOrder = id ? MOCK_ORDERS[id] : MOCK_ORDERS["7829"];
@@ -13,8 +20,26 @@ const OrderDetail: React.FC = () => {
         }
     }, [id]);
 
+    const handleStepChange = (index: number) => {
+        if (index === currentStep) return;
+
+        setCurrentStep(index);
+
+        // Add activity log
+        const stepName = STEPS[index].name;
+        const newActivity = {
+            user: "Tú",
+            action: "moviste el estado a",
+            target: stepName,
+            time: "Hace un momento",
+            dotColor: "bg-emerald-500"
+        };
+
+        setActivities(prev => [newActivity, ...prev]);
+    };
+
     if (!order) {
-        return <div className="p-10 text-white font-black uppercase tracking-widest">Orden no encontrada</div>;
+        return <div className="p-10 text-white font-black uppercase tracking-widest">Pedido no encontrado</div>;
     }
 
     const updateField = (field: keyof OrderMock, value: any) => {
@@ -146,7 +171,7 @@ const OrderDetail: React.FC = () => {
                                     <span className="text-white font-black">{order.pendingAmount}</span>
                                 </div>
                             </div>
-                            <button className="w-full py-4 rounded-2xl bg-zinc-950 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:border-white transition-all shadow-lg active:scale-95">
+                            <button className="w-full py-4 rounded-2xl bg-zinc-950 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:border-zinc-700 transition-all shadow-lg active:scale-95">
                                 Registrar Pago
                             </button>
                         </div>
@@ -162,13 +187,27 @@ const OrderDetail: React.FC = () => {
                             <span className="text-zinc-600 text-[9px] font-bold uppercase tracking-widest">Actualizado: Hace 2 horas</span>
                         </div>
                         <div className="relative flex justify-between items-center px-4">
-                            <div className="absolute left-0 right-0 h-px bg-zinc-900 top-1/2 -translate-y-1/2 z-0"></div>
-                            <FlowStep name="Diseño" icon="brush" active />
-                            <FlowStep name="Gemas" icon="diamond" active />
-                            <FlowStep name="Fundición" icon="bolt" current />
-                            <FlowStep name="Engaste" icon="settings_suggest" />
-                            <FlowStep name="Control" icon="fact_check" />
-                            <FlowStep name="Entrega" icon="local_shipping" />
+                            <div className="absolute left-0 right-0 h-px bg-zinc-900 top-1/2 -translate-y-1/2 z-0">
+                                <div
+                                    className="h-full bg-emerald-500/20 transition-all duration-500"
+                                    style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
+                                ></div>
+                            </div>
+                            {STEPS.map((step, index) => {
+                                let status: 'completed' | 'current' | 'upcoming' = 'upcoming';
+                                if (index < currentStep) status = 'completed';
+                                if (index === currentStep) status = 'current';
+
+                                return (
+                                    <FlowStep
+                                        key={step.name}
+                                        name={step.name}
+                                        icon={step.icon}
+                                        status={status}
+                                        onClick={() => handleStepChange(index)}
+                                    />
+                                );
+                            })}
                         </div>
                     </section>
 
@@ -189,10 +228,16 @@ const OrderDetail: React.FC = () => {
                         <section className="bg-zinc-900/30 border border-zinc-900 rounded-[32px] p-8 backdrop-blur-sm h-[500px] flex flex-col">
                             <h3 className="text-white text-[10px] font-black uppercase tracking-widest mb-8">Actividad Reciente</h3>
                             <div className="flex-1 overflow-y-auto no-scrollbar space-y-8 pr-4">
-                                <ActivityItem user="Juan Pérez" action="movió el estado a" target="Fundición" time="Hace 2 horas" dotColor="bg-indigo-500" />
-                                <ActivityItem user="Sistema" action="confirmó recepción de" target="Diamante 2.01ct" time="Ayer, 14:30" />
-                                <ActivityItem user="Alejandra Gómez" action="realizó un pago de" target="9.250 €" time="12 Oct 2023, 10:15" />
-                                <ActivityItem user="Sistema" action="Pedido creado por" target="Carlos Joyero" time="12 Oct 2023, 09:00" />
+                                {activities.map((activity, index) => (
+                                    <ActivityItem
+                                        key={index}
+                                        user={activity.user}
+                                        action={activity.action}
+                                        target={activity.target}
+                                        time={activity.time}
+                                        dotColor={activity.dotColor}
+                                    />
+                                ))}
                             </div>
                         </section>
                     </div>
@@ -267,12 +312,21 @@ const DetailRow: React.FC<{ label: string, value: string, isItalic?: boolean, on
     </div>
 );
 
-const FlowStep: React.FC<{ name: string, icon: string, active?: boolean, current?: boolean }> = ({ name, icon, active, current }) => (
-    <div className="relative z-10 flex flex-col items-center gap-3 group">
-        <div className={`size-12 rounded-full flex items-center justify-center transition-all duration-500 ${active || current ? 'bg-zinc-950 border-2' : 'bg-zinc-950 border border-zinc-900 text-zinc-700'} ${active ? 'border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''} ${current ? 'border-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110' : ''}`}>
-            <span className={`material-symbols-outlined text-[20px] ${active ? 'icon-fill' : ''}`}>{active ? 'check_circle' : icon}</span>
+const STEPS = [
+    { name: 'Diseño', icon: 'brush' },
+    { name: 'Gemas', icon: 'diamond' },
+    { name: 'Fundición', icon: 'bolt' },
+    { name: 'Engaste', icon: 'settings_suggest' },
+    { name: 'Control', icon: 'fact_check' },
+    { name: 'Entrega', icon: 'local_shipping' }
+];
+
+const FlowStep: React.FC<{ name: string, icon: string, status: 'completed' | 'current' | 'upcoming', onClick: () => void }> = ({ name, icon, status, onClick }) => (
+    <div onClick={onClick} className="relative z-10 flex flex-col items-center gap-3 group cursor-pointer">
+        <div className={`size-12 rounded-full flex items-center justify-center transition-all duration-500 ${status !== 'upcoming' ? 'bg-zinc-950 border-2' : 'bg-zinc-950 border border-zinc-900 text-zinc-700 group-hover:border-zinc-700 group-hover:text-zinc-500'} ${status === 'completed' ? 'border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''} ${status === 'current' ? 'border-indigo-500 text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110' : ''}`}>
+            <span className={`material-symbols-outlined text-[20px] ${status === 'completed' ? 'icon-fill' : ''}`}>{status === 'completed' ? 'check_circle' : icon}</span>
         </div>
-        <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${active ? 'text-emerald-500' : current ? 'text-white' : 'text-zinc-700'}`}>{name}</span>
+        <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${status === 'completed' ? 'text-emerald-500' : status === 'current' ? 'text-white' : 'text-zinc-700 group-hover:text-zinc-500'}`}>{name}</span>
     </div>
 );
 

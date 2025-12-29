@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MOCK_ORDERS, OrderMock } from '../mockData';
+import { MOCK_ORDERS, OrderMock, MOCK_CLIENTS, MOCK_ITEMS } from '../mockData';
+import AutocompleteInput from '../components/AutocompleteInput';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragStartEvent, DragEndEvent, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -121,11 +122,42 @@ const Orders: React.FC = () => {
         setActiveId(null);
     };
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeFilter, setActiveFilter] = useState<string | null>(null);
+
+    const matchFilter = (order: OrderMock) => {
+        // Search Query
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            const searchMatch =
+                order.client.toLowerCase().includes(query) ||
+                order.id.includes(query) ||
+                order.item.toLowerCase().includes(query);
+            if (!searchMatch) return false;
+        }
+
+        // Active Filter
+        if (activeFilter === 'Prioridad Alta') {
+            return order.priority === 'Alta' || order.priority === 'Prioridad Alta' || order.statusType === 'urgent';
+        }
+        if (activeFilter === 'Anillos') {
+            return order.item.toLowerCase().includes('anillo');
+        }
+        if (activeFilter === 'Esta Semana') {
+            // Simple check for demo purposes
+            return true;
+        }
+
+        return true;
+    };
+
     const getOrdersByStatus = (columnId: string) => {
-        return Object.values(orders).filter(order => {
+        return Object.values(orders).filter((order: OrderMock) => {
+            if (!matchFilter(order)) return false;
+
             if (columnId === 'leads') return order.status === 'Nuevo' || (order.status === 'Pendiente' && order.statusType === 'new');
             if (columnId === 'quotes') return order.status === 'Cotización Enviada' || (order.status === 'Pendiente' && order.statusType !== 'new');
-            if (columnId === 'approved') return order.status === 'Aprobado' || (order.status === 'Listo' && order.statusType !== 'success'); // Adjust logic as per mock data variability
+            if (columnId === 'approved') return order.status === 'Aprobado' || (order.status === 'Listo' && order.statusType !== 'success');
             if (columnId === 'production') return order.status === 'En Producción' || order.status === 'Urgente';
             if (columnId === 'qc') return order.status === 'Control Calidad' || (order.status === 'Listo' && order.statusType === 'success');
             return false;
@@ -138,7 +170,7 @@ const Orders: React.FC = () => {
                 <div className="flex flex-col gap-6">
                     <div className="flex flex-wrap justify-between items-center gap-4">
                         <div className="flex flex-col gap-1">
-                            <h2 className="text-white text-3xl font-black tracking-tight font-display">Tablero de Órdenes (MXN)</h2>
+                            <h2 className="text-white text-3xl font-black tracking-tight font-display">Tablero de Pedidos (MXN)</h2>
                             <p className="text-zinc-500 text-sm">Gestión visual del flujo de producción y ventas</p>
                         </div>
                         <button
@@ -146,7 +178,7 @@ const Orders: React.FC = () => {
                             className="flex items-center gap-2 bg-white hover:bg-zinc-200 text-black px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-white/5"
                         >
                             <span className="material-symbols-outlined text-[20px]">add</span>
-                            <span>Nueva Orden</span>
+                            <span>Nuevo Pedido</span>
                         </button>
                     </div>
 
@@ -156,14 +188,23 @@ const Orders: React.FC = () => {
                                 <span className="material-symbols-outlined text-zinc-500 group-focus-within:text-white transition-colors">search</span>
                             </div>
                             <input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                                 className="block w-full pl-10 pr-3 py-3 border border-zinc-900 rounded-xl bg-zinc-900/50 text-white placeholder-zinc-500 focus:border-zinc-700 outline-none text-sm transition-all shadow-sm"
-                                placeholder="Buscar por cliente, ID de orden o pieza..."
+                                placeholder="Buscar por cliente, ID de pedido o pieza..."
                                 type="text"
                             />
                         </div>
                         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
                             {['Esta Semana', 'Prioridad Alta', 'Anillos', 'Más filtros'].map(f => (
-                                <button key={f} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white text-xs font-bold uppercase tracking-widest transition-all border border-transparent hover:border-zinc-800 whitespace-nowrap shadow-sm">
+                                <button
+                                    key={f}
+                                    onClick={() => setActiveFilter(activeFilter === f ? null : f)}
+                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border shadow-sm whitespace-nowrap ${activeFilter === f
+                                        ? 'bg-white text-black border-white'
+                                        : 'bg-zinc-900 text-zinc-400 border-transparent hover:bg-zinc-800 hover:text-white hover:border-zinc-800'
+                                        }`}
+                                >
                                     <span>{f}</span>
                                     <span className="material-symbols-outlined text-[18px]">
                                         {f === 'Más filtros' ? 'filter_list' : 'keyboard_arrow_down'}
@@ -242,7 +283,7 @@ const NewOrderModal: React.FC<{ onClose: () => void, onSave: (order: Partial<Ord
                             <span className="material-symbols-outlined text-black text-[24px]">add_shopping_cart</span>
                         </div>
                         <div>
-                            <h2 className="text-white text-lg font-black uppercase tracking-widest font-display">Nueva Orden de Alta Joyería</h2>
+                            <h2 className="text-white text-lg font-black uppercase tracking-widest font-display">Nuevo Pedido de Alta Joyería</h2>
                             <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-1">Configuración técnica y financiera</p>
                         </div>
                     </div>
@@ -256,19 +297,15 @@ const NewOrderModal: React.FC<{ onClose: () => void, onSave: (order: Partial<Ord
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         <div className="space-y-4">
                             <label className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] block px-1">Cliente VIP</label>
-                            <div className="relative group">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-white transition-colors">
-                                    <span className="material-symbols-outlined text-[20px]">person</span>
-                                </span>
-                                <input
-                                    name="client"
-                                    value={formData.client}
-                                    onChange={handleChange}
-                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-4 pl-12 pr-4 text-sm text-white focus:border-white focus:outline-none transition-all placeholder-zinc-700 shadow-sm"
-                                    placeholder="Buscar o crear cliente..."
-                                    required
-                                />
-                            </div>
+                            <AutocompleteInput
+                                name="client"
+                                value={formData.client || ''}
+                                onChange={(val) => setFormData(prev => ({ ...prev, client: val }))}
+                                options={MOCK_CLIENTS}
+                                placeholder="Buscar o crear cliente..."
+                                icon="person"
+                                required
+                            />
                         </div>
                         <div className="space-y-4">
                             <label className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] block px-1">Fecha Prometida de Entrega</label>
@@ -294,7 +331,14 @@ const NewOrderModal: React.FC<{ onClose: () => void, onSave: (order: Partial<Ord
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="space-y-3">
                                 <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest block px-1">Tipo</label>
-                                <input name="item" value={formData.item} onChange={handleChange} className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl py-3 px-4 text-xs text-white focus:border-zinc-500 focus:outline-none transition-all" placeholder="Anillo Solitario" required />
+                                <AutocompleteInput
+                                    name="item"
+                                    value={formData.item || ''}
+                                    onChange={(val) => setFormData(prev => ({ ...prev, item: val }))}
+                                    options={MOCK_ITEMS}
+                                    placeholder="Anillo Solitario"
+                                    required
+                                />
                             </div>
                             <div className="space-y-3">
                                 <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest block px-1">Material</label>
@@ -362,7 +406,7 @@ const NewOrderModal: React.FC<{ onClose: () => void, onSave: (order: Partial<Ord
                             type="submit"
                             className="px-14 py-4 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] hover:bg-zinc-200 transition-all shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-95"
                         >
-                            Registrar Orden
+                            Registrar Pedido
                         </button>
                     </div>
                 </form>
