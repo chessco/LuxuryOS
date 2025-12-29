@@ -1,20 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Luxury OS - Enterprise Jewelry Command Center
 
-# Run and deploy your AI Studio app
+Vertical SaaS for luxury jewelry ateliers. Multi-tenant by design.
 
-This contains everything you need to run your app locally.
+## Architecture
+- **Backend:** NestJS, Prisma, MySQL 8
+- **Frontend:** Next.js 15 (App Router), Tailwind, shadcn/ui, dnd-kit
 
-View your app in AI Studio: https://ai.studio/apps/drive/12-vuRxKBMkfaaaM9IbD3cFcYrJpJr1LT
+## Setup instructions
 
-## Run Locally
+### 1. Prerequisites
+- Docker & Docker Compose
+- Node.js 18+
 
-**Prerequisites:**  Node.js
+### 2. Backend Setup
+```bash
+cd api
+npm install
+# The container will handle migrations and seeding if configured, 
+# but you can run them manually:
+npx prisma generate
+```
 
+### 3. Infrastructure
+```bash
+docker-compose up --build
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 4. Frontend Setup
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Demo Credentials
+- **URL:** `http://localhost:3000/login`
+- **Email:** `admin@luxuryos.com`
+- **Password:** `luxury123`
+
+## Features
+- Strict Multi-tenant isolation (Guards/Interceptors)
+- Kanban operational workflow (Spanish UI)
+- Executive Dashboard
+- Client Management
