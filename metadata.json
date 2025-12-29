@@ -1,0 +1,7 @@
+{
+  "name": "Luxury OS - Jewelry Suite",
+  "description": "A high-end business suite for managing luxury jewelry ateliers, featuring orders, inventory, clients, and financial tracking with a premium dark-themed interface.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
