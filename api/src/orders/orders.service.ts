@@ -13,7 +13,7 @@ export class OrdersService {
         });
 
         // Grouping logic for the board
-        const columns = Object.values(OrderStage).reduce((acc, stage) => {
+        const columns = Object.values(OrderStage).reduce((acc: any, stage) => {
             acc[stage] = orders.filter((o) => o.stage === stage);
             return acc;
         }, {});
