@@ -1,0 +1,8 @@
+node_modules
+_legacy
+frontend
+.git
+.next
+dist
+*.log
+.env*
