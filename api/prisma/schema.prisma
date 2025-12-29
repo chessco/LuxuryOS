@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  users     User[]
+  clients   Client[]
+  orders    Order[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+enum OrderStage {
+  INTERES_LEAD
+  COTIZACION_ENVIADA
+  APROBADO_ANTICIPO
+  EN_PRODUCCION
+  CONTROL_CALIDAD
+  LISTO_ENTREGA
+  ENTREGADO_POSTVENTA
+}
+
+enum Priority {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+enum PaymentStatus {
+  PENDIENTE
+  PARCIAL
+  PAGADO
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+  stage         OrderStage    @default(INTERES_LEAD)
+  pieceType     String
+  value         Decimal       @db.Decimal(10, 2)
+  cost          Decimal       @db.Decimal(10, 2)
+  margin        Decimal       @db.Decimal(10, 2)
+  dueDate       DateTime?
+  priority      Priority      @default(MEDIA)
+  paymentStatus PaymentStatus @default(PENDIENTE)
+  notes         String?       @db.Text
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
