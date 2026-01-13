@@ -1,0 +1,34 @@
+services:
+  api:
+    build: .
+    container_name: luxury-api-prod
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=mysql://root:luxury_pass@mysql:3306/luxury_os
+      - JWT_SECRET=super_secret_luxury_key_change_me
+      - PORT=3001
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8
+    container_name: luxury-mysql-prod
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: luxury_pass
+      MYSQL_DATABASE: luxury_os
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data_prod:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mysql_data_prod:

@@ -1,6 +1,28 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MOCK_INVENTORY_DATA, ItemMock } from '../mockData';
+
+// Inline types and mock data to remove dependency on external file for now
+interface ItemMock {
+    id: string;
+    sku: string;
+    name: string;
+    detail: string;
+    type: string;
+    location: string;
+    quantity: number;
+    value: string;
+    cost: string;
+    icon: string;
+    color: string;
+    alert?: boolean;
+}
+
+const MOCK_INVENTORY_DATA: Record<string, ItemMock> = {
+    "101": { id: "101", sku: "RNG-DIA-001", name: "Anillo Diamante Solitario", detail: "Platino 950, 2.01ct", type: "Joyería", location: "Bóveda Principal", quantity: 3, value: "$150,000", cost: "$85,000", icon: "diamond", color: "text-zinc-400" },
+    "102": { id: "102", sku: "WCH-RLX-002", name: "Reloj Oyster Perpetual", detail: "Acero, 41mm, Azul", type: "Relojería", location: "Vitrina 1", quantity: 1, value: "$220,000", cost: "$180,000", icon: "watch", color: "text-zinc-400" },
+    "103": { id: "103", sku: "GEM-RUB-003", name: "Rubí Sangre de Pichón", detail: "3.5ct, Sin Tratamiento", type: "Gemas", location: "Caja Fuerte", quantity: 5, value: "$85,000", cost: "$40,000", icon: "diamond", color: "text-red-400" },
+    "104": { id: "104", sku: "BRA-GLD-004", name: "Brazalete Tennis", detail: "Oro Blanco 18k, 5ctw", type: "Joyería", location: "Vitrina 2", quantity: 2, value: "$95,000", cost: "$55,000", icon: "stars", color: "text-zinc-400", alert: true },
+};
 
 const InventoryPage: React.FC = () => {
     // --- CRUD State ---
@@ -118,7 +140,7 @@ const InventoryPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-900/50">
-                            {Object.values(items).map(item => (
+                            {(Object.values(items) as ItemMock[]).map(item => (
                                 <tr key={item.id} className="group hover:bg-white/[0.02] transition-colors cursor-pointer">
                                     <td className="px-8 py-6">
                                         <div className="flex items-center gap-5">
@@ -174,7 +196,7 @@ const InventoryPage: React.FC = () => {
                         </tbody>
                     </table>
                     <div className="px-8 py-5 border-t border-zinc-900 bg-black/10 flex items-center justify-between">
-                        <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">Mostrando {Object.values(items).length} artículos</p>
+                        <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest">Mostrando {(Object.values(items) as ItemMock[]).length} artículos</p>
                         <div className="flex gap-2">
                             <button className="h-10 px-6 rounded-xl border border-zinc-900 bg-zinc-900/50 text-zinc-600 text-[10px] font-black uppercase tracking-widest hover:text-white hover:border-zinc-700 transition-all">Anterior</button>
                             <button className="h-10 px-6 rounded-xl border border-zinc-900 bg-zinc-900/50 text-zinc-600 text-[10px] font-black uppercase tracking-widest hover:text-white hover:border-zinc-700 transition-all">Siguiente</button>

@@ -1,57 +1,71 @@
-import React, { useState } from 'react';
-import { MOCK_CLIENTS_DATA, ClientMock } from '../mockData';
+import React, { useState, useEffect } from 'react';
+import { ClientsService } from '../services/clients.service';
+
+// Adapting Client interface for the view
+export interface Client {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    status: string;
+    totalSpent: string;
+    lastOrder: string;
+    initials: string;
+    initialsColor: string;
+    tags?: string[];
+}
 
 export default function ClientsPage() {
     // --- CRUD State & Logic ---
-    const [clients, setClients] = useState<Record<string, ClientMock>>(MOCK_CLIENTS_DATA);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingClient, setEditingClient] = useState<ClientMock | null>(null);
+    const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-    const handleDelete = (id: string) => {
+    const fetchClients = async () => {
+        try {
+            setIsLoading(true);
+            const data = await ClientsService.getAll();
+            setClients(data);
+        } catch (error) {
+            console.error('Error fetching clients:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchClients();
+    }, []);
+
+    const handleDelete = async (id: string) => {
         if (window.confirm('¿Estás seguro de eliminar este cliente?')) {
-            const newClients = { ...clients };
-            delete newClients[id];
-            setClients(newClients);
+            await ClientsService.delete(id);
+            // Optimistic update or refetch
+            setClients(prev => prev.filter(c => c.id !== id));
         }
     };
 
-    const handleSave = (clientData: Partial<ClientMock>) => {
-        const now = new Date();
-        const formattedDate = now.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-
-        if (editingClient) {
-            // Edit
-            setClients(prev => ({
-                ...prev,
-                [editingClient.id]: {
-                    ...editingClient,
-                    ...clientData,
-                    initials: clientData.name?.substring(0, 2).toUpperCase() || editingClient.initials
-                } as ClientMock
-            }));
-        } else {
-            // Create
-            const id = Math.floor(Math.random() * 10000).toString();
-            const newClient: ClientMock = {
-                id,
-                name: clientData.name || 'Nuevo Cliente',
-                email: clientData.email || '',
-                phone: clientData.phone || '',
-                status: 'Active',
-                totalSpent: '0 MXN',
-                lastOrder: '—',
-                tags: [],
-                initials: clientData.name?.substring(0, 2).toUpperCase() || 'NC',
-                initialsColor: 'bg-zinc-800 text-zinc-400',
-                ...clientData
-            } as ClientMock;
-            setClients(prev => ({ ...prev, [id]: newClient }));
+    const handleSave = async (clientData: any) => {
+        try {
+            if (editingClient) {
+                // Edit
+                await ClientsService.update(editingClient.id, clientData);
+                fetchClients(); // Refetch for simplicity
+            } else {
+                // Create
+                await ClientsService.create(clientData);
+                fetchClients();
+            }
+            setIsModalOpen(false);
+            setEditingClient(null);
+        } catch (error) {
+            console.error('Error saving client:', error);
+            alert('Error al guardar el cliente');
         }
-        setIsModalOpen(false);
-        setEditingClient(null);
     };
 
-    const openModal = (client?: ClientMock) => {
+    const openModal = (client?: Client) => {
         setEditingClient(client || null);
         setIsModalOpen(true);
     };
@@ -63,7 +77,6 @@ export default function ClientsPage() {
             Active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
             Inactive: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
         };
-        // Fallback for mock data status mismatch
         const mappedStatus = status === 'Active' ? 'Active' : status === 'VIP' ? 'VIP' : 'Inactive';
 
         return (
@@ -116,7 +129,9 @@ export default function ClientsPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800">
-                            {Object.values(clients).map((client) => (
+                            {isLoading ? (
+                                <tr><td colSpan={5} className="py-10 text-center text-zinc-500">Cargando clientes...</td></tr>
+                            ) : clients.map((client) => (
                                 <tr key={client.id} className="group hover:bg-zinc-900/40 transition-colors">
                                     <td className="py-4 px-6">
                                         <div className="flex items-center gap-4">
@@ -162,7 +177,7 @@ export default function ClientsPage() {
                                     </td>
                                 </tr>
                             ))}
-                            {Object.keys(clients).length === 0 && (
+                            {!isLoading && clients.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="py-10 text-center text-zinc-500 text-sm font-medium">
                                         No hay clientes registrados.
@@ -176,7 +191,7 @@ export default function ClientsPage() {
                 {/* Pagination Footer (Static for now) */}
                 <div className="px-6 py-4 border-t border-zinc-800 bg-zinc-900/30 flex items-center justify-between">
                     <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] hidden md:block">
-                        Mostrando {Object.keys(clients).length} clientes
+                        Mostrando {clients.length} clientes
                     </p>
                     <div className="flex gap-2">
                         <button className="size-8 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-600 hover:text-white flex items-center justify-center transition-all disabled:opacity-50" disabled>
@@ -200,9 +215,9 @@ export default function ClientsPage() {
     );
 }
 
-// ... ClientModal component (Reusing the one I built in previous step)
-const ClientModal: React.FC<{ client: ClientMock | null, onClose: () => void, onSave: (data: Partial<ClientMock>) => void }> = ({ client, onClose, onSave }) => {
-    const [formData, setFormData] = useState<Partial<ClientMock>>(client || {
+// ... ClientModal component
+const ClientModal: React.FC<{ client: Client | null, onClose: () => void, onSave: (data: Partial<Client>) => void }> = ({ client, onClose, onSave }) => {
+    const [formData, setFormData] = useState<Partial<Client>>(client || {
         name: '',
         email: '',
         phone: '',
