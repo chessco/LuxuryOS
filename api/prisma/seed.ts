@@ -1,10 +1,17 @@
-import { PrismaClient, OrderStage, Priority, PaymentStatus } from '@prisma/client';
+import { PrismaClient, OrderStage, Priority, PaymentStatus, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
     console.log('Starting seed...');
+
+    // 0. Clear existing data
+    console.log('Clearing existing data...');
+    await prisma.order.deleteMany();
+    await prisma.client.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.tenant.deleteMany();
 
     // 1. Create Tenant
     const tenant = await prisma.tenant.create({
@@ -13,13 +20,36 @@ async function main() {
         },
     });
 
-    // 2. Create User
-    const passwordHash = await bcrypt.hash('luxury123', 10);
-    const user = await prisma.user.create({
+    // 2. Create Users with Roles
+    const passwordHash = await bcrypt.hash('pitaya123', 10);
+
+    // System Admin
+    await prisma.user.create({
         data: {
-            email: 'admin@luxuryos.com',
+            email: 'system@pitayacode.io',
             passwordHash,
             tenantId: tenant.id,
+            role: 'SYSTEM_ADMIN',
+        },
+    });
+
+    // Tenant Admin
+    await prisma.user.create({
+        data: {
+            email: 'admin@pitayacode.io',
+            passwordHash,
+            tenantId: tenant.id,
+            role: 'TENANT_ADMIN',
+        },
+    });
+
+    // Tenant User
+    const user = await prisma.user.create({
+        data: {
+            email: 'tenant.user@pitayacode.io',
+            passwordHash,
+            tenantId: tenant.id,
+            role: 'TENANT_USER',
         },
     });
 

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { MOCK_ORDERS, OrderMock } from '../mockData';
+import { OrdersService } from '../services/orders.service';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const [order, setOrder] = useState<OrderMock | null>(null);
+    const [order, setOrder] = useState<any | null>(null);
     const [currentStep, setCurrentStep] = useState(2);
     const [activities, setActivities] = useState([
         { user: "Juan Pérez", action: "movió el estado a", target: "Fundición", time: "Hace 2 horas", dotColor: "bg-indigo-500" },
@@ -14,10 +14,30 @@ const OrderDetail: React.FC = () => {
     ]);
 
     useEffect(() => {
-        const foundOrder = id ? MOCK_ORDERS[id] : MOCK_ORDERS["7829"];
-        if (foundOrder) {
-            setOrder({ ...foundOrder });
-        }
+        const fetchOrder = async () => {
+            if (id) {
+                try {
+                    const foundOrder = await OrdersService.getOrder(id);
+                    if (foundOrder) {
+                        // Map backend fields to UI fields if needed 
+                        // Assuming getOrder returns mapped object or we map here
+                        // For now we trust it matches or we patch it up
+                        setOrder({
+                            ...foundOrder,
+                            // Patch missing fields for detail view from simple backend object
+                            client: foundOrder.client?.name || 'Cliente',
+                            initials: foundOrder.client?.name?.substring(0, 2).toUpperCase() || 'CX',
+                            initialsColor: 'bg-zinc-800 text-zinc-400',
+                            date: 'N/A', // We need creation date in backend
+                            statusType: foundOrder.priority === 'ALTA' ? 'urgent' : 'normal'
+                        });
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch order", error);
+                }
+            }
+        };
+        fetchOrder();
     }, [id]);
 
     const handleStepChange = (index: number) => {
@@ -42,7 +62,7 @@ const OrderDetail: React.FC = () => {
         return <div className="p-10 text-white font-black uppercase tracking-widest">Pedido no encontrado</div>;
     }
 
-    const updateField = (field: keyof OrderMock, value: any) => {
+    const updateField = (field: string, value: any) => {
         setOrder(prev => prev ? { ...prev, [field]: value } : null);
     };
 

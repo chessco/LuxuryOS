@@ -1,20 +1,37 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 export default function LoginPage() {
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [email, setEmail] = useState('admin@pitayacode.io');
+    const [password, setPassword] = useState('pitaya123');
     const navigate = useNavigate();
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError(null);
 
-        // Simulación de autenticación
-        setTimeout(() => {
-            localStorage.setItem("token", "dummy-token-luxury-os");
+        try {
+            const response = await api.post('/auth/login', {
+                email,
+                password
+            });
+
+            const { access_token, user } = response.data;
+
+            localStorage.setItem("access_token", access_token);
+            localStorage.setItem("user", JSON.stringify(user));
+
             setLoading(false);
             navigate("/dashboard");
-        }, 1500);
+        } catch (err: any) {
+            console.error('Login error:', err);
+            setError(err.response?.data?.message || 'Error al iniciar sesión. Por favor verifica tus credenciales.');
+            setLoading(false);
+        }
     };
 
     return (
@@ -30,7 +47,13 @@ export default function LoginPage() {
                     </div>
                 </div>
 
-                <form className="mt-12 space-y-8" onSubmit={handleLogin}>
+                {error && (
+                    <div className="mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-xs text-center font-bold uppercase tracking-widest animate-in fade-in slide-in-from-top-4">
+                        {error}
+                    </div>
+                )}
+
+                <form className="mt-8 space-y-8" onSubmit={handleLogin}>
                     <div className="space-y-4">
                         <div className="relative group">
                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-white transition-colors">
@@ -39,6 +62,8 @@ export default function LoginPage() {
                             <input
                                 type="text"
                                 required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 className="w-full bg-zinc-950 border border-zinc-900 rounded-2xl py-4 pl-12 pr-4 text-sm focus:border-white focus:outline-none transition-all placeholder-zinc-700"
                                 placeholder="Identificador de Usuario"
                             />
@@ -50,6 +75,8 @@ export default function LoginPage() {
                             <input
                                 type="password"
                                 required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
                                 className="w-full bg-zinc-950 border border-zinc-900 rounded-2xl py-4 pl-12 pr-4 text-sm focus:border-white focus:outline-none transition-all placeholder-zinc-700"
                                 placeholder="Código de Acceso"
                             />

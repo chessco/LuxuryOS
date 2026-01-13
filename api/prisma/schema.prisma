@@ -16,12 +16,19 @@ model Tenant {
   orders    Order[]
 }
 
+enum Role {
+  SYSTEM_ADMIN
+  TENANT_ADMIN
+  TENANT_USER
+}
+
 model User {
   id           String   @id @default(uuid())
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
   email        String   @unique
   passwordHash String
+  role         Role     @default(TENANT_USER)
   createdAt    DateTime @default(now())
 }
 

@@ -9,14 +9,23 @@
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "src",
     "baseUrl": "./",
-    "incremental": true,
+    "rootDir": "src",
     "skipLibCheck": true,
-    "strictNullChecks": false,
+    "strict": true,
     "noImplicitAny": false,
-    "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
-  }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "prisma",
+    "scripts",
+    "test",
+    "**/*.spec.ts"
+  ]
 }

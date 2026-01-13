@@ -19,7 +19,11 @@ export class OrdersController {
 
     @Get('board')
     async getBoard(@Request() req) {
-        return this.ordersService.getBoard(req.user.tenantId);
+        console.log(`[OrdersController] Fetching board for tenant: ${req.user.tenantId}`);
+        const result = await this.ordersService.getBoard(req.user.tenantId);
+        const count = Object.values(result).flat().length;
+        console.log(`[OrdersController] Found ${count} orders for tenant ${req.user.tenantId}`);
+        return result;
     }
 
     @Patch('order/:id/move')
