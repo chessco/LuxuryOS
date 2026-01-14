@@ -1,0 +1,10 @@
+# Database Configuration
+DB_ROOT_PASSWORD=your_secure_password_here
+DB_NAME=luxury_os
+
+# Authentication
+JWT_SECRET=your_long_random_secret_here
+
+# API Configuration
+PORT=3001
+NODE_ENV=production
