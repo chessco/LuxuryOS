@@ -20,15 +20,21 @@ WORKDIR /app
 
 RUN apk add --no-cache openssl
 
+# Copias
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package*.json ./
 
-# Create non-root user for security
+# Prisma necesita root para engines
+USER root
+
+# Genera engines en build
+RUN npx prisma generate
+
+# Baja privilegios para runtime
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 USER nestjs
 
-EXPOSE 3001
-
-CMD ["npm", "run", "start:prod"]
+EXPOSE 3002
+CMD ["node", "dist/main.js"]
