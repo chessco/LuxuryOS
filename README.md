@@ -33,10 +33,22 @@ npm install
 npm run dev
 ```
 
-## Demo Credentials
+## Demo Credentials (Development)
 - **URL:** `http://localhost:3000/login`
-- **Email:** `admin@luxuryos.com`
-- **Password:** `luxury123`
+- **Email:** `admin@pitayacode.io`
+- **Password:** `pitaya123`
+
+## Deployment to Production (Hetzner)
+
+To deploy the API to a Hetzner Cloud VPS:
+
+1. **Prepare Server:** Ensure Docker and Docker Compose are installed on the VPS.
+2. **Setup Folder:** Create a directory (e.g., `/var/www/luxuryos`) and copy the contents of this repository.
+3. **Configure Environment:**
+   - Copy `env-production-template.txt` to `.env.prod`.
+   - Update the values in `.env.prod` with secure credentials.
+4. **Deploy:**
+   - Run `bash scripts/deploy-api.sh` to build and start the containers.
 
 ## Features
 - Strict Multi-tenant isolation (Guards/Interceptors)
