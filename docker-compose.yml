@@ -26,11 +26,11 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "3001:3001"
+      - "3002:3002"
     environment:
       - DATABASE_URL=mysql://root:luxury_pass@mysql:3306/luxury_os
       - JWT_SECRET=super_secret_luxury_key_change_me
-      - PORT=3001
+      - PORT=3002
 
 volumes:
   mysql_data:

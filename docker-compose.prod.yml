@@ -24,11 +24,11 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "3001:3001"
+      - "3002:3002"
     environment:
       - DATABASE_URL=mysql://root:${DB_ROOT_PASSWORD}@mysql:3306/${DB_NAME}
       - JWT_SECRET=${JWT_SECRET}
-      - PORT=3001
+      - PORT=3002
 
 volumes:
   mysql_prod_data:
