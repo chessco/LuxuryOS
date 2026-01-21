@@ -22,6 +22,8 @@ export interface Order {
     // ... mapped fields
 }
 
+type OrderMock = Order;
+
 const columns = [
     { id: 'INTERES_LEAD', name: 'Interés / Lead', color: 'bg-zinc-500', status: 'Nuevo' },
     { id: 'COTIZACION_ENVIADA', name: 'Cotización Enviada', color: 'bg-indigo-400', status: 'Pendiente' },
@@ -101,10 +103,11 @@ const Orders: React.FC = () => {
             // Or we just fetch clients and find ID.
 
             // Finding the client ID based on the name from Autocomplete
-            const selectedClient = clients.find(c => c.name === newOrder.client);
+            const selectedClient = clients.find(c => c.name.toLowerCase().trim() === newOrder.client.toLowerCase().trim());
 
             if (!selectedClient) {
                 alert("Por favor selecciona un cliente válido de la lista.");
+                console.error("Client not found:", newOrder.client, "Available:", clients.map(c => c.name));
                 return;
             }
 

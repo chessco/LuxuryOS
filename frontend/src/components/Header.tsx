@@ -1,10 +1,17 @@
 import React from 'react';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+    onToggleMenu: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
     return (
         <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-xl px-8">
             <div className="flex items-center gap-4 lg:hidden">
-                <button className="text-zinc-400 hover:text-white transition-colors">
+                <button
+                    onClick={onToggleMenu}
+                    className="text-zinc-400 hover:text-white transition-colors p-2 -ml-2 rounded-lg hover:bg-zinc-800"
+                >
                     <span className="material-symbols-outlined">menu</span>
                 </button>
                 <span className="text-white font-bold text-lg">Luxury OS</span>
