@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-APP_DIR="/var/www/luxuryos"
+APP_DIR="/opt/pitaya/luxuryos"
 ENV_FILE=".env.prod"
 
 echo "🚀 Starting deployment to Hetzner..."
