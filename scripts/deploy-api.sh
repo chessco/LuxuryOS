@@ -4,7 +4,7 @@
 APP_DIR="/opt/pitaya/luxuryos"
 ENV_FILE=".env.prod"
 
-echo "🚀 Starting deployment to Hetzner..."
+echo "🚀 Starting full-stack deployment (Front & Back) to Hetzner..."
 
 # Navigate to app directory
 cd $APP_DIR || { echo "❌ Error: Directory $APP_DIR not found"; exit 1; }

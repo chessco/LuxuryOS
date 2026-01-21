@@ -50,5 +50,8 @@ coverage/
 .agent/
 .antigravity/
 
+# Zip files
+*.zip
+
 # Legacy folder
 _legacy/
