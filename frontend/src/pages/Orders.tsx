@@ -33,9 +33,9 @@ const columns = [
 
 const Orders: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [orders, setOrders] = useState<any[]>([]); // Using any for brevity in migration, ideally strict typed
+    const [orders, setOrders] = useState<any[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
-    const [clientOptions, setClientOptions] = useState<string[]>([]);
+    const [clients, setClients] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const sensors = useSensors(
@@ -82,7 +82,7 @@ const Orders: React.FC = () => {
     const fetchClients = async () => {
         try {
             const data = await ClientsService.getAll();
-            setClientOptions(data.map(c => c.name));
+            setClients(data);
         } catch (error) {
             console.error(error);
         }
@@ -100,15 +100,21 @@ const Orders: React.FC = () => {
             // For now, assuming we handle it or send name and backend handles it (backend needs update for name-based create)
             // Or we just fetch clients and find ID.
 
-            // Simplified create for Demo:
+            // Finding the client ID based on the name from Autocomplete
+            const selectedClient = clients.find(c => c.name === newOrder.client);
+
+            if (!selectedClient) {
+                alert("Por favor selecciona un cliente válido de la lista.");
+                return;
+            }
+
             const payload = {
                 pieceType: newOrder.item,
-                value: Number(newOrder.value.replace(/[^0-9.-]+/g, "")),
-                cost: Number(newOrder.cost.replace(/[^0-9.-]+/g, "")),
-                margin: 0, // calc in backend
-                priority: newOrder.priority === 'Alta' ? 'ALTA' : 'MEDIA', // Enum mapping
-                // We need a proper client ID here. 
-                clientId: '1', // HARDCODED FOR DEMO STABILITY until Autocomplete is strict
+                value: Number(newOrder.value.toString().replace(/[^0-9.-]+/g, "")),
+                cost: Number(newOrder.cost.toString().replace(/[^0-9.-]+/g, "")),
+                margin: 0,
+                priority: newOrder.priority === 'Alta' ? 'ALTA' : 'MEDIA',
+                clientId: selectedClient.id,
                 stage: 'INTERES_LEAD'
             };
 
@@ -117,7 +123,7 @@ const Orders: React.FC = () => {
             setIsModalOpen(false);
         } catch (error) {
             console.error("Create order error", error);
-            alert("Error al crear pedido (Cliente ID hardcoded en demo)");
+            alert("Error al crear el pedido. Verifica que los datos sean correctos.");
         }
     };
 
@@ -255,7 +261,7 @@ const Orders: React.FC = () => {
                 </DragOverlay>
             </DndContext>
 
-            {isModalOpen && <NewOrderModal onClose={() => setIsModalOpen(false)} onSave={handleCreateOrder} clientOptions={clientOptions} />}
+            {isModalOpen && <NewOrderModal onClose={() => setIsModalOpen(false)} onSave={handleCreateOrder} clientOptions={clients.map(c => c.name)} />}
         </div>
     );
 };

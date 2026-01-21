@@ -28,16 +28,10 @@ export const ClientsService = {
         return response.data;
     },
     update: async (id: string, data: Partial<CreateClientDto>) => {
-        // Backend update endpoint likely needed. 
-        // For now, assuming PATCH /clients/:id exists or we add it. 
-        // Checking Controller... it only has GET and POST.
-        // We will need to add UPDATE/DELETE to backend if we want full parity.
-        // Returning placeholder for now to not break UI logic completely.
-        console.warn('Update client not implemented in API yet');
-        return Promise.resolve(data);
+        const response = await api.patch(`/clients/${id}`, data);
+        return response.data;
     },
     delete: async (id: string) => {
-        console.warn('Delete client not implemented in API yet');
-        return Promise.resolve();
+        await api.delete(`/clients/${id}`);
     }
 };
