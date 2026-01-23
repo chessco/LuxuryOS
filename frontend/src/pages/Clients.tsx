@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ClientsService } from '../services/clients.service';
+import { useLocation } from 'react-router-dom';
 
 // Adapting Client interface for the view
 export interface Client {
@@ -21,6 +22,16 @@ export default function ClientsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const location = useLocation();
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const search = params.get('search');
+        if (search) {
+            setSearchQuery(search);
+        }
+    }, [location.search]);
 
     const fetchClients = async () => {
         try {
@@ -90,7 +101,7 @@ export default function ClientsPage() {
         <div className="flex flex-col gap-10">
             {/* Header Steps */}
             <div>
-                <h1 className="text-white text-4xl font-black tracking-tight font-display">Cartera de Clientes</h1>
+                <h1 className="text-zinc-900 dark:text-white text-4xl font-black tracking-tight font-display">Cartera de Clientes</h1>
                 <p className="text-zinc-500 text-sm font-medium mt-2">Gestión de relaciones VIP y seguimiento comercial.</p>
             </div>
 
@@ -98,17 +109,19 @@ export default function ClientsPage() {
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="relative w-full max-w-md group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="material-symbols-outlined text-zinc-500 group-focus-within:text-white transition-colors">search</span>
+                        <span className="material-symbols-outlined text-zinc-400 dark:text-zinc-500 group-focus-within:text-zinc-900 dark:group-focus-within:text-white transition-colors">search</span>
                     </div>
                     <input
-                        className="block w-full pl-10 pr-3 py-3 border border-zinc-900 rounded-xl bg-zinc-900/50 text-white placeholder-zinc-500 focus:border-zinc-700 outline-none text-sm transition-all shadow-sm"
+                        className="block w-full pl-10 pr-3 py-3 border border-zinc-200 dark:border-zinc-900 rounded-xl bg-white dark:bg-zinc-900/50 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:border-zinc-400 dark:focus:border-zinc-700 outline-none text-sm transition-all shadow-sm"
                         placeholder="Buscar cliente por nombre, email o teléfono..."
                         type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
                 <button
                     onClick={() => openModal()}
-                    className="flex items-center gap-2 bg-white hover:bg-zinc-200 text-black px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-white/5"
+                    className="flex items-center gap-2 bg-zinc-900 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-black/5 dark:shadow-white/5"
                 >
                     <span className="material-symbols-outlined text-[20px]">person_add</span>
                     <span>Nuevo Cliente</span>
@@ -116,67 +129,73 @@ export default function ClientsPage() {
             </div>
 
             {/* Table Container (Restored Design) */}
-            <div className="bg-zinc-900/30 border border-zinc-900 rounded-3xl overflow-hidden backdrop-blur-sm">
+            <div className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 rounded-3xl overflow-hidden backdrop-blur-sm shadow-sm transition-colors">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="border-b border-zinc-800 bg-zinc-900/50">
-                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Cliente</th>
-                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Status</th>
-                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Ubicación / Contacto</th>
-                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Total Gastado</th>
-                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 text-right">Acciones</th>
+                            <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Cliente</th>
+                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Status</th>
+                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Ubicación / Contacto</th>
+                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">Total Gastado</th>
+                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 text-right">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-800">
+                        <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800">
                             {isLoading ? (
                                 <tr><td colSpan={5} className="py-10 text-center text-zinc-500">Cargando clientes...</td></tr>
-                            ) : clients.map((client) => (
-                                <tr key={client.id} className="group hover:bg-zinc-900/40 transition-colors">
-                                    <td className="py-4 px-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className={`size-10 rounded-full flex items-center justify-center text-xs font-black ${client.initialsColor}`}>
-                                                {client.initials}
+                            ) : clients
+                                .filter(c =>
+                                    (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    (c.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    (c.phone || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                )
+                                .map((client) => (
+                                    <tr key={client.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors">
+                                        <td className="py-4 px-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`size-10 rounded-full flex items-center justify-center text-xs font-black ${client.initialsColor}`}>
+                                                    {client.initials}
+                                                </div>
+                                                <div>
+                                                    <p className="text-zinc-900 dark:text-white text-sm font-bold">{client.name}</p>
+                                                    <p className="text-zinc-400 dark:text-zinc-500 text-xs">{client.email}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-white text-sm font-bold">{client.name}</p>
-                                                <p className="text-zinc-500 text-xs">{client.email}</p>
+                                        </td>
+                                        <td className="py-4 px-6">
+                                            <StatusBadge status={client.status} />
+                                        </td>
+                                        <td className="py-4 px-6">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-zinc-600 dark:text-zinc-300 text-xs font-medium">CDMX, México</span>
+                                                <span className="text-zinc-400 dark:text-zinc-600 text-[10px] font-bold">{client.phone}</span>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="py-4 px-6">
-                                        <StatusBadge status={client.status} />
-                                    </td>
-                                    <td className="py-4 px-6">
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-zinc-300 text-xs font-medium">CDMX, México</span>
-                                            <span className="text-zinc-600 text-[10px] font-bold">{client.phone}</span>
-                                        </div>
-                                    </td>
-                                    <td className="py-4 px-6">
-                                        <p className="text-white font-bold text-sm">{client.totalSpent}</p>
-                                        <p className="text-zinc-600 text-[10px]">Última: {client.lastOrder}</p>
-                                    </td>
-                                    <td className="py-4 px-6 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => openModal(client)}
-                                                className="size-8 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-white flex items-center justify-center transition-colors"
-                                                title="Editar"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">edit</span>
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(client.id)}
-                                                className="size-8 rounded-lg hover:bg-red-500/10 text-zinc-500 hover:text-red-400 flex items-center justify-center transition-colors"
-                                                title="Eliminar"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                        <td className="py-4 px-6">
+                                            <p className="text-zinc-900 dark:text-white font-bold text-sm">{client.totalSpent}</p>
+                                            <p className="text-zinc-400 dark:text-zinc-600 text-[10px]">Última: {client.lastOrder}</p>
+                                        </td>
+                                        <td className="py-4 px-6 text-right">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => openModal(client)}
+                                                    className="size-8 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center transition-colors"
+                                                    title="Editar"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(client.id)}
+                                                    className="size-8 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-zinc-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 flex items-center justify-center transition-colors"
+                                                    title="Eliminar"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
                             {!isLoading && clients.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="py-10 text-center text-zinc-500 text-sm font-medium">
@@ -189,15 +208,15 @@ export default function ClientsPage() {
                 </div>
 
                 {/* Pagination Footer (Static for now) */}
-                <div className="px-6 py-4 border-t border-zinc-800 bg-zinc-900/30 flex items-center justify-between">
-                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] hidden md:block">
+                <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 flex items-center justify-between">
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-[0.2em] hidden md:block">
                         Mostrando {clients.length} clientes
                     </p>
                     <div className="flex gap-2">
-                        <button className="size-8 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-600 hover:text-white flex items-center justify-center transition-all disabled:opacity-50" disabled>
+                        <button className="size-8 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center transition-all disabled:opacity-50" disabled>
                             <span className="material-symbols-outlined text-[16px]">chevron_left</span>
                         </button>
-                        <button className="size-8 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-600 hover:text-white flex items-center justify-center transition-all">
+                        <button className="size-8 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center transition-all">
                             <span className="material-symbols-outlined text-[16px]">chevron_right</span>
                         </button>
                     </div>
