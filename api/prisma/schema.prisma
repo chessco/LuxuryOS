@@ -9,12 +9,13 @@ datasource db {
 }
 
 model Tenant {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
-  users     User[]
-  clients   Client[]
-  orders    Order[]
+  id            String         @id @default(uuid())
+  name          String
+  createdAt     DateTime       @default(now())
+  users         User[]
+  clients       Client[]
+  orders        Order[]
+  conversations Conversation[]
 }
 
 enum Role {
@@ -28,9 +29,35 @@ model User {
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
   email        String   @unique
+  name         String?
   passwordHash String
   role         Role     @default(TENANT_USER)
   createdAt    DateTime @default(now())
+  
+  // Real-time Chat relations
+  conversations Conversation[] @relation("UserConversations")
+  messages      Message[]
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  users     User[]    @relation("UserConversations")
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  content        String       @db.Text
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
 }
 
 model Client {
@@ -72,15 +99,98 @@ model Order {
   tenant        Tenant        @relation(fields: [tenantId], references: [id])
   clientId      String
   client        Client        @relation(fields: [clientId], references: [id])
+  // Existing OrderStage enum kept for backward compatibility during migration
   stage         OrderStage    @default(INTERES_LEAD)
+  
+  // New Classification Fields
+  type          OrderType     @default(STANDARD)
+  status        OrderStatus   @default(DRAFT)
+
   pieceType     String
+  
+  // Legacy Financial Fields (to be migrated)
   value         Decimal       @db.Decimal(10, 2)
   cost          Decimal       @db.Decimal(10, 2)
   margin        Decimal       @db.Decimal(10, 2)
+  
+  // New Financial Fields
+  totalAmount   Decimal       @db.Decimal(10, 2) @default(0)
+  paidAmount    Decimal       @db.Decimal(10, 2) @default(0)
+  balance       Decimal       @db.Decimal(10, 2) @default(0)
+
   dueDate       DateTime?
+  
+  // New SLA Dates
+  promisedAt    DateTime?
+  deliveredAt   DateTime?
+  cancelledAt   DateTime?
+
   priority      Priority      @default(MEDIA)
   paymentStatus PaymentStatus @default(PENDIENTE)
   notes         String?       @db.Text
+  
+  // New Technical Jewelry Fields
+  metal         String?
+  color         String?
+  karats        String?
+  weight        String?
+  size          String?
+  thickness     String?
+  itemCode      String?
+  laborCost     Decimal?      @db.Decimal(10, 2)
+  materialCost  Decimal?      @db.Decimal(10, 2)
+
+  // Polymorphic Data
+  specifications Json?
+
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  
+  imageUrl      String?
+  payments      Payment[]
+}
+
+enum OrderType {
+  STANDARD
+  REPAIR
+  MANUFACTURE
+  LAYAWAY
+}
+
+enum OrderStatus {
+  // Common
+  DRAFT
+  QUOTE_SENT
+  APPROVED
+  CANCELLED
+  DELIVERED
+
+  // Repair Specific
+  RECEIVED
+  DIAGNOSIS_PENDING
+  WAITING_PARTS
+  IN_REPAIR
+  REPAIR_COMPLETED
+
+  // Manufacture Specific
+  SPEC_PENDING
+  MATERIALS_PENDING
+  IN_PRODUCTION
+  QUALITY_CHECK
+  READY_FOR_PICKUP
+
+  // Layaway Specific
+  LAYAWAY_OPEN
+  LAYAWAY_EXPIRED
+}
+
+model Payment {
+  id            String      @id @default(uuid())
+  orderId       String
+  order         Order       @relation(fields: [orderId], references: [id])
+  amount        Decimal     @db.Decimal(10, 2)
+  method        String
+  reference     String?
+  recordedBy    String?
+  recordedAt    DateTime    @default(now())
 }

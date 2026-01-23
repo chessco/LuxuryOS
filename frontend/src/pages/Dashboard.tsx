@@ -104,17 +104,17 @@ export default function DashboardPage() {
     return (
         <div className="flex flex-col gap-10">
             <div>
-                <h1 className="text-white text-4xl font-black tracking-tight font-display">Vista Ejecutiva</h1>
-                <p className="text-zinc-500 text-sm font-medium mt-2">Centro de análisis y control para Luxury OS.</p>
+                <h1 className="text-zinc-900 dark:text-white text-4xl font-black tracking-tight font-display transition-colors">Vista Ejecutiva</h1>
+                <p className="text-zinc-500 text-sm font-medium mt-2 transition-colors">Centro de análisis y control para Luxury OS.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat) => (
-                    <div key={stat.label} className="bg-zinc-900/30 border border-zinc-900 p-8 rounded-3xl backdrop-blur-sm shadow-sm flex flex-col gap-3">
-                        <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">{stat.label}</p>
+                    <div key={stat.label} className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 p-8 rounded-3xl backdrop-blur-sm shadow-sm flex flex-col gap-3 transition-colors">
+                        <p className="text-zinc-400 dark:text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">{stat.label}</p>
                         <div className="flex items-end justify-between">
-                            <h3 className="text-white text-2xl font-black tracking-tighter">{loading ? '...' : stat.value}</h3>
-                            <div className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${stat.trend === 'up' ? 'text-emerald-400' : 'text-zinc-500'
+                            <h3 className="text-zinc-900 dark:text-white text-2xl font-black tracking-tighter">{loading ? '...' : stat.value}</h3>
+                            <div className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${stat.trend === 'up' ? 'text-emerald-500' : 'text-zinc-400 dark:text-zinc-500'
                                 }`}>
                                 {stat.trend === 'up' && <span className="material-symbols-outlined text-sm">trending_up</span>}
                                 {stat.change}
@@ -125,22 +125,22 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-zinc-900/30 border border-zinc-900 p-10 rounded-3xl backdrop-blur-sm h-[400px] flex flex-col gap-8">
+                <div className="bg-white dark:bg-zinc-900/30 border border-zinc-100 dark:border-zinc-900 p-10 rounded-3xl backdrop-blur-sm h-[400px] flex flex-col gap-8 transition-colors shadow-sm dark:shadow-none">
                     <div className="flex items-center justify-between">
-                        <h4 className="text-white text-sm font-black uppercase tracking-widest underline decoration-zinc-800 underline-offset-8">Distribución por Etapa</h4>
-                        <span className="material-symbols-outlined text-zinc-700">analytics</span>
+                        <h4 className="text-zinc-900 dark:text-white text-sm font-black uppercase tracking-widest underline decoration-zinc-100 dark:decoration-zinc-800 underline-offset-8 transition-colors">Distribución por Etapa</h4>
+                        <span className="material-symbols-outlined text-zinc-400 dark:text-zinc-700 transition-colors">query_stats</span>
                     </div>
                     <div className="flex-1 flex flex-col justify-center gap-4 overflow-y-auto pr-2 custom-scrollbar">
                         {loading ? (
-                            <p className="text-zinc-500 text-center text-xs">Cargando datos...</p>
+                            <p className="text-zinc-400 dark:text-zinc-500 text-center text-xs">Cargando datos...</p>
                         ) : (
                             stageStats.map((stage) => (
                                 <div key={stage.id} className="group">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider group-hover:text-white transition-colors">{stage.label}</span>
-                                        <span className="text-zinc-500 text-[10px] font-mono">{stage.count} ({stage.percentage.toFixed(0)}%)</span>
+                                        <span className="text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">{stage.label}</span>
+                                        <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-mono transition-colors">{stage.count} ({stage.percentage.toFixed(0)}%)</span>
                                     </div>
-                                    <div className="h-2 w-full bg-zinc-800/50 rounded-full overflow-hidden">
+                                    <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800/50 rounded-full overflow-hidden transition-colors">
                                         <div
                                             className={`h-full ${stage.color} rounded-full transition-all duration-1000 ease-out relative overflow-hidden`}
                                             style={{ width: `${stage.percentage}%` }}
@@ -154,37 +154,37 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                <div className="bg-zinc-900/30 border border-zinc-900 p-10 rounded-3xl backdrop-blur-sm h-[450px] flex flex-col gap-8">
+                <div className="bg-white dark:bg-zinc-900/30 border border-zinc-100 dark:border-zinc-900 p-10 rounded-3xl backdrop-blur-sm h-[450px] flex flex-col gap-8 transition-colors shadow-sm dark:shadow-none">
                     <div className="flex items-center justify-between">
-                        <h4 className="text-white text-sm font-black uppercase tracking-widest underline decoration-zinc-800 underline-offset-8">Próximas Entregas</h4>
-                        <span className="material-symbols-outlined text-zinc-700">event_available</span>
+                        <h4 className="text-zinc-900 dark:text-white text-sm font-black uppercase tracking-widest underline decoration-zinc-100 dark:decoration-zinc-800 underline-offset-8 transition-colors">Próximas Entregas</h4>
+                        <span className="material-symbols-outlined text-zinc-400 dark:text-zinc-700 transition-colors">calendar_clock</span>
                     </div>
 
                     <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
                         {loading ? (
-                            <p className="text-zinc-500 text-center text-xs">Cargando fecha...</p>
+                            <p className="text-zinc-400 dark:text-zinc-500 text-center text-xs">Cargando fecha...</p>
                         ) : deliveries.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-2xl bg-zinc-950/20 p-6 text-center">
-                                <span className="material-symbols-outlined text-zinc-800 text-4xl mb-2">event_busy</span>
-                                <p className="text-zinc-700 text-[10px] font-black uppercase tracking-[0.2em]">No hay entregas programadas</p>
+                            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50 dark:bg-zinc-950/20 p-6 text-center transition-colors">
+                                <span className="material-symbols-outlined text-zinc-300 dark:text-zinc-800 text-4xl mb-2 transition-colors">event_busy</span>
+                                <p className="text-zinc-400 dark:text-zinc-700 text-[10px] font-black uppercase tracking-[0.2em] transition-colors">No hay entregas programadas</p>
                             </div>
                         ) : (
                             deliveries.map((delivery) => (
-                                <div key={delivery.id} className="bg-zinc-950/40 border border-zinc-900/50 p-4 rounded-2xl hover:border-zinc-700 transition-all group">
+                                <div key={delivery.id} className="bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-100 dark:border-zinc-900/50 p-4 rounded-2xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-all group shadow-sm dark:shadow-none">
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex flex-col gap-1">
-                                            <span className="text-white text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-400 transition-colors">
+                                            <span className="text-zinc-900 dark:text-white text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                                 {delivery.pieceType || 'Pieza Personalizada'}
                                             </span>
-                                            <span className="text-zinc-500 text-[10px] font-medium uppercase tracking-wider">
+                                            <span className="text-zinc-500 text-[10px] font-medium uppercase tracking-wider transition-colors">
                                                 Cliente: {delivery.client?.name || 'Incierto'}
                                             </span>
                                         </div>
-                                        <div className="bg-zinc-900 px-3 py-2 rounded-xl flex flex-col items-center min-w-[60px]">
-                                            <span className="text-indigo-400 text-xs font-black">
+                                        <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 px-3 py-2 rounded-xl flex flex-col items-center min-w-[60px] transition-colors shadow-sm dark:shadow-none">
+                                            <span className="text-indigo-600 dark:text-indigo-400 text-xs font-black transition-colors">
                                                 {new Date(delivery.dueDate).toLocaleDateString('es-ES', { day: '2-digit' })}
                                             </span>
-                                            <span className="text-zinc-600 text-[8px] font-black uppercase tracking-tighter">
+                                            <span className="text-zinc-400 dark:text-zinc-600 text-[8px] font-black uppercase tracking-tighter transition-colors">
                                                 {new Date(delivery.dueDate).toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}
                                             </span>
                                         </div>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
 
                     <button
                         onClick={() => navigate('/orders')}
-                        className="mt-auto py-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 hover:text-white transition-colors border-t border-zinc-900/50 flex items-center justify-center gap-2 group"
+                        className="mt-auto py-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-colors border-t border-zinc-100 dark:border-zinc-900/50 flex items-center justify-center gap-2 group"
                     >
                         Ver Calendario Completo
                         <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>

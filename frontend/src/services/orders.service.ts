@@ -1,8 +1,8 @@
 import api from './api';
 
 export const OrdersService = {
-    getBoard: async () => {
-        const response = await api.get('/kanban/board');
+    getBoard: async (type?: string) => {
+        const response = await api.get('/kanban/board', { params: { type } });
         return response.data;
     },
     getOrders: async () => {
@@ -17,13 +17,31 @@ export const OrdersService = {
         const response = await api.patch(`/kanban/order/${id}/move`, { toStage });
         return response.data;
     },
-    getOrder: async (id: string) => {
-        // Fallback for demo if endpoint doesn't exist or returns 404, 
-        // but ideally this calls GET /kanban/orders/:id
-        // Since we don't have that endpoint explicitly in the controller yet (checked in step 239)
-        // We will mock it or fetch all and find. 
-        // Controller has GET /kanban/orders -> returns all.
-        const response = await api.get('/kanban/orders');
-        return response.data.find((o: any) => o.id === id);
+    getOrder: async (id: string): Promise<any> => {
+        const response = await api.get(`/kanban/orders/${id}`);
+        return response.data;
+    },
+    advanceStatus: async (id: string) => {
+        const response = await api.patch(`/kanban/orders/${id}/advance`);
+        return response.data;
+    },
+    updateOrder: async (id: string, data: any) => {
+        const response = await api.patch(`/kanban/orders/${id}`, data);
+        return response.data;
+    },
+
+    async registerPayment(orderId: string, amount: number, method: string) {
+        const response = await api.post('/payments', { orderId, amount, method });
+        return response.data;
+    },
+
+    async generateImage(id: string) {
+        const response = await api.post(`/kanban/orders/${id}/generate-image`);
+        return response.data;
+    },
+
+    async deletePayment(id: string) {
+        const response = await api.delete(`/payments/${id}`);
+        return response.data;
     }
 };

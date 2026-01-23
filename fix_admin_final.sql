@@ -1,2 +1,2 @@
 USE luxury_os;
-UPDATE User SET passwordHash = '$2b$10$STKqBoBUl8Q/fNNecOn11u9wr/zA1e0YYC51/v/ogBjUfMOSlm2ha' WHERE email = 'admin@pitayacode.io';
+UPDATE User SET passwordHash = '$2b$10$I43mF44u/o3/lWPLIC0cJOPxHTZIrySNp.GJxPPTW6OS/.P2HI/Oe' WHERE email = 'admin@pitayacode.io';
