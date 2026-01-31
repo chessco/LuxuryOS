@@ -4,26 +4,94 @@
 
 @layer base {
     :root {
-        --background: 240 10% 3.9%;
-        --foreground: 0 0% 98%;
-        --card: 240 10% 3.9%;
-        --card-foreground: 0 0% 98%;
-        --border: 240 3.7% 15.9%;
+        --radius: 0.75rem;
     }
 
-    .light {
-        --background: 240 10% 96%;
+    /* 
+       THEME: PITAYA (PREMIUM)
+       Default is Light. Dark overrides apply when .dark is present.
+    */
+    .theme-pitaya {
+        --background: 0 0% 100%;
         --foreground: 240 10% 3.9%;
+        --sidebar: 0 0% 100%;
+        --sidebar-foreground: 240 10% 20%;
+        --header: 0 0% 100%;
         --card: 0 0% 100%;
         --card-foreground: 240 10% 3.9%;
+        --muted: 240 4.8% 95.9%;
+        --muted-foreground: 240 3.8% 46.1%;
         --border: 240 5.9% 90%;
+        --primary: 240 5.9% 10%;
+        --primary-foreground: 0 0% 98%;
+        --accent: 240 4.8% 95.9%;
+    }
+
+    /* Specificity boost for Dark Mode */
+    .theme-pitaya.dark {
+        --background: 240 10% 3.9%;
+        --foreground: 0 0% 98%;
+        --sidebar: 240 10% 3.9%;
+        --sidebar-foreground: 0 0% 80%;
+        --header: 240 10% 3.9%;
+        --card: 240 10% 6%;
+        --card-foreground: 0 0% 98%;
+        --muted: 240 10% 8%;
+        --muted-foreground: 240 5% 64.9%;
+        --border: 240 3.7% 15.9%;
+        --primary: 240 5.9% 10%;
+        --primary-foreground: 0 0% 98%;
+        --accent: 240 4.8% 95.9%;
+    }
+
+    /* 
+       THEME: NOTION (MINIMALIST)
+       Default is Light. Dark overrides apply when .dark is present.
+    */
+    .theme-notion {
+        --background: 0 0% 100%;
+        --foreground: 0 0% 20%;
+        /* Softer black #333 */
+        --sidebar: 60 7% 96.5%;
+        /* #F7F7F5 */
+        --sidebar-foreground: 0 0% 32%;
+        /* #525252 */
+        --header: 0 0% 100%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 20%;
+        --muted: 0 0% 96%;
+        /* #F5F5F5 */
+        --muted-foreground: 0 0% 60%;
+        --border: 0 0% 90%;
+        --primary: 0 0% 20%;
+        --primary-foreground: 0 0% 98%;
+        --accent: 0 0% 95%;
+    }
+
+    .theme-notion.dark {
+        --background: 0 0% 12%;
+        /* #1F1F1F */
+        --foreground: 0 0% 90%;
+        --sidebar: 0 0% 12.5%;
+        /* #202020 */
+        --sidebar-foreground: 0 0% 65%;
+        --header: 0 0% 12%;
+        --card: 0 0% 16%;
+        --card-foreground: 0 0% 90%;
+        --muted: 0 0% 18%;
+        --muted-foreground: 0 0% 55%;
+        --border: 0 0% 22%;
+        --primary: 0 0% 90%;
+        --primary-foreground: 0 0% 12%;
+        --accent: 0 0% 18%;
     }
 
     body {
         background-color: hsl(var(--background));
         color: hsl(var(--foreground));
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
         transition: background-color 0.3s ease, color 0.3s ease;
+        -webkit-font-smoothing: antialiased;
     }
 }
 
@@ -35,21 +103,23 @@
     font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
+/* Theme-aware Scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    @apply bg-zinc-950;
+    background-color: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    @apply bg-zinc-800 rounded-full;
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    @apply bg-zinc-700;
+    background-color: hsl(var(--muted-foreground));
 }
 
 .no-scrollbar::-webkit-scrollbar {

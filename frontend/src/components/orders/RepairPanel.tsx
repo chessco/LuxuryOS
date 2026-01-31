@@ -48,15 +48,15 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
     };
 
     return (
-        <section className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
+        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
             <header className="flex items-center justify-between mb-10">
                 <div className="flex items-center gap-3">
                     <div className="size-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
                         <span className="material-symbols-outlined text-amber-600 dark:text-amber-500 text-[20px] transition-colors">handyman</span>
                     </div>
                     <div>
-                        <h3 className="text-zinc-900 dark:text-white text-[10px] font-black uppercase tracking-widest font-display transition-colors">Panel de Gestión de Reparaciones</h3>
-                        <p className="text-zinc-400 dark:text-zinc-500 text-[9px] font-black uppercase tracking-widest mt-0.5 transition-colors">Control de Taller de Alta Joyería</p>
+                        <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest font-display transition-colors">Panel de Gestión de Reparaciones</h3>
+                        <p className="text-muted-foreground text-[9px] font-black uppercase tracking-widest mt-0.5 transition-colors">Control de Taller de Alta Joyería</p>
                     </div>
                 </div>
                 <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full transition-colors">
@@ -66,7 +66,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
 
             {/* Stepper */}
             <div className="relative flex justify-between items-center mb-12 px-4">
-                <div className="absolute left-0 right-0 h-px bg-zinc-100 dark:bg-zinc-800 top-[20px] z-0 transition-colors">
+                <div className="absolute left-0 right-0 h-px bg-border top-[20px] z-0 transition-colors">
                     <div
                         className="h-full bg-amber-500 transition-all duration-700 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
                         style={{ width: `${(currentIndex / (REPAIR_STEPS.length - 1)) * 100}%` }}
@@ -79,12 +79,12 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                     return (
                         <div key={step.status} className="relative z-10 flex flex-col items-center gap-2 group">
                             <div className={`size-10 rounded-full flex items-center justify-center transition-all duration-500 border-2 ${isCurrent ? 'bg-amber-500 border-amber-400 text-black scale-110 shadow-[0_0_20px_rgba(245,158,11,0.4)]' :
-                                isActive ? 'bg-zinc-950 border-amber-500 text-amber-500' :
-                                    'bg-zinc-950 border-zinc-800 text-zinc-700'
+                                isActive ? 'bg-background border-amber-500 text-amber-500' :
+                                    'bg-background border-border text-muted-foreground/30'
                                 }`}>
                                 <span className="material-symbols-outlined text-[18px]">{step.icon}</span>
                             </div>
-                            <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${isActive ? 'text-white' : 'text-zinc-700'
+                            <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${isActive ? 'text-foreground' : 'text-muted-foreground'
                                 }`}>{step.label}</span>
                         </div>
                     );
@@ -94,7 +94,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Technical Diagnosis */}
                 <div className="space-y-4">
-                    <label className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors">
+                    <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors">
                         <span className="material-symbols-outlined text-[16px]">biotech</span>
                         Diagnóstico Técnico
                     </label>
@@ -102,13 +102,13 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                         value={diagnosis}
                         onChange={(e) => setDiagnosis(e.target.value)}
                         placeholder="Describe el estado de la pieza y el trabajo requerido..."
-                        className="w-full min-h-[120px] bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-300 dark:placeholder-zinc-700 focus:border-amber-500/30 dark:focus:border-amber-500/50 outline-none transition-all resize-none shadow-inner"
+                        className="w-full min-h-[120px] bg-input border border-border rounded-2xl p-4 text-sm text-foreground placeholder-muted-foreground focus:border-amber-500/30 dark:focus:border-amber-500/50 outline-none transition-all resize-none shadow-inner"
                     />
                 </div>
 
                 {/* Parts & Resources */}
                 <div className="space-y-4">
-                    <label className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors">
+                    <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors">
                         <span className="material-symbols-outlined text-[16px]">inventory_2</span>
                         Insumos y Repuestos
                     </label>
@@ -116,17 +116,17 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                         value={partsNeeded}
                         onChange={(e) => setPartsNeeded(e.target.value)}
                         placeholder="Gemas a reponer, soldaduras, cierres..."
-                        className="w-full min-h-[120px] bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 text-sm text-zinc-900 dark:text-white placeholder-zinc-300 dark:placeholder-zinc-700 focus:border-amber-500/30 dark:focus:border-amber-500/50 outline-none transition-all resize-none shadow-inner"
+                        className="w-full min-h-[120px] bg-input border border-border rounded-2xl p-4 text-sm text-foreground placeholder-muted-foreground focus:border-amber-500/30 dark:focus:border-amber-500/50 outline-none transition-all resize-none shadow-inner"
                     />
                 </div>
             </div>
 
-            <footer className="mt-10 flex items-center justify-between gap-6 pt-8 border-t border-zinc-100 dark:border-zinc-900 transition-colors">
+            <footer className="mt-10 flex items-center justify-between gap-6 pt-8 border-t border-border transition-colors">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={handleSaveSpecs}
                         disabled={isSaving}
-                        className="px-6 py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 shadow-sm"
+                        className="px-6 py-3 bg-secondary hover:bg-secondary-hover text-secondary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 shadow-sm"
                     >
                         {isSaving ? 'Guardando...' : 'Guardar Datos Técnicos'}
                     </button>
@@ -134,7 +134,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                     {currentStatus !== OrderStatus.REPAIR_COMPLETED && currentStatus !== OrderStatus.DELIVERED && (
                         <button
                             onClick={() => onUpdateStatus({ status: OrderStatus.REPAIR_COMPLETED })}
-                            className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                            className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
                         >
                             Marcar como Listo
                         </button>

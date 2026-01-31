@@ -16,6 +16,9 @@ model Tenant {
   clients       Client[]
   orders        Order[]
   conversations Conversation[]
+  queueTickets  QueueTicket[]
+  queueRecommendations QueueRecommendation[]
+  notificationLogs     NotificationLog[]
 }
 
 enum Role {
@@ -148,6 +151,7 @@ model Order {
   
   imageUrl      String?
   payments      Payment[]
+  queueTicket   QueueTicket?
 }
 
 enum OrderType {
@@ -193,4 +197,99 @@ model Payment {
   reference     String?
   recordedBy    String?
   recordedAt    DateTime    @default(now())
+}
+
+enum QueueTicketKind {
+  REPAIR
+  SALE
+  PICKUP
+}
+
+enum QueueTicketStatus {
+  WAITING
+  CALLING
+  CALLED
+  IN_SERVICE
+  DONE
+  NO_SHOW
+  CANCELLED
+}
+
+model QueueTicket {
+  id              String            @id @default(uuid())
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  kind            QueueTicketKind
+  status          QueueTicketStatus @default(WAITING)
+  code            String            // e.g., R-104
+  customerName    String
+  customerPhone   String?
+  customerEmail   String?
+  qrToken         String            @unique // For QR lookup
+  sequenceNumber  Int               @default(autoincrement()) @unique // For daily reset or sequence within tenant
+  
+  orderId         String?           @unique
+  order           Order?            @relation(fields: [orderId], references: [id])
+  
+  recommendations QueueTicketRecommendation[]
+  events          QueueEvent[]
+  notifications   NotificationLog[]
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([tenantId, status])
+  @@index([qrToken])
+  @@unique([tenantId, sequenceNumber])
+}
+
+model QueueRecommendation {
+  id              String            @id @default(uuid())
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  kind            QueueTicketKind
+  key             String
+  label           String
+  isActive        Boolean           @default(true)
+  sortOrder       Int               @default(0)
+  
+  tickets         QueueTicketRecommendation[]
+
+  @@index([tenantId, kind, isActive])
+}
+
+model QueueTicketRecommendation {
+  ticketId         String
+  ticket           QueueTicket      @relation(fields: [ticketId], references: [id])
+  recommendationId String
+  recommendation   QueueRecommendation @relation(fields: [recommendationId], references: [id])
+  notes            String?          @db.Text
+
+  @@id([ticketId, recommendationId])
+}
+
+model QueueEvent {
+  id              String            @id @default(uuid())
+  ticketId        String
+  ticket          QueueTicket       @relation(fields: [ticketId], references: [id])
+  fromStatus      QueueTicketStatus?
+  toStatus        QueueTicketStatus
+  changedBy       String?           // User ID
+  createdAt       DateTime          @default(now())
+}
+
+model NotificationLog {
+  id              String      @id @default(uuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  ticketId        String
+  ticket          QueueTicket @relation(fields: [ticketId], references: [id])
+  channel         String      // e.g., "WHATSAPP", "EMAIL"
+  templateKey     String      // e.g., "YOUR_TURN"
+  to              String?
+  dedupeKey       String?     @unique // e.g., "ticketId:templateKey"
+  providerMessageId String?
+  status          String      // e.g., "SENT", "FAILED"
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }

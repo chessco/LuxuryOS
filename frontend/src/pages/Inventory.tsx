@@ -80,12 +80,12 @@ const InventoryPage: React.FC = () => {
                 {/* Heading */}
                 <div className="flex flex-col lg:flex-row flex-wrap justify-between gap-6 items-start lg:items-end">
                     <div className="flex flex-col gap-3 max-w-2xl">
-                        <h1 className="text-zinc-900 dark:text-white text-4xl font-black tracking-tight font-display">Inventario</h1>
-                        <p className="text-zinc-400 dark:text-zinc-500 text-sm font-medium">Control de existencias, ubicación y valoración de piezas de lujo.</p>
+                        <h1 className="text-foreground text-4xl font-black tracking-tight font-display transition-colors">Inventario</h1>
+                        <p className="text-muted-foreground text-sm font-medium transition-colors">Control de existencias, ubicación y valoración de piezas de lujo.</p>
                     </div>
                     <button
                         onClick={() => openModal()}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-zinc-900 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black transition-all h-12 px-8 text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-black/5 dark:shadow-white/5 active:scale-95"
+                        className="flex items-center justify-center gap-2 rounded-xl bg-foreground text-background transition-all h-12 px-8 text-xs font-black uppercase tracking-[0.2em] shadow-xl active:scale-95"
                     >
                         <span className="material-symbols-outlined text-[20px]">add</span>
                         <span>Nuevo Artículo</span>
@@ -96,20 +96,20 @@ const InventoryPage: React.FC = () => {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <SummaryStat label="Valor Total" value="$845,200" />
                     <SummaryStat label="Piezas" value={Object.keys(items).length.toString()} />
-                    <SummaryStat label="Stock Bajo" value="5" badge="Alerta" badgeColor="text-red-400 bg-red-400/10 border-red-400/20" />
+                    <SummaryStat label="Stock Bajo" value="5" badge="Alerta" badgeColor="text-red-500 bg-red-500/10 border-red-500/20" />
                     <SummaryStat label="En Consignación" value="12" />
                 </div>
 
                 {/* Toolbar */}
-                <div className="bg-white dark:bg-zinc-900/30 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-900 backdrop-blur-sm flex flex-col gap-6 shadow-sm transition-colors">
+                <div className="bg-card rounded-2xl p-6 border border-border backdrop-blur-sm flex flex-col gap-6 shadow-sm transition-colors">
                     <div className="flex flex-col lg:flex-row justify-between gap-4">
                         <div className="flex-1 max-w-md">
-                            <div className="relative flex items-center w-full h-12 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-900 overflow-hidden focus-within:border-zinc-400 dark:focus-within:border-zinc-700 transition-all">
-                                <div className="grid place-items-center h-full w-12 text-zinc-400 dark:text-zinc-500">
+                            <div className="relative flex items-center w-full h-12 rounded-xl bg-muted/50 border border-border overflow-hidden focus-within:border-indigo-500 transition-all">
+                                <div className="grid place-items-center h-full w-12 text-muted-foreground">
                                     <span className="material-symbols-outlined">search</span>
                                 </div>
                                 <input
-                                    className="peer h-full w-full outline-none text-sm text-zinc-900 dark:text-white bg-transparent pr-2 placeholder-zinc-400 dark:placeholder-zinc-600"
+                                    className="peer h-full w-full outline-none text-sm text-foreground bg-transparent pr-2 placeholder-muted-foreground"
                                     placeholder="Buscar por nombre, SKU o categoría..."
                                     type="text"
                                 />
@@ -117,10 +117,10 @@ const InventoryPage: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
                             {['Ubicación', 'Stock Bajo', 'Diamantes', 'Filtros'].map(f => (
-                                <button key={f} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-900 px-6 hover:border-zinc-400 dark:hover:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all text-xs font-bold uppercase tracking-widest whitespace-nowrap">
+                                <button key={f} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-muted/50 border border-border px-6 hover:border-indigo-500 text-muted-foreground hover:text-foreground transition-all text-xs font-bold uppercase tracking-widest whitespace-nowrap">
                                     {f === 'Stock Bajo' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]"></span>}
                                     <span>{f}</span>
-                                    {['Ubicación', 'Filtros'].includes(f) && <span className="material-symbols-outlined text-[18px] text-zinc-300 dark:text-zinc-600">{f === 'Filtros' ? 'filter_list' : 'keyboard_arrow_down'}</span>}
+                                    {['Ubicación', 'Filtros'].includes(f) && <span className="material-symbols-outlined text-[18px] text-muted-foreground/50">{f === 'Filtros' ? 'filter_list' : 'keyboard_arrow_down'}</span>}
                                 </button>
                             ))}
                         </div>
@@ -128,10 +128,10 @@ const InventoryPage: React.FC = () => {
                 </div>
 
                 {/* Table */}
-                <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-900/20 backdrop-blur-sm shadow-sm transition-colors">
+                <div className="overflow-hidden rounded-2xl border border-border bg-card backdrop-blur-sm shadow-sm transition-colors">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-zinc-50 dark:bg-zinc-900/40 border-b border-zinc-200 dark:border-zinc-900 text-zinc-400 dark:text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                            <tr className="bg-muted/50 border-b border-border text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em]">
                                 <th className="px-8 py-5 font-bold w-1/2">Artículo</th>
                                 <th className="px-8 py-5 font-bold">Ubicación</th>
                                 <th className="px-8 py-5 font-bold text-center">Cantidad</th>
@@ -139,52 +139,52 @@ const InventoryPage: React.FC = () => {
                                 <th className="px-8 py-5 font-bold text-right"></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900/50">
+                        <tbody className="divide-y divide-border">
                             {(Object.values(items) as ItemMock[]).map(item => (
-                                <tr key={item.id} className="group hover:bg-zinc-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer">
+                                <tr key={item.id} className="group hover:bg-muted/30 transition-colors cursor-pointer">
                                     <td className="px-8 py-6">
                                         <div className="flex items-center gap-5">
-                                            <div className="h-14 w-14 rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-center shadow-sm dark:shadow-xl shrink-0 group-hover:border-zinc-300 dark:group-hover:border-zinc-600 transition-colors">
-                                                <span className="material-symbols-outlined text-[24px] text-zinc-400 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">{item.icon}</span>
+                                            <div className="h-14 w-14 rounded-2xl border border-border bg-muted flex items-center justify-center shadow-sm shrink-0 group-hover:border-indigo-500/50 transition-colors">
+                                                <span className="material-symbols-outlined text-[24px] text-muted-foreground group-hover:text-foreground transition-colors">{item.icon}</span>
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-zinc-900 dark:text-white text-base leading-tight tracking-tight group-hover:underline decoration-zinc-200 dark:decoration-zinc-800 underline-offset-4 uppercase tracking-tighter">{item.name}</h4>
+                                                <h4 className="font-bold text-foreground text-base leading-tight tracking-tight group-hover:underline decoration-border underline-offset-4 uppercase tracking-tighter transition-colors">{item.name}</h4>
                                                 <div className="flex items-center gap-3 mt-1.5">
-                                                    <span className="text-zinc-400 dark:text-zinc-600 text-[10px] font-black uppercase tracking-widest">SKU: {item.sku}</span>
-                                                    <span className="w-1 h-1 rounded-full bg-zinc-100 dark:bg-zinc-800"></span>
-                                                    <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black uppercase tracking-widest">{item.detail}</span>
+                                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">SKU: {item.sku}</span>
+                                                    <span className="w-1 h-1 rounded-full bg-border"></span>
+                                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">{item.detail}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs font-medium">
-                                            <span className="material-symbols-outlined text-[18px] text-zinc-300 dark:text-zinc-700">location_on</span>
+                                        <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
+                                            <span className="material-symbols-outlined text-[18px] text-muted-foreground/40 transition-colors">location_on</span>
                                             <span>{item.location}</span>
                                         </div>
                                     </td>
                                     <td className="px-8 py-6 text-center">
                                         <div className="flex items-center justify-center gap-2">
-                                            <span className="font-black text-zinc-900 dark:text-white text-base">{item.quantity}</span>
+                                            <span className="font-black text-foreground text-base transition-colors">{item.quantity}</span>
                                             {item.alert && <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)] animate-pulse"></span>}
                                         </div>
                                     </td>
                                     <td className="px-8 py-6 text-right">
-                                        <p className="font-bold text-zinc-900 dark:text-white text-base">{item.value}</p>
-                                        <p className="text-[10px] text-zinc-400 dark:text-zinc-600 font-black uppercase tracking-widest mt-0.5">COST: {item.cost}</p>
+                                        <p className="font-bold text-foreground text-base transition-colors">{item.value}</p>
+                                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">COST: {item.cost}</p>
                                     </td>
                                     <td className="px-8 py-6 text-right">
                                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); openModal(item); }}
-                                                className="p-2 rounded-xl text-zinc-400 hover:text-zinc-900 dark:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+                                                className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                                                 title="Editar"
                                             >
                                                 <span className="material-symbols-outlined text-[20px]">edit</span>
                                             </button>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                                                className="p-2 rounded-xl text-zinc-400 hover:text-red-500 dark:text-zinc-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                className="p-2 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all"
                                                 title="Eliminar"
                                             >
                                                 <span className="material-symbols-outlined text-[20px]">delete</span>
@@ -195,11 +195,11 @@ const InventoryPage: React.FC = () => {
                             ))}
                         </tbody>
                     </table>
-                    <div className="px-8 py-5 border-t border-zinc-200 dark:border-zinc-900 bg-zinc-50/50 dark:bg-black/10 flex items-center justify-between">
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-600 font-black uppercase tracking-widest">Mostrando {(Object.values(items) as ItemMock[]).length} artículos</p>
+                    <div className="px-8 py-5 border-t border-border bg-muted/30 flex items-center justify-between">
+                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Mostrando {(Object.values(items) as ItemMock[]).length} artículos</p>
                         <div className="flex gap-2">
-                            <button className="h-10 px-6 rounded-xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-900/50 text-zinc-400 dark:text-zinc-600 text-[10px] font-black uppercase tracking-widest hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-700 transition-all shadow-sm active:scale-95">Anterior</button>
-                            <button className="h-10 px-6 rounded-xl border border-zinc-200 dark:border-zinc-900 bg-white dark:bg-zinc-900/50 text-zinc-400 dark:text-zinc-600 text-[10px] font-black uppercase tracking-widest hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-700 transition-all shadow-sm active:scale-95">Siguiente</button>
+                            <button className="h-10 px-6 rounded-xl border border-border bg-card text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm active:scale-95">Anterior</button>
+                            <button className="h-10 px-6 rounded-xl border border-border bg-card text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm active:scale-95">Siguiente</button>
                         </div>
                     </div>
                 </div>
@@ -217,10 +217,10 @@ const InventoryPage: React.FC = () => {
 };
 
 const SummaryStat: React.FC<{ label: string, value: string, badge?: string, badgeColor?: string }> = ({ label, value, badge, badgeColor }) => (
-    <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 backdrop-blur-sm shadow-sm flex flex-col gap-2 transition-colors">
-        <p className="text-zinc-400 dark:text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">{label}</p>
+    <div className="p-6 rounded-2xl bg-card border border-border backdrop-blur-sm shadow-sm flex flex-col gap-2 transition-colors">
+        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em]">{label}</p>
         <div className="flex items-center gap-3">
-            <p className="text-zinc-900 dark:text-white text-2xl font-black tracking-tighter">{value}</p>
+            <p className="text-foreground text-2xl font-black tracking-tighter transition-colors">{value}</p>
             {badge && <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${badgeColor}`}>{badge}</span>}
         </div>
     </div>
@@ -243,13 +243,13 @@ const InventoryModal: React.FC<{ item: ItemMock | null, onClose: () => void, onS
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="w-full max-w-2xl bg-zinc-950 border border-zinc-900 rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-                <div className="px-8 py-6 border-b border-zinc-900 flex items-center justify-between bg-zinc-900/40">
-                    <h2 className="text-white text-lg font-black uppercase tracking-widest font-display">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="w-full max-w-2xl bg-background border border-border rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                <div className="px-8 py-6 border-b border-border flex items-center justify-between bg-muted/20">
+                    <h2 className="text-foreground text-lg font-black uppercase tracking-widest font-display">
                         {item ? 'Editar Artículo' : 'Nuevo Artículo'}
                     </h2>
-                    <button onClick={onClose} className="size-8 flex items-center justify-center rounded-lg hover:bg-zinc-900 text-zinc-600 hover:text-white transition-all">
+                    <button onClick={onClose} className="size-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
                         <span className="material-symbols-outlined">close</span>
                     </button>
                 </div>
@@ -257,24 +257,24 @@ const InventoryModal: React.FC<{ item: ItemMock | null, onClose: () => void, onS
                 <form className="p-8 space-y-6" onSubmit={(e) => { e.preventDefault(); onSave(formData); }}>
                     <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">SKU</label>
+                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">SKU</label>
                             <input
                                 name="sku"
                                 value={formData.sku}
                                 onChange={handleChange}
                                 required
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white focus:outline-none transition-all placeholder-zinc-700"
+                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
                                 placeholder="Ej. RNG-001"
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Nombre</label>
+                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Nombre</label>
                             <input
                                 name="name"
                                 value={formData.name}
                                 onChange={handleChange}
                                 required
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white focus:outline-none transition-all placeholder-zinc-700"
+                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
                                 placeholder="Ej. Anillo Diamante"
                             />
                         </div>
@@ -282,12 +282,12 @@ const InventoryModal: React.FC<{ item: ItemMock | null, onClose: () => void, onS
 
                     <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Ubicación</label>
+                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Ubicación</label>
                             <select
                                 name="location"
                                 value={formData.location}
                                 onChange={handleChange}
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white focus:outline-none transition-all"
+                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all"
                             >
                                 <option value="">Seleccionar...</option>
                                 <option value="Bóveda Principal">Bóveda Principal</option>
@@ -297,12 +297,12 @@ const InventoryModal: React.FC<{ item: ItemMock | null, onClose: () => void, onS
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Categoría</label>
+                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Categoría</label>
                             <select
                                 name="type"
                                 value={formData.type}
                                 onChange={handleChange}
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white focus:outline-none transition-all"
+                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all"
                             >
                                 <option value="Joyería">Joyería</option>
                                 <option value="Relojería">Relojería</option>
@@ -314,40 +314,40 @@ const InventoryModal: React.FC<{ item: ItemMock | null, onClose: () => void, onS
 
                     <div className="grid grid-cols-3 gap-6">
                         <div className="space-y-2">
-                            <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Cantidad</label>
+                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Cantidad</label>
                             <input
                                 name="quantity"
                                 type="number"
                                 value={formData.quantity}
                                 onChange={handleChange}
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white focus:outline-none transition-all placeholder-zinc-700"
+                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Valor Venta</label>
+                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Valor Venta</label>
                             <input
                                 name="value"
                                 value={formData.value}
                                 onChange={handleChange}
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white focus:outline-none transition-all placeholder-zinc-700"
+                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
                                 placeholder="$0.00"
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Costo</label>
+                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Costo</label>
                             <input
                                 name="cost"
                                 value={formData.cost}
                                 onChange={handleChange}
-                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white focus:outline-none transition-all placeholder-zinc-700"
+                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
                                 placeholder="$0.00"
                             />
                         </div>
                     </div>
 
                     <div className="pt-6 flex justify-end gap-4">
-                        <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl hover:bg-zinc-900 text-zinc-500 hover:text-white transition-all text-xs font-bold uppercase tracking-widest">Cancelar</button>
-                        <button type="submit" className="px-8 py-3 rounded-xl bg-white text-black hover:bg-zinc-200 transition-all text-xs font-bold uppercase tracking-widest shadow-lg shadow-white/10">Guardar Artículo</button>
+                        <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-xs font-bold uppercase tracking-widest">Cancelar</button>
+                        <button type="submit" className="px-8 py-3 rounded-xl bg-foreground text-background hover:opacity-90 transition-all text-xs font-bold uppercase tracking-widest shadow-lg">Guardar Artículo</button>
                     </div>
                 </form>
             </div>

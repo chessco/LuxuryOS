@@ -49,19 +49,30 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         @ConnectedSocket() client: Socket,
         @MessageBody() data: { conversationId: string; senderId: string; content: string },
     ) {
-        const message = await this.chatService.saveMessage(
-            data.conversationId,
-            data.senderId,
-            data.content,
-        );
+        console.log(`[ChatGateway] Received sendMessage:`, { ...data, socketId: client.id });
 
-        // Broadcast to all clients in the room
-        this.server.to(data.conversationId).emit('newMessage', message);
+        try {
+            const message = await this.chatService.saveMessage(
+                data.conversationId,
+                data.senderId,
+                data.content,
+            );
 
-        // Also notify users for the list update (last message)
-        this.server.emit('conversationUpdated', {
-            conversationId: data.conversationId,
-            lastMessage: message
-        });
+            console.log(`[ChatGateway] Message saved, broadcasting to room: ${data.conversationId}`);
+
+            // Broadcast to all clients in the room
+            this.server.to(data.conversationId).emit('newMessage', message);
+
+            // Also notify users for the list update (last message)
+            this.server.emit('conversationUpdated', {
+                conversationId: data.conversationId,
+                lastMessage: message
+            });
+
+            console.log(`[ChatGateway] Broadcast complete for message: ${message.id}`);
+        } catch (error) {
+            console.error(`[ChatGateway] Error handling sendMessage:`, error);
+            client.emit('error', { message: 'Failed to send message' });
+        }
     }
 }

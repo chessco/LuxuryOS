@@ -14,7 +14,7 @@ export default function AppLayout() {
     }
 
     return (
-        <div className="flex h-screen w-full overflow-hidden bg-zinc-950">
+        <div className="flex h-screen w-full overflow-hidden bg-background">
             <Sidebar
                 isOpen={isMobileMenuOpen}
                 onClose={() => setIsMobileMenuOpen(false)}
@@ -23,7 +23,7 @@ export default function AppLayout() {
                     navigate("/login");
                 }}
             />
-            <div className="flex flex-1 flex-col h-full overflow-hidden bg-zinc-950 border-l border-zinc-900 shadow-2xl transition-all duration-500">
+            <div className="flex flex-1 flex-col h-full overflow-hidden bg-background border-l border-border shadow-2xl transition-all duration-500">
                 <Header onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
                 <main className="flex-1 overflow-y-auto overflow-x-hidden p-8 scroll-smooth">
                     <div className="max-w-7xl mx-auto">

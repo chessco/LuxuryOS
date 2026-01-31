@@ -40,7 +40,7 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/60 dark:bg-black/80 backdrop-blur-sm print:bg-white print:p-0 transition-colors">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm print:bg-white print:p-0 transition-colors">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -58,7 +58,7 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                         </button>
                         <button
                             onClick={onClose}
-                            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-800 text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-black dark:hover:bg-zinc-700 transition-all shadow-xl shadow-black/10 active:scale-95"
+                            className="flex items-center gap-2 px-4 py-2 bg-foreground text-background rounded-lg font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all shadow-xl active:scale-95"
                         >
                             Cerrar
                         </button>
