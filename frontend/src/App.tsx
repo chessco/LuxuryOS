@@ -8,9 +8,15 @@ import Finance from './pages/Finance';
 import AIAssistant from './pages/AIAssistant';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import QueueSettings from './pages/QueueSettings';
 import OrderDetail from './pages/OrderDetail';
 import Users from './pages/Users';
 import Messages from './pages/Messages';
+import Kiosk from './pages/Kiosk';
+import PublicScreen from './pages/PublicScreen';
+import StaffQueue from './pages/StaffQueue';
+import Pickup from './pages/Pickup';
+import Sidebar from './components/Sidebar';
 import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
@@ -32,9 +38,14 @@ function App() {
                         <Route path="/ai-assistant" element={<AIAssistant />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/settings/users" element={<Users />} />
+                        <Route path="/settings/queue" element={<QueueSettings />} />
                         <Route path="/messages" element={<Messages />} />
+                        <Route path="/screen" element={<PublicScreen />} />
+                        <Route path="/staff/queue" element={<StaffQueue />} />
+                        <Route path="/pickup" element={<Pickup />} />
                         <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
                     </Route>
+                    <Route path="/kiosk" element={<Kiosk />} />
                 </Routes>
             </Router>
         </ThemeProvider>

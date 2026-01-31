@@ -37,7 +37,7 @@ const OrderDetail: React.FC = () => {
             ...foundOrder,
             clientName: clientName,
             initials: clientName.substring(0, 2).toUpperCase() || 'CX',
-            initialsColor: 'bg-zinc-800 text-zinc-400',
+            initialsColor: 'bg-muted text-muted-foreground',
             date: foundOrder.createdAt ? new Date(foundOrder.createdAt).toLocaleDateString('es-MX', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
@@ -250,8 +250,10 @@ const OrderDetail: React.FC = () => {
                             action: "creó el pedido",
                             target: "",
                             time: new Date(foundOrder.createdAt).toLocaleString(),
-                            dotColor: "bg-zinc-700"
+                            dotColor: "bg-muted-foreground/30"
                         });
+
+                        // ...
 
                         // 2. Payments
                         if (foundOrder.payments) {
@@ -325,7 +327,7 @@ const OrderDetail: React.FC = () => {
     };
 
     if (!order) {
-        return <div className="p-10 text-white font-black uppercase tracking-widest">Pedido no encontrado</div>;
+        return <div className="p-10 text-foreground font-black uppercase tracking-widest transition-colors">Pedido no encontrado</div>;
     }
 
     const updateField = async (field: string, value: any) => {
@@ -357,43 +359,43 @@ const OrderDetail: React.FC = () => {
         <div className="flex-1 flex flex-col h-full">
             {/* Breadcrumbs & Header */}
             <header className="mb-10">
-                <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-600 mb-6">
-                    <Link to="/dashboard" className="hover:text-zinc-900 dark:hover:text-white transition-colors">Inicio</Link>
+                <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-6">
+                    <Link to="/dashboard" className="hover:text-foreground transition-colors">Inicio</Link>
                     <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <Link to="/orders" className="hover:text-zinc-900 dark:hover:text-white transition-colors">Pedidos</Link>
+                    <Link to="/orders" className="hover:text-foreground transition-colors">Pedidos</Link>
                     <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <span className="text-zinc-500 dark:text-zinc-400">Pedido #ORD-{order.id.substring(0, 8)}</span>
+                    <span className="text-muted-foreground/60 transition-colors">Pedido #ORD-{order.id.substring(0, 8)}</span>
                 </nav>
 
                 <div className="flex flex-wrap justify-between items-end gap-6">
                     <div className="space-y-4">
                         <div className="flex items-center gap-4">
-                            <h1 className="text-zinc-900 dark:text-white text-5xl font-black tracking-tighter font-display">Pedido #ORD-{order.id.substring(0, 8)}</h1>
-                            <span className={`px-3 py-1 bg-zinc-900/5 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-[9px] font-black uppercase tracking-widest rounded-full ${order.statusType === 'urgent' ? 'text-red-600 dark:text-red-400 border-red-500/20 bg-red-500/5' :
-                                order.statusType === 'success' ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/5' :
-                                    'text-indigo-600 dark:text-indigo-400 border-indigo-500/20 bg-indigo-500/5'
+                            <h1 className="text-foreground text-5xl font-black tracking-tighter font-display transition-colors">Pedido #ORD-{order.id.substring(0, 8)}</h1>
+                            <span className={`px-3 py-1 bg-muted border border-border text-[9px] font-black uppercase tracking-widest rounded-full transition-colors ${order.statusType === 'urgent' ? 'text-red-600 border-red-500/20 bg-red-500/5' :
+                                order.statusType === 'success' ? 'text-emerald-600 border-emerald-500/20 bg-emerald-500/5' :
+                                    'text-indigo-600 border-indigo-500/20 bg-indigo-500/5'
                                 }`}>{order.status}</span>
                         </div>
-                        <div className="flex items-center gap-6 text-zinc-400 dark:text-zinc-500 text-xs font-bold uppercase tracking-widest">
+                        <div className="flex items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-[18px]">history</span>
                                 <span>Recibido: {order.date}</span>
                             </div>
-                            <div className={`flex items-center gap-2 ${order.statusType === 'urgent' ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                            <div className={`flex items-center gap-2 transition-colors ${order.statusType === 'urgent' ? 'text-red-600' : 'text-indigo-600'}`}>
                                 <span className="material-symbols-outlined text-[18px]">{order.statusType === 'urgent' ? 'priority_high' : 'info'}</span>
                                 <span>{order.priority}</span>
                             </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-700 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors">
+                        <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm">
                             <span className="material-symbols-outlined text-[20px]">edit</span>
                             <span>Editar Detalles</span>
                         </button>
                         {order.type === OrderType.REPAIR && (
                             <button
                                 onClick={() => setIsPrintViewOpen(true)}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest transition-colors"
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
                             >
                                 <span className="material-symbols-outlined text-[20px]">print</span>
                                 <span>Visualizar Sobre</span>
@@ -402,13 +404,13 @@ const OrderDetail: React.FC = () => {
                         {order.type === OrderType.REPAIR && order.status !== 'REPAIR_COMPLETED' && order.status !== 'DELIVERED' && (
                             <button
                                 onClick={() => handleSaveDetails({ status: 'REPAIR_COMPLETED' })}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-500/20 transition-all text-[10px] font-black uppercase tracking-widest transition-colors"
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
                             >
                                 <span className="material-symbols-outlined text-[20px]">verified</span>
                                 <span>Listo para Entrega</span>
                             </button>
                         )}
-                        <button onClick={handleAdvanceStatus} className="flex items-center gap-2 px-8 py-3 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-black hover:bg-black dark:hover:bg-zinc-200 transition-all text-[10px] font-black uppercase tracking-widest shadow-xl shadow-black/5 dark:shadow-white/5">
+                        <button onClick={handleAdvanceStatus} className="flex items-center gap-2 px-8 py-3 rounded-xl bg-foreground text-background transition-all text-[10px] font-black uppercase tracking-widest shadow-xl">
                             <span className="material-symbols-outlined text-[20px]">sync</span>
                             <span>Actualizar Estado</span>
                         </button>
@@ -418,9 +420,9 @@ const OrderDetail: React.FC = () => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard label="Valor Total" value={Number(order.value || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('value', v)} subtext="Impuestos incluidos" icon="payments" color="text-zinc-900 dark:text-white" />
-                <StatCard label="Costo de Producción" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('cost', v)} subtext="Materiales + Mano de obra" icon="precision_manufacturing" color="text-zinc-900 dark:text-white" />
-                <StatCard label="Margen Estimado" value={(parseValue(order.value) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Rentabilidad alta" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
+                <StatCard label="Valor Total" value={Number(order.value || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('value', v)} subtext="Impuestos incluidos" icon="payments" color="text-foreground" />
+                <StatCard label="Costo de Producción" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('cost', v)} subtext="Materiales + Mano de obra" icon="precision_manufacturing" color="text-foreground" />
+                <StatCard label="Margen Estimado" value={(parseValue(order.value) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Rentabilidad alta" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
                 <StatCard
                     label="Fecha de Entrega"
                     value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
@@ -433,7 +435,7 @@ const OrderDetail: React.FC = () => {
                         })()
                     ) : "Sin fecha asignada"}
                     icon="event"
-                    color="text-zinc-900 dark:text-white"
+                    color="text-foreground"
                     alert={order.dueDate && new Date(order.dueDate) < new Date() ? "priority_high" : undefined}
                     alertColor="text-red-500"
                     border={order.dueDate && new Date(order.dueDate) < new Date() ? "border-l-4 border-l-red-500" : ""}
@@ -444,13 +446,13 @@ const OrderDetail: React.FC = () => {
                 {/* Left Column: Details & Client */}
                 <div className="lg:col-span-4 space-y-10">
                     {/* Piece Details - Multiple Support */}
-                    <section className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
+                    <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                         <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-3">
-                                <span className="material-symbols-outlined text-indigo-600 dark:text-indigo-400 transition-colors">diamond</span>
-                                <h3 className="text-zinc-900 dark:text-white text-[10px] font-black uppercase tracking-widest transition-colors">Ficha Técnica de Piezas</h3>
+                                <span className="material-symbols-outlined text-indigo-600 transition-colors">diamond</span>
+                                <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Ficha Técnica de Piezas</h3>
                             </div>
-                            <span className="text-zinc-500 dark:text-zinc-600 text-[9px] font-black uppercase tracking-widest bg-zinc-50 dark:bg-zinc-950 px-2 py-1 rounded-lg border border-zinc-100 dark:border-zinc-900 transition-colors">
+                            <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest bg-muted px-2 py-1 rounded-lg border border-border transition-colors">
                                 {order.specifications?.items?.length || 1} {order.specifications?.items?.length > 1 ? 'Piezas' : 'Pieza'}
                             </span>
                         </div>
@@ -473,12 +475,12 @@ const OrderDetail: React.FC = () => {
                                             <div className="h-px flex-1 bg-zinc-900"></div>
                                         </div>
                                     )}
-                                    <div className="aspect-square bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex items-center justify-center overflow-hidden group/img relative transition-colors">
+                                    <div className="aspect-square bg-muted rounded-2xl border border-border flex items-center justify-center overflow-hidden group/img relative transition-colors">
                                         {order.imageUrl ? (
                                             <img src={order.imageUrl} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700" alt="Pieza" />
                                         ) : (
-                                            <div className="size-16 bg-zinc-100 dark:bg-zinc-900/50 rounded-full flex items-center justify-center group-hover/img:scale-110 transition-transform duration-500">
-                                                <span className="material-symbols-outlined text-zinc-300 dark:text-zinc-800 text-3xl transition-colors">image</span>
+                                            <div className="size-16 bg-muted/50 rounded-full flex items-center justify-center group-hover/img:scale-110 transition-transform duration-500">
+                                                <span className="material-symbols-outlined text-muted-foreground/30 text-3xl transition-colors">image</span>
                                             </div>
                                         )}
 
@@ -486,14 +488,14 @@ const OrderDetail: React.FC = () => {
                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-all flex flex-col items-center justify-center gap-4 backdrop-blur-sm">
                                             <button
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all"
+                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-muted transition-all"
                                             >
                                                 <span className="material-symbols-outlined text-[18px]">upload</span> Subir Foto
                                             </button>
                                             <button
                                                 onClick={handleGenerateAIImage}
                                                 disabled={isGeneratingImage}
-                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all disabled:opacity-50"
+                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50"
                                             >
                                                 <span className={`material-symbols-outlined text-[18px] ${isGeneratingImage ? 'animate-spin' : ''}`}>{isGeneratingImage ? 'sync' : 'auto_awesome'}</span> {isGeneratingImage ? 'Generando...' : 'Generar IA'}
                                             </button>
@@ -524,9 +526,9 @@ const OrderDetail: React.FC = () => {
                     </section>
 
                     {/* Client Info */}
-                    <section className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
+                    <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                         <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-zinc-900 dark:text-white text-[10px] font-black uppercase tracking-widest transition-colors">Cliente</h3>
+                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Cliente</h3>
                             <Link
                                 to={`/clients?search=${encodeURIComponent(order.clientName)}`}
                                 className="text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:underline transition-colors"
@@ -538,54 +540,54 @@ const OrderDetail: React.FC = () => {
                             {order.avatar ? (
                                 <img src={order.avatar} className="size-16 rounded-2xl object-cover grayscale opacity-80" alt="Client" />
                             ) : (
-                                <div className={`size-16 rounded-2xl flex items-center justify-center text-xs font-black border border-zinc-200 dark:border-zinc-800 shadow-lg transition-colors ${order.initialsColor}`}>{order.initials}</div>
+                                <div className={`size-16 rounded-2xl flex items-center justify-center text-xs font-black border border-border shadow-lg transition-colors ${order.initialsColor}`}>{order.initials}</div>
                             )}
                             <div>
-                                <h4 className="text-zinc-900 dark:text-white font-bold text-lg transition-colors">{order.clientName}</h4>
-                                <p className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black uppercase tracking-widest mt-1 transition-colors">VIP • Madrid, ES</p>
+                                <h4 className="text-foreground font-bold text-lg transition-colors">{order.clientName}</h4>
+                                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1 transition-colors">VIP • Madrid, ES</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                            <button className="flex items-center justify-center gap-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-700 transition-all shadow-sm transition-colors">
+                            <button className="flex items-center justify-center gap-2 bg-muted border border-border rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm transition-colors">
                                 <span className="material-symbols-outlined text-[18px]">mail</span> Email
                             </button>
-                            <button className="flex items-center justify-center gap-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-700 transition-all shadow-sm transition-colors">
+                            <button className="flex items-center justify-center gap-2 bg-muted border border-border rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm transition-colors">
                                 <span className="material-symbols-outlined text-[18px]">call</span> Llamar
                             </button>
                         </div>
                     </section>
 
                     {/* Payment Status */}
-                    <section className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
+                    <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                         <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-zinc-900 dark:text-white text-[10px] font-black uppercase tracking-widest transition-colors">Estado del Pago</h3>
-                            <span className={`px-2 py-0.5 border text-[8px] font-black uppercase tracking-widest rounded transition-colors ${order.paymentProgress >= 100 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-500' : 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-500'}`}>{order.paymentProgress >= 100 ? "Completo" : "Parcial"}</span>
+                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Estado del Pago</h3>
+                            <span className={`px-2 py-0.5 border text-[8px] font-black uppercase tracking-widest rounded transition-colors ${order.paymentProgress >= 100 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-600'}`}>{order.paymentProgress >= 100 ? "Completo" : "Parcial"}</span>
                         </div>
                         <div className="space-y-6">
-                            <div className="h-2 w-full bg-zinc-950 rounded-full overflow-hidden p-[1px]">
+                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden p-[1px] transition-colors">
                                 <div className={`h-full rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all bg-indigo-500`} style={{ width: `${order.paymentProgress}%` }}></div>
                             </div>
                             <div className="space-y-4">
                                 <div className="flex justify-between text-[11px] font-medium">
-                                    <span className="text-zinc-400 dark:text-zinc-500 uppercase tracking-widest transition-colors">Pagado ({Math.round(order.paymentProgress)}%)</span>
-                                    <span className="text-zinc-900 dark:text-white font-black transition-colors">{order.paidAmountFormatted}</span>
+                                    <span className="text-muted-foreground uppercase tracking-widest transition-colors">Pagado ({Math.round(order.paymentProgress)}%)</span>
+                                    <span className="text-foreground font-black transition-colors">{order.paidAmountFormatted}</span>
                                 </div>
                                 <div className="flex justify-between text-[11px] font-medium">
-                                    <span className="text-zinc-400 dark:text-zinc-500 uppercase tracking-widest transition-colors">Pendiente</span>
-                                    <span className="text-zinc-900 dark:text-white font-black transition-colors">{order.pendingAmount}</span>
+                                    <span className="text-muted-foreground uppercase tracking-widest transition-colors">Pendiente</span>
+                                    <span className="text-foreground font-black transition-colors">{order.pendingAmount}</span>
                                 </div>
                             </div>
 
                             {/* Payment List */}
                             {order.payments && order.payments.length > 0 && (
-                                <div className="space-y-3 mt-8 pt-6 border-t border-zinc-900">
-                                    <h4 className="text-zinc-600 text-[8px] font-black uppercase tracking-widest">Historial de Pagos</h4>
+                                <div className="space-y-3 mt-8 pt-6 border-t border-border transition-colors">
+                                    <h4 className="text-muted-foreground text-[8px] font-black uppercase tracking-widest transition-colors">Historial de Pagos</h4>
                                     <div className="max-h-[150px] overflow-y-auto pr-2 no-scrollbar space-y-2">
                                         {order.payments.map((p: any) => (
-                                            <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-100 dark:border-zinc-900 group/payment transition-colors">
+                                            <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border group/payment transition-colors">
                                                 <div>
-                                                    <p className="text-zinc-900 dark:text-white text-[10px] font-black transition-colors">{Number(p.amount).toLocaleString()} MXN</p>
-                                                    <p className="text-zinc-400 dark:text-zinc-600 text-[8px] font-bold uppercase tracking-widest transition-colors">{p.method} • {new Date(p.recordedAt).toLocaleDateString()}</p>
+                                                    <p className="text-foreground text-[10px] font-black transition-colors">{Number(p.amount).toLocaleString()} MXN</p>
+                                                    <p className="text-muted-foreground text-[8px] font-bold uppercase tracking-widest transition-colors">{p.method} • {new Date(p.recordedAt).toLocaleDateString()}</p>
                                                 </div>
                                                 <button
                                                     onClick={() => handleDeletePayment(p.id, Number(p.amount))}
@@ -601,7 +603,7 @@ const OrderDetail: React.FC = () => {
 
                             <button
                                 onClick={() => setIsPaymentModalOpen(true)}
-                                className="w-full py-4 rounded-2xl bg-zinc-900 dark:bg-zinc-950 border border-zinc-800 dark:border-zinc-800 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-400 hover:bg-black dark:hover:text-white hover:border-zinc-700 transition-all shadow-lg active:scale-95">
+                                className="w-full py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
                                 Registrar Pago
                             </button>
                         </div>
@@ -620,15 +622,15 @@ const OrderDetail: React.FC = () => {
 
                     {/* Production Flow (Legacy or Manufacture) */}
                     {order.type === OrderType.MANUFACTURE && (
-                        <section className="bg-zinc-900/30 border border-zinc-900 rounded-[32px] p-8 backdrop-blur-sm">
+                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                             <div className="flex items-center justify-between mb-12">
-                                <h3 className="text-white text-[10px] font-black uppercase tracking-widest font-display">Flujo de Producción</h3>
-                                <span className="text-zinc-600 text-[9px] font-bold uppercase tracking-widest">Actualizado: Hace 2 horas</span>
+                                <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest font-display transition-colors">Flujo de Producción</h3>
+                                <span className="text-muted-foreground text-[9px] font-bold uppercase tracking-widest transition-colors">Actualizado: Hace 2 horas</span>
                             </div>
                             <div className="relative flex justify-between items-center px-4">
-                                <div className="absolute left-0 right-0 h-px bg-zinc-900 top-1/2 -translate-y-1/2 z-0">
+                                <div className="absolute left-0 right-0 h-px bg-border top-1/2 -translate-y-1/2 z-0">
                                     <div
-                                        className="h-full bg-emerald-500/20 transition-all duration-500"
+                                        className="h-full bg-indigo-500/20 transition-all duration-500"
                                         style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
                                     ></div>
                                 </div>
@@ -653,11 +655,11 @@ const OrderDetail: React.FC = () => {
 
                     {/* Envelope / Reference Photos Section */}
                     {order.type === OrderType.REPAIR && (
-                        <section className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
+                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">
                                     <span className="material-symbols-outlined text-amber-600 dark:text-amber-500 transition-colors">photo_library</span>
-                                    <h3 className="text-zinc-900 dark:text-white text-[10px] font-black uppercase tracking-widest transition-colors">Fotos del Sobre y Referencia</h3>
+                                    <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Fotos del Sobre y Referencia</h3>
                                 </div>
                                 <button
                                     onClick={() => envelopeFileInputRef.current?.click()}
@@ -677,7 +679,7 @@ const OrderDetail: React.FC = () => {
 
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                                 {order.specifications?.envelopeImages?.map((img: string, idx: number) => (
-                                    <div key={idx} className="aspect-square bg-zinc-100 dark:bg-zinc-950 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden relative group/img transition-colors">
+                                    <div key={idx} className="aspect-square bg-muted rounded-2xl border border-border overflow-hidden relative group/img transition-colors">
                                         <img src={img} className="w-full h-full object-cover transition-transform group-hover/img:scale-110" alt={`Sobre ${idx}`} />
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                                             <button
@@ -692,7 +694,7 @@ const OrderDetail: React.FC = () => {
                                 {(!order.specifications?.envelopeImages || order.specifications.envelopeImages.length === 0) && (
                                     <div
                                         onClick={() => envelopeFileInputRef.current?.click()}
-                                        className="aspect-square bg-zinc-50 dark:bg-zinc-950/50 border-2 border-dashed border-zinc-200 dark:border-zinc-900 rounded-2xl flex flex-col items-center justify-center gap-2 text-zinc-300 dark:text-zinc-700 hover:text-zinc-500 dark:hover:text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-800 transition-all cursor-pointer group"
+                                        className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground/30 hover:text-muted-foreground/60 hover:border-indigo-500/30 transition-all cursor-pointer group"
                                     >
                                         <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">add_a_photo</span>
                                         <span className="text-[8px] font-black uppercase tracking-widest">Sin fotos</span>
@@ -704,24 +706,24 @@ const OrderDetail: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         {/* Order Notes */}
-                        <section className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 rounded-[32px] p-8 backdrop-blur-sm shadow-sm flex flex-col h-[500px] transition-colors">
-                            <h3 className="text-zinc-900 dark:text-white text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Notas del Pedido</h3>
+                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm flex flex-col h-[500px] transition-colors">
+                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Notas del Pedido</h3>
                             <textarea
                                 value={notesBuffer}
                                 onChange={(e) => setNotesBuffer(e.target.value)}
-                                className="flex-1 bg-zinc-50 dark:bg-zinc-950/50 rounded-2xl border border-zinc-200 dark:border-zinc-900 p-6 text-zinc-900 dark:text-zinc-400 text-sm leading-relaxed font-medium italic mb-6 resize-none outline-none focus:border-indigo-500/30 dark:focus:border-indigo-500/50 transition-all shadow-inner"
+                                className="flex-1 bg-muted rounded-2xl border border-border p-6 text-foreground text-sm leading-relaxed font-medium italic mb-6 resize-none outline-none focus:border-indigo-500/30 transition-all shadow-inner"
                                 placeholder="Escribe aquí notas adicionales del pedido..."
                             />
                             <button
                                 onClick={() => updateField('notes', notesBuffer)}
-                                className="w-full py-4 rounded-2xl bg-zinc-900 dark:bg-zinc-900/50 border border-zinc-800 dark:border-zinc-800 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-600 hover:bg-black dark:hover:text-white transition-all shadow-lg active:scale-95">
+                                className="w-full py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
                                 Guardar Notas
                             </button>
                         </section>
 
                         {/* Recent Activity */}
-                        <section className="bg-white dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-900 rounded-[32px] p-8 backdrop-blur-sm shadow-sm h-[500px] flex flex-col transition-colors">
-                            <h3 className="text-zinc-900 dark:text-white text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Actividad Reciente</h3>
+                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm h-[500px] flex flex-col transition-colors">
+                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Actividad Reciente</h3>
                             <div className="flex-1 overflow-y-auto no-scrollbar space-y-8 pr-4">
                                 {activities.map((activity, index) => (
                                     <ActivityItem
@@ -790,7 +792,7 @@ const EditableField: React.FC<{ value: string, onUpdate: (v: string) => void, cl
             <input
                 autoFocus
                 type={isDate ? "date" : "text"}
-                className={`bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white border-b border-indigo-500 outline-none px-1 rounded ${className} [color-scheme:light] dark:[color-scheme:dark] transition-colors`}
+                className={`bg-muted text-foreground border-b border-indigo-500 outline-none px-1 rounded ${className} [color-scheme:light] dark:[color-scheme:dark] transition-colors`}
                 value={isDate ? (currentValue && !isNaN(Date.parse(currentValue)) ? new Date(currentValue).toISOString().split('T')[0] : '') : currentValue}
                 onChange={(e) => setCurrentValue(e.target.value)}
                 onBlur={() => { setIsEditing(false); onUpdate(currentValue); }}

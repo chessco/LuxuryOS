@@ -9,6 +9,7 @@ import { ClientsModule } from './clients/clients.module';
 import { PaymentsModule } from './payments/payments.module';
 import { UsersModule } from './users/users.module';
 import { ChatModule } from './chat/chat.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ChatModule } from './chat/chat.module';
     PaymentsModule,
     UsersModule,
     ChatModule,
+    QueueModule,
   ],
   controllers: [AppController],
   providers: [AppService],

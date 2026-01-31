@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { OrdersService } from '../services/orders.service';
 import { ClientsService } from '../services/clients.service';
 import AutocompleteInput from '../components/AutocompleteInput';
+import { useTheme } from '../context/ThemeContext';
+
 import { OrdersTable } from '../components/orders/OrdersTable';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragStartEvent, DragEndEvent, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -64,6 +66,7 @@ const LAYAWAY_COLUMNS: Column[] = [
 ];
 
 const Orders: React.FC = () => {
+    const { variant } = useTheme();
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
     const orderType = queryParams.get('type');
@@ -74,7 +77,9 @@ const Orders: React.FC = () => {
                 STANDARD_COLUMNS;
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+    const [viewMode, setViewMode] = useState<'kanban' | 'table'>(() => {
+        return variant === 'notion' ? 'table' : 'kanban';
+    });
     const [orders, setOrders] = useState<any[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [clients, setClients] = useState<any[]>([]);
@@ -104,7 +109,7 @@ const Orders: React.FC = () => {
                         value: `$${Number(o.value).toLocaleString()} MXN`,
                         status: stage, // keep raw stage for logic, map for display
                         initials: o.client?.name?.substring(0, 2).toUpperCase() || 'NC',
-                        initialsColor: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',
+                        initialsColor: 'bg-muted text-muted-foreground border border-border',
                         // ... map other fields if needed
                         statusType: stage === 'INTERES_LEAD' ? 'new' :
                             stage === 'EN_PRODUCCION' ? 'urgent' :
@@ -247,21 +252,21 @@ const Orders: React.FC = () => {
                 <div className="flex flex-col gap-6">
                     <div className="flex flex-wrap justify-between items-center gap-4">
                         <div className="flex flex-col gap-1">
-                            <h2 className="text-zinc-900 dark:text-white text-3xl font-black tracking-tight font-display">Tablero de Pedidos (MXN)</h2>
-                            <p className="text-zinc-400 dark:text-zinc-500 text-sm">Gestión visual del flujo de producción y ventas</p>
+                            <h2 className="text-foreground text-3xl font-black tracking-tight font-display transition-colors">Tablero de Pedidos (MXN)</h2>
+                            <p className="text-muted-foreground text-sm transition-colors">Gestión visual del flujo de producción y ventas</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="flex bg-zinc-100 dark:bg-zinc-900/50 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-900 transition-colors">
+                            <div className="flex bg-muted p-1 rounded-2xl border border-border transition-colors">
                                 <button
                                     onClick={() => setViewMode('kanban')}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'kanban' ? 'bg-white text-zinc-900 shadow-md dark:bg-zinc-800 dark:text-white dark:shadow-lg' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300'}`}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
                                 >
                                     <span className="material-symbols-outlined text-[18px]">view_kanban</span>
                                     <span>Kanban</span>
                                 </button>
                                 <button
                                     onClick={() => setViewMode('table')}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-white text-zinc-900 shadow-md dark:bg-zinc-800 dark:text-white dark:shadow-lg' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300'}`}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
                                 >
                                     <span className="material-symbols-outlined text-[18px]">view_list</span>
                                     <span>Notion</span>
@@ -269,7 +274,7 @@ const Orders: React.FC = () => {
                             </div>
                             <button
                                 onClick={() => setIsModalOpen(true)}
-                                className="flex items-center gap-2 bg-zinc-900 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-black/5 dark:shadow-white/5"
+                                className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
                             >
                                 <span className="material-symbols-outlined text-[20px]">add</span>
                                 <span>Nuevo Pedido</span>
@@ -280,12 +285,12 @@ const Orders: React.FC = () => {
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="relative w-full max-w-md group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="material-symbols-outlined text-zinc-500 group-focus-within:text-white transition-colors">search</span>
+                                <span className="material-symbols-outlined text-muted-foreground group-focus-within:text-foreground transition-colors">search</span>
                             </div>
                             <input
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="block w-full pl-10 pr-3 py-3 border border-zinc-200 dark:border-zinc-900 rounded-xl bg-white dark:bg-zinc-900/50 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:border-zinc-400 dark:focus:border-zinc-700 outline-none text-sm transition-all shadow-sm"
+                                className="block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-muted/50 text-foreground placeholder-muted-foreground focus:border-indigo-500 outline-none text-sm transition-all shadow-sm"
                                 placeholder="Buscar por cliente, ID de pedido o pieza..."
                                 type="text"
                             />
@@ -296,8 +301,8 @@ const Orders: React.FC = () => {
                                     key={f}
                                     onClick={() => setActiveFilter(activeFilter === f ? null : f)}
                                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border shadow-sm whitespace-nowrap ${activeFilter === f
-                                        ? 'bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-black dark:border-white'
-                                        : 'bg-zinc-100 text-zinc-500 border-transparent hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-500 dark:border-transparent dark:hover:bg-zinc-800 dark:hover:text-white'
+                                        ? 'bg-foreground text-background border-border shadow-md'
+                                        : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground'
                                         }`}
                                 >
                                     <span>{f}</span>
@@ -427,21 +432,21 @@ const NewOrderDrawer: React.FC<{ onClose: () => void, onSave: (order: any) => vo
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed inset-y-0 right-0 z-[70] w-full max-w-lg bg-zinc-950 border-l border-zinc-900 shadow-2xl flex flex-col"
+                className="fixed inset-y-0 right-0 z-[70] w-full max-w-lg bg-background border-l border-border shadow-2xl flex flex-col"
             >
                 {/* Header */}
-                <div className="p-8 border-b border-zinc-900 bg-zinc-900/20">
+                <div className="p-8 border-b border-border bg-muted/20">
                     <div className="flex items-center justify-between mb-2">
-                        <div className="size-10 rounded-xl bg-white flex items-center justify-center">
-                            <span className="material-symbols-outlined text-black">add_shopping_cart</span>
+                        <div className="size-10 rounded-xl bg-foreground text-background flex items-center justify-center shadow-lg">
+                            <span className="material-symbols-outlined">add_shopping_cart</span>
                         </div>
-                        <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+                        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
                             <span className="material-symbols-outlined">close</span>
                         </button>
                     </div>
                     <div>
-                        <h2 className="text-white text-xl font-black uppercase tracking-widest font-display">Nuevo Pedido</h2>
-                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mt-1.5">Registro Técnico de Joyería</p>
+                        <h2 className="text-foreground text-xl font-black uppercase tracking-widest font-display">Nuevo Pedido</h2>
+                        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1.5">Registro Técnico de Joyería</p>
                     </div>
                 </div>
 
@@ -449,7 +454,7 @@ const NewOrderDrawer: React.FC<{ onClose: () => void, onSave: (order: any) => vo
                 <form className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar" onSubmit={handleSubmit}>
                     {/* Section: Cliente */}
                     <div className="space-y-6">
-                        <h3 className="text-white text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2">
+                        <h3 className="text-foreground text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2">
                             <span className="size-1.5 rounded-full bg-indigo-500"></span>
                             Información del Cliente
                         </h3>
@@ -466,8 +471,8 @@ const NewOrderDrawer: React.FC<{ onClose: () => void, onSave: (order: any) => vo
 
                     {/* Section: Piezas */}
                     <div className="space-y-8">
-                        <div className="flex items-center justify-between pt-2 border-t border-zinc-900/50">
-                            <h3 className="text-white text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2">
+                        <div className="flex items-center justify-between pt-2 border-t border-border">
+                            <h3 className="text-foreground text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2">
                                 <span className="size-1.5 rounded-full bg-amber-500"></span>
                                 Ficha Técnica (Piezas)
                             </h3>
@@ -482,7 +487,7 @@ const NewOrderDrawer: React.FC<{ onClose: () => void, onSave: (order: any) => vo
                         </div>
 
                         {items.map((item, index) => (
-                            <div key={index} className="space-y-6 p-6 rounded-2xl bg-zinc-900/30 border border-zinc-900 relative group/item">
+                            <div key={index} className="space-y-6 p-6 rounded-2xl bg-muted/30 border border-border relative group/item">
                                 {items.length > 1 && (
                                     <button
                                         type="button"
@@ -494,38 +499,38 @@ const NewOrderDrawer: React.FC<{ onClose: () => void, onSave: (order: any) => vo
                                 )}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="col-span-2 space-y-2">
-                                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Pieza #{index + 1}</label>
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Pieza #{index + 1}</label>
                                         <input
                                             value={item.item}
                                             onChange={(e) => handleItemChange(index, 'item', e.target.value)}
-                                            className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-zinc-700 transition-all outline-none"
+                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
                                             placeholder="Anillo, Collar, etc."
                                             required
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Metal</label>
-                                        <input value={item.metal} onChange={(e) => handleItemChange(index, 'metal', e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-zinc-700 outline-none" placeholder="Oro, Plata" />
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Metal</label>
+                                        <input value={item.metal} onChange={(e) => handleItemChange(index, 'metal', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="Oro, Plata" />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Color</label>
-                                        <input value={item.color} onChange={(e) => handleItemChange(index, 'color', e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-zinc-700 outline-none" placeholder="Am, Bl, Rs" />
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Color</label>
+                                        <input value={item.color} onChange={(e) => handleItemChange(index, 'color', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="Am, Bl, Rs" />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Quilates</label>
-                                        <input value={item.karats} onChange={(e) => handleItemChange(index, 'karats', e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-zinc-700 outline-none" placeholder="14k, 18k" />
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Quilates</label>
+                                        <input value={item.karats} onChange={(e) => handleItemChange(index, 'karats', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="14k, 18k" />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Peso (Gr)</label>
-                                        <input value={item.weight} onChange={(e) => handleItemChange(index, 'weight', e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-zinc-700 outline-none" placeholder="0.00" />
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Peso (Gr)</label>
+                                        <input value={item.weight} onChange={(e) => handleItemChange(index, 'weight', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="0.00" />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Medida</label>
-                                        <input value={item.size} onChange={(e) => handleItemChange(index, 'size', e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-zinc-700 outline-none" placeholder="7, 18cm" />
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Medida</label>
+                                        <input value={item.size} onChange={(e) => handleItemChange(index, 'size', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="7, 18cm" />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">SKU / Cód</label>
-                                        <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-zinc-700 outline-none" placeholder="ABC-123" />
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">SKU / Cód</label>
+                                        <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="ABC-123" />
                                     </div>
                                 </div>
                             </div>
@@ -534,26 +539,26 @@ const NewOrderDrawer: React.FC<{ onClose: () => void, onSave: (order: any) => vo
 
                     {/* Section: Valores */}
                     <div className="space-y-6">
-                        <h3 className="text-white text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2 pt-2 border-t border-zinc-900/50">
+                        <h3 className="text-foreground text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2 pt-2 border-t border-border">
                             <span className="size-1.5 rounded-full bg-emerald-500"></span>
                             Finanzas y Prioridad
                         </h3>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Precio Venta</label>
-                                <input name="value" value={formData.value} onChange={handleChange} className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-white transition-all outline-none" placeholder="0.00" />
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Precio Venta</label>
+                                <input name="value" value={formData.value} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Costo Total</label>
-                                <input name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-white transition-all outline-none" placeholder="0.00" />
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Costo Total</label>
+                                <input name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
                             </div>
                             <div className="col-span-2 space-y-2">
-                                <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Atelier</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Atelier</label>
                                 <select
                                     name="priority"
                                     value={formData.priority}
                                     onChange={handleChange as any}
-                                    className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-3 px-4 text-sm text-white focus:border-zinc-700 outline-none appearance-none cursor-pointer"
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
                                 >
                                     <option value="Baja">Baja</option>
                                     <option value="Media">Media</option>
@@ -564,20 +569,20 @@ const NewOrderDrawer: React.FC<{ onClose: () => void, onSave: (order: any) => vo
                     </div>
 
                     {/* Section: Notas */}
-                    <div className="space-y-4 pt-2 border-t border-zinc-900/50">
-                        <label className="text-zinc-600 text-[9px] font-black uppercase tracking-widest px-1">Observaciones</label>
-                        <textarea name="notes" value={formData.notes} onChange={handleChange as any} className="w-full bg-zinc-900/50 border border-zinc-900 rounded-xl py-4 px-4 text-sm text-white transition-all min-h-[100px] resize-none outline-none focus:border-zinc-700" placeholder="Ej: Grabado láser interior..." />
+                    <div className="space-y-4 pt-2 border-t border-border">
+                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Observaciones</label>
+                        <textarea name="notes" value={formData.notes} onChange={handleChange as any} className="w-full bg-muted/50 border border-border rounded-xl py-4 px-4 text-sm text-foreground transition-all min-h-[100px] resize-none outline-none focus:border-indigo-500" placeholder="Ej: Grabado láser interior..." />
                     </div>
                 </form>
 
                 {/* Footer Actions */}
-                <div className="p-8 border-t border-zinc-900 bg-zinc-900/20 grid grid-cols-2 gap-4">
-                    <button type="button" onClick={onClose} className="py-4 rounded-xl text-zinc-500 text-[10px] font-black uppercase tracking-widest hover:text-white transition-all">
+                <div className="p-8 border-t border-border bg-muted/20 grid grid-cols-2 gap-4">
+                    <button type="button" onClick={onClose} className="py-4 rounded-xl text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground transition-all">
                         Cancelar
                     </button>
                     <button
                         onClick={handleSubmit}
-                        className="py-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:bg-zinc-200 transition-all shadow-xl shadow-white/5 active:scale-95"
+                        className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95"
                     >
                         Crear Pedido
                     </button>
@@ -596,14 +601,14 @@ const KanbanColumn: React.FC<{ id: string, name: string, color: string, count: n
     });
 
     return (
-        <div ref={setNodeRef} className={`flex flex-col w-[320px] h-full ${focus ? 'bg-white/5 rounded-2xl border border-dashed border-white/10 p-2' : ''}`}>
+        <div ref={setNodeRef} className={`flex flex-col w-[320px] h-full ${focus ? 'bg-muted/30 rounded-2xl border border-dashed border-border p-2' : ''}`}>
             <div className={`flex items-center justify-between mb-6 px-2 ${focus ? 'mt-2' : ''}`}>
                 <div className="flex items-center gap-3">
                     <span className={`size-2 rounded-full ${color}`}></span>
-                    <h3 className={`font-bold text-sm tracking-tight ${focus ? 'text-zinc-900 dark:text-white underline underline-offset-8 decoration-zinc-200 dark:decoration-zinc-800' : 'text-zinc-500 dark:text-zinc-400'}`}>{name}</h3>
-                    <span className="text-zinc-400 dark:text-zinc-500 text-[10px] ml-1 font-bold bg-zinc-50 dark:bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-800 tracking-widest">{count}</span>
+                    <h3 className={`font-bold text-sm tracking-tight ${focus ? 'text-foreground underline underline-offset-8 decoration-border' : 'text-muted-foreground'}`}>{name}</h3>
+                    <span className="text-muted-foreground text-[10px] ml-1 font-bold bg-muted px-2 py-0.5 rounded-full border border-border tracking-widest">{count}</span>
                 </div>
-                <button className="text-zinc-400 hover:text-zinc-900 dark:text-zinc-600 dark:hover:text-white transition-colors"><span className="material-symbols-outlined text-[20px]">add</span></button>
+                <button className="text-muted-foreground hover:text-foreground transition-colors"><span className="material-symbols-outlined text-[20px]">add</span></button>
             </div>
 
             <SortableContext items={orders.map(o => o.id)} strategy={verticalListSortingStrategy}>
@@ -649,18 +654,18 @@ const SortableKanbanCard: React.FC<{ order: OrderMock, isBig?: boolean }> = ({ o
 
 const KanbanCard: React.FC<OrderMock & { isBig?: boolean, isOverlay?: boolean }> = ({ id, client, item, value, status, statusType, initials, initialsColor, avatar, progress, isPaid, isBig, isOverlay, receivedDate, receivedTime }) => (
     <div
-        className={`group flex flex-col gap-4 rounded-2xl bg-white dark:bg-zinc-900/40 p-5 border border-zinc-200 dark:border-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all cursor-pointer active:cursor-grabbing relative hover:-translate-y-1 shadow-sm backdrop-blur-sm ${isBig ? 'border-l-4 border-l-zinc-900 dark:border-l-white ring-1 ring-black/5 dark:ring-white/5' : ''} ${isOverlay ? 'bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600 shadow-2xl skew-y-2' : ''}`}
+        className={`group flex flex-col gap-4 rounded-2xl bg-card p-5 border border-border hover:border-indigo-500/50 transition-all cursor-pointer active:cursor-grabbing relative hover:-translate-y-1 shadow-sm backdrop-blur-sm ${isBig ? 'border-l-4 border-l-foreground ring-1 ring-border' : ''} ${isOverlay ? 'bg-card border-border shadow-2xl skew-y-2 opacity-90' : ''}`}
     >
         <div className="flex justify-between items-start pointer-events-none relative z-10">
             <div className="flex items-center gap-3">
                 {avatar ? (
                     <img src={avatar} alt={client} className="size-8 rounded-full pointer-events-none grayscale opacity-80" />
                 ) : (
-                    <div className={`size-8 rounded-full flex items-center justify-center text-[10px] font-black border border-zinc-100 dark:border-zinc-800 ${initialsColor}`}>{initials}</div>
+                    <div className={`size-8 rounded-full flex items-center justify-center text-[10px] font-black ${initialsColor}`}>{initials}</div>
                 )}
                 <div>
-                    <h4 className="text-zinc-900 dark:text-white text-xs font-bold leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors uppercase tracking-tight">{client}</h4>
-                    <p className="text-zinc-400 dark:text-zinc-600 text-[10px] font-black uppercase tracking-widest mt-0.5">#{id.substring(0, 8)}</p>
+                    <h4 className="text-foreground text-xs font-bold leading-tight group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{client}</h4>
+                    <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-0.5">#{id.substring(0, 8)}</p>
                 </div>
             </div>
             {isPaid && (
@@ -668,24 +673,24 @@ const KanbanCard: React.FC<OrderMock & { isBig?: boolean, isOverlay?: boolean }>
             )}
         </div>
         <div className="space-y-1 pointer-events-none relative z-10">
-            <p className="text-zinc-500 dark:text-zinc-300 text-sm font-medium leading-tight">{item}</p>
-            <p className="text-zinc-900 dark:text-white font-black tracking-tight">{value}</p>
+            <p className="text-muted-foreground text-sm font-medium leading-tight">{item}</p>
+            <p className="text-foreground font-black tracking-tight">{value}</p>
         </div>
 
         <div className="flex items-center gap-2 py-1 pointer-events-none relative z-10">
-            <span className="material-symbols-outlined text-zinc-400 dark:text-zinc-600 text-[14px]">history</span>
-            <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-black uppercase tracking-widest">{receivedDate} <span className="text-zinc-200 dark:text-zinc-700 ml-1">{receivedTime}</span></span>
+            <span className="material-symbols-outlined text-muted-foreground text-[14px]">history</span>
+            <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest">{receivedDate} <span className="text-muted-foreground/50 ml-1">{receivedTime}</span></span>
         </div>
 
         <div className="flex items-center justify-between mt-1 pointer-events-none relative z-10">
             <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${statusType === 'urgent' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
                 statusType === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                     statusType === 'new' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' :
-                        'bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700'
+                        'bg-muted text-muted-foreground border-border'
                 }`}>{status}</span>
             {progress && (
-                <div className="w-16 h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-zinc-900 dark:bg-white block" style={{ width: `${progress}%` }}></div>
+                <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-foreground block" style={{ width: `${progress}%` }}></div>
                 </div>
             )}
         </div>

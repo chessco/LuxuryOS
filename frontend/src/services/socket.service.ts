@@ -8,14 +8,21 @@ class SocketService {
     connect() {
         if (this.socket) return;
 
-        this.socket = io(SOCKET_URL);
-
-        this.socket.on('connect', () => {
-            console.log('Connected to socket server');
+        const token = localStorage.getItem('token');
+        this.socket = io(SOCKET_URL, {
+            auth: { token }
         });
 
-        this.socket.on('disconnect', () => {
-            console.log('Disconnected from socket server');
+        this.socket.on('connect', () => {
+            console.log('Connected to socket server. Socket ID:', this.socket?.id);
+        });
+
+        this.socket.on('connect_error', (error) => {
+            console.error('Socket connection error:', error);
+        });
+
+        this.socket.on('disconnect', (reason) => {
+            console.log('Disconnected from socket server. Reason:', reason);
         });
     }
 
@@ -24,7 +31,14 @@ class SocketService {
     }
 
     joinRoom(conversationId: string) {
-        this.socket?.emit('joinRoom', conversationId);
+        if (!this.socket?.connected) {
+            console.log(`[SocketService] Socket not connected, queuing joinRoom for: ${conversationId}`);
+            this.socket?.once('connect', () => {
+                this.socket?.emit('joinRoom', conversationId);
+            });
+            return;
+        }
+        this.socket.emit('joinRoom', conversationId);
     }
 
     leaveRoom(conversationId: string) {
@@ -32,7 +46,14 @@ class SocketService {
     }
 
     sendMessage(data: { conversationId: string; senderId: string; content: string }) {
-        this.socket?.emit('sendMessage', data);
+        if (!this.socket?.connected) {
+            console.warn('[SocketService] Attempted to send message while disconnected. Queuing...');
+            this.socket?.once('connect', () => {
+                this.socket?.emit('sendMessage', data);
+            });
+            return;
+        }
+        this.socket.emit('sendMessage', data);
     }
 
     onNewMessage(callback: (message: any) => void) {
