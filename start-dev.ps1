@@ -24,20 +24,20 @@ npm run build
 Write-Host "Starting API Server..." -ForegroundColor Green
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\api'; npm run start:dev"
 
-# 3. Setup Frontend
-Set-Location "$PSScriptRoot\frontend"
+# 3. Setup Web
+Set-Location "$PSScriptRoot\web"
 if (-not (Test-Path "node_modules")) {
-    Write-Host "Installing Frontend dependencies..." -ForegroundColor Yellow
+    Write-Host "Installing Web dependencies..." -ForegroundColor Yellow
     npm install
 }
 
-Write-Host "Starting Frontend..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\frontend'; npm run dev"
+Write-Host "Starting Web..." -ForegroundColor Green
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\web'; npm run dev"
 
 Set-Location "$PSScriptRoot"
 Write-Host "------------------------------------------------" -ForegroundColor Cyan
 Write-Host "LuxuryOS started!" -ForegroundColor Cyan
 Write-Host "DB (MySQL): localhost:3309" -ForegroundColor Gray
 Write-Host "API:        http://localhost:3002" -ForegroundColor Gray
-Write-Host "Frontend:   http://localhost:5173" -ForegroundColor Gray
+Write-Host "Web:        http://localhost:5173" -ForegroundColor Gray
 Write-Host "------------------------------------------------" -ForegroundColor Cyan

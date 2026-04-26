@@ -4,7 +4,7 @@ Vertical SaaS for luxury jewelry ateliers. Multi-tenant by design.
 
 ## Architecture
 - **Backend:** NestJS, Prisma, MySQL 8
-- **Frontend:** Next.js 15 (App Router), Tailwind, shadcn/ui, dnd-kit
+- **Web:** Next.js 15 (App Router), Tailwind, shadcn/ui, dnd-kit
 
 ## Setup instructions
 
@@ -26,9 +26,9 @@ npx prisma generate
 docker-compose up --build
 ```
 
-### 4. Frontend Setup
+### 4. Web Setup
 ```bash
-cd frontend
+cd web
 npm install
 npm run dev
 ```
