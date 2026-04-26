@@ -14,7 +14,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userName = user.name || user.email || 'Usuario';
     const { variant, mode, toggleMode } = useTheme();
-    const userRole = user.role === 'TENANT_ADMIN' ? 'Atelier Manager' : (user.role === 'TENANT_USER' ? 'Equipo de Ventas' : 'Sistema');
+    const userRole = user.role === 'TENANT_ADMIN' 
+        ? 'Atelier Manager' 
+        : (user.role === 'VENDEDOR' 
+            ? 'Vendedor' 
+            : (user.role === 'TENANT_USER' ? 'Equipo de Ventas' : 'Sistema'));
 
     const navigation = [
         {
@@ -48,6 +52,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
         }
     ];
 
+    const filteredNavigation = navigation.filter(section => {
+        if (user.role === 'VENDEDOR') {
+            return section.title === 'Operaciones' || section.title === 'Fila y Turnos';
+        }
+        return true;
+    }).map(section => {
+        if (user.role === 'VENDEDOR' && section.title === 'Operaciones') {
+            return {
+                ...section,
+                items: section.items.filter(item => item.path !== '/finance')
+            };
+        }
+        return section;
+    });
+
     return (
         <>
             {/* Mobile Overlay */}
@@ -80,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 </div>
 
                 <nav className="flex flex-col gap-6 flex-1 overflow-y-auto no-scrollbar pb-6">
-                    {navigation.map((section) => (
+                    {filteredNavigation.map((section) => (
                         <div key={section.title} className="flex flex-col gap-1">
                             <h3 className="px-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-2">
                                 {section.title}
@@ -139,19 +158,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                         </button>
                     </div>
 
-                    <Link
-                        to="/settings"
-                        onClick={() => onClose()}
-                        className={`
-                            flex items-center gap-3 px-3 py-2 rounded-[6px] transition-colors duration-150
-                            ${pathname === '/settings'
-                                ? (variant === 'pitaya' ? 'bg-foreground text-background shadow-xl scale-[1.02]' : 'bg-black/5 dark:bg-white/5 text-foreground font-semibold')
-                                : 'text-sidebar-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground'}
-                        `}
-                    >
-                        <span className="material-symbols-outlined text-[20px]">settings</span>
-                        <p className="text-sm">Configuración</p>
-                    </Link>
+                    {user.role !== 'VENDEDOR' && (
+                        <Link
+                            to="/settings"
+                            onClick={() => onClose()}
+                            className={`
+                                flex items-center gap-3 px-3 py-2 rounded-[6px] transition-colors duration-150
+                                ${pathname === '/settings'
+                                    ? (variant === 'pitaya' ? 'bg-foreground text-background shadow-xl scale-[1.02]' : 'bg-black/5 dark:bg-white/5 text-foreground font-semibold')
+                                    : 'text-sidebar-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground'}
+                            `}
+                        >
+                            <span className="material-symbols-outlined text-[20px]">settings</span>
+                            <p className="text-sm">Configuración</p>
+                        </Link>
+                    )}
 
                     <div
                         className="mt-2 flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/30 group cursor-pointer hover:bg-muted/60 transition-all duration-300 border border-border/20"

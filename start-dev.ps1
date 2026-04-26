@@ -37,7 +37,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot
 Set-Location "$PSScriptRoot"
 Write-Host "------------------------------------------------" -ForegroundColor Cyan
 Write-Host "LuxuryOS started!" -ForegroundColor Cyan
-Write-Host "DB (MySQL): localhost:3307" -ForegroundColor Gray
+Write-Host "DB (MySQL): localhost:3309" -ForegroundColor Gray
 Write-Host "API:        http://localhost:3002" -ForegroundColor Gray
 Write-Host "Frontend:   http://localhost:5173" -ForegroundColor Gray
 Write-Host "------------------------------------------------" -ForegroundColor Cyan

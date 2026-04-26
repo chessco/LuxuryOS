@@ -60,12 +60,14 @@ export default function UsersPage() {
         const styles: Record<string, string> = {
             SYSTEM_ADMIN: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
             TENANT_ADMIN: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+            VENDEDOR: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
             TENANT_USER: 'bg-muted text-muted-foreground border-border',
         };
 
         const labels: Record<string, string> = {
             SYSTEM_ADMIN: 'System Admin',
             TENANT_ADMIN: 'Admin',
+            VENDEDOR: 'Vendedor',
             TENANT_USER: 'Usuario',
         };
 
@@ -260,6 +262,7 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
                             className="w-full bg-muted border border-border rounded-2xl px-6 py-4 text-foreground focus:border-indigo-500 focus:outline-none transition-all text-sm appearance-none"
                         >
                             <option value="TENANT_USER">Usuario (Lectura/Escritura básica)</option>
+                            <option value="VENDEDOR">Vendedor (Ventas y Pedidos)</option>
                             <option value="TENANT_ADMIN">Administrador (Control total)</option>
                         </select>
                     </div>
