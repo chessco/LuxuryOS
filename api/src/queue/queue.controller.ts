@@ -23,7 +23,7 @@ export class QueueController {
 
     @Post('tickets')
     async create(@Body() data: CreateQueueTicketDto, @Req() req: any) {
-        const tenantId = req.headers['x-tenant-id'] || '564846d0-1b54-4927-a597-29cd113aeb5d';
+        const tenantId = req.headers['x-tenant-id'] || '071ab28f-da33-4bf8-90ed-f8a1af880078';
         const ticket = await this.queueService.createTicket(tenantId, data);
         this.queueGateway.notifyUpdate(tenantId);
         return ticket;
@@ -31,7 +31,7 @@ export class QueueController {
 
     @Get('tickets/public')
     async getPublic(@Req() req: any) {
-        const tenantId = req.headers['x-tenant-id'] || '564846d0-1b54-4927-a597-29cd113aeb5d';
+        const tenantId = req.headers['x-tenant-id'] || '071ab28f-da33-4bf8-90ed-f8a1af880078';
         return this.queueService.getPublicTickets(tenantId);
     }
 
@@ -42,7 +42,7 @@ export class QueueController {
 
     @Get('recommendations/:kind')
     async getRecommendations(@Param('kind') kind: QueueTicketKind, @Req() req: any) {
-        const tenantId = req.headers['x-tenant-id'] || '564846d0-1b54-4927-a597-29cd113aeb5d';
+        const tenantId = req.headers['x-tenant-id'] || '071ab28f-da33-4bf8-90ed-f8a1af880078';
         return this.queueService.getRecommendations(tenantId, kind);
     }
 
