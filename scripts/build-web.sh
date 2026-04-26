@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Configuration
-FRONTEND_DIR="frontend"
+FRONTEND_DIR="web"
 OUTPUT_ZIP="dist.zip"
 
-echo "🚀 Preparing Frontend for Hostinger..."
+echo "🚀 Preparing Web for Hostinger..."
 
-# Navigate to frontend directory
+# Navigate to web directory
 cd $FRONTEND_DIR || { echo "❌ Error: Directory $FRONTEND_DIR not found"; exit 1; }
 
 # Install dependencies if needed
@@ -31,8 +31,8 @@ if command -v zip >/dev/null 2>&1; then
 elif command -v 7z >/dev/null 2>&1; then
     7z a -tzip ../$OUTPUT_ZIP ./dist/*
 else
-    echo "⚠️ Warning: 'zip' or '7z' command not found. Please zip the 'frontend/dist' folder manually."
+    echo "⚠️ Warning: 'zip' or '7z' command not found. Please zip the 'web/dist' folder manually."
     exit 0
 fi
 
-echo "✅ Frontend is ready! Upload 'dist.zip' to Hostinger."
+echo "✅ Web is ready! Upload 'dist.zip' to Hostinger."
