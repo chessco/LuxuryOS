@@ -284,7 +284,9 @@ export class QueueService {
             where: {
                 tenantId,
                 kind: QueueTicketKind.PICKUP,
-                status: QueueTicketStatus.WAITING,
+                status: {
+                    in: [QueueTicketStatus.WAITING, QueueTicketStatus.CALLING, QueueTicketStatus.IN_SERVICE]
+                },
                 ...(conditions.length > 0 ? { OR: conditions } : {})
             },
             include: { order: true },
