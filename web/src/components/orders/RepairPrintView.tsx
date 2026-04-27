@@ -40,13 +40,13 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm print:bg-white print:p-0 transition-colors">
+            <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4 sm:p-8 print:bg-white print:p-0 transition-colors">
                 <motion.div
                     id="print-view"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="relative bg-[#fdf2cf] w-[800px] min-h-[500px] p-12 text-zinc-900 shadow-2xl overflow-hidden print:w-full print:h-auto print:shadow-none print:p-4 print:bg-white print:m-0"
+                    className="relative bg-[#fdf2cf] w-full max-w-[800px] min-h-[500px] p-6 sm:p-12 text-zinc-900 shadow-2xl overflow-visible print:w-full print:h-auto print:shadow-none print:p-4 print:bg-white print:m-0"
                 >
                     {/* UI Only Buttons */}
                     <div className="absolute top-4 right-4 flex gap-3 print:hidden">
@@ -65,7 +65,7 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                         </button>
                     </div>
 
-                    <div ref={printRef} className="flex flex-col h-full font-serif print:text-black">
+                    <div ref={printRef} className="flex flex-col font-serif print:text-black">
                         {/* Header */}
                         <div className="flex justify-between items-start mb-8 border-b-2 border-zinc-300 pb-4">
                             <div className="flex-1"></div>
@@ -90,7 +90,7 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
 
                         {/* Pieces Loop */}
                         <div className="space-y-10">
-                            {displayPieces.slice(0, 2).map((piece: any, idx) => (
+                            {displayPieces.map((piece: any, idx) => (
                                 <div key={idx} className="relative">
                                     <div className="absolute -left-6 top-1 text-lg font-black">•</div>
                                     <div className="grid grid-cols-4 gap-y-4 gap-x-6">
@@ -250,17 +250,20 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                             #print-view, #print-view * {
                                 visibility: visible;
                             }
-                            #print-view {
-                                position: absolute;
-                                left: 0;
-                                top: 0;
-                                width: 100%;
-                                height: auto;
-                                margin: 0;
-                                padding: 10mm;
-                                box-shadow: none;
-                                border: none;
-                            }
+                             #print-view {
+                                 position: relative !important;
+                                 width: 100% !important;
+                                 height: auto !important;
+                                 margin: 0 !important;
+                                 padding: 5mm !important;
+                                 box-shadow: none !important;
+                                 border: none !important;
+                                 overflow: visible !important;
+                                 background: white !important;
+                             }
+                             .page-break {
+                                 page-break-before: always;
+                             }
                         }
                     ` }} />
                 </motion.div>
