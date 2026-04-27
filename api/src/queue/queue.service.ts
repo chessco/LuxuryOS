@@ -37,6 +37,37 @@ export class QueueService {
             const code = `${prefix}-${(count + 1).toString().padStart(3, '0')}`;
             const qrToken = uuidv4();
 
+            let linkedOrderId: string | undefined = undefined;
+
+            if (data.kind === QueueTicketKind.PICKUP) {
+                const conditions: any[] = [];
+                if (data.customerName) conditions.push({ name: { contains: data.customerName } });
+                if (data.customerPhone) {
+                    const digits = data.customerPhone.replace(/\D/g, '');
+                    const searchPhone = digits.length >= 10 ? digits.slice(-10) : digits;
+                    if (searchPhone) conditions.push({ phone: { contains: searchPhone } });
+                }
+
+                if (conditions.length > 0) {
+                    const order = await tx.order.findFirst({
+                        where: {
+                            tenantId,
+                            client: { OR: conditions },
+                            OR: [
+                                { status: OrderStatus.READY_FOR_PICKUP },
+                                { status: OrderStatus.REPAIR_COMPLETED },
+                                { stage: OrderStage.EN_PRODUCCION },
+                                { stage: OrderStage.CONTROL_CALIDAD },
+                                { status: OrderStatus.APPROVED },
+                                { status: OrderStatus.RECEIVED }
+                            ]
+                        },
+                        orderBy: { createdAt: 'desc' }
+                    });
+                    if (order) linkedOrderId = order.id;
+                }
+            }
+
             const ticket = await tx.queueTicket.create({
                 data: {
                     tenantId,
@@ -46,6 +77,7 @@ export class QueueService {
                     customerEmail: data.customerEmail,
                     code,
                     qrToken,
+                    orderId: linkedOrderId,
                     recommendations: data.recommendationIds ? {
                         create: data.recommendationIds.map(id => ({
                             recommendationId: id
@@ -193,21 +225,22 @@ export class QueueService {
             where: { id: ticketId, tenantId },
             include: { order: true }
         });
-        if (!ticket || !ticket.orderId) throw new BadRequestException('Ticket has no linked order for pickup');
+        if (!ticket) throw new NotFoundException('Ticket not found');
 
         return this.prisma.$transaction(async (tx) => {
-            const order = ticket.order!;
-
-            if (order.type === OrderType.REPAIR) {
-                await tx.order.update({
-                    where: { id: order.id },
-                    data: { status: OrderStatus.DELIVERED },
-                });
-            } else {
-                await tx.order.update({
-                    where: { id: order.id },
-                    data: { stage: OrderStage.ENTREGADO_POSTVENTA },
-                });
+            if (ticket.orderId && ticket.order) {
+                const order = ticket.order;
+                if (order.type === OrderType.REPAIR) {
+                    await tx.order.update({
+                        where: { id: order.id },
+                        data: { status: OrderStatus.DELIVERED },
+                    });
+                } else {
+                    await tx.order.update({
+                        where: { id: order.id },
+                        data: { stage: OrderStage.ENTREGADO_POSTVENTA },
+                    });
+                }
             }
 
             return this.updateStatus(ticketId, tenantId, QueueTicketStatus.DONE, userId, tx);
