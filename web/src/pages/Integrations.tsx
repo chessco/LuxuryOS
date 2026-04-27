@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { toast } from 'react-hot-toast';
 
 const IntegrationsPage: React.FC = () => {
     const [settings, setSettings] = useState<Record<string, string>>({
@@ -23,7 +22,7 @@ const IntegrationsPage: React.FC = () => {
             setSettings(prev => ({ ...prev, ...response.data }));
         } catch (error) {
             console.error('Error fetching settings:', error);
-            toast.error('No se pudieron cargar las configuraciones');
+            alert('No se pudieron cargar las configuraciones');
         } finally {
             setLoading(false);
         }
@@ -36,10 +35,10 @@ const IntegrationsPage: React.FC = () => {
             await axios.post(`${import.meta.env.VITE_API_URL}/settings`, settings, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            toast.success('Configuraciones guardadas con éxito');
+            alert('Configuraciones guardadas con éxito');
         } catch (error) {
             console.error('Error saving settings:', error);
-            toast.error('Error al guardar las configuraciones');
+            alert('Error al guardar las configuraciones');
         } finally {
             setSaving(false);
         }
