@@ -30,13 +30,16 @@ const OrderDetail: React.FC = () => {
 
     const enrichOrder = (foundOrder: any) => {
         const clientName = foundOrder.client?.name || 'Cliente';
-        const total = parseFloat(String(foundOrder.totalAmount || '0')) || parseFloat(String(foundOrder.value || '0')) || 0;
+        const total = parseFloat(String(foundOrder.totalAmount || foundOrder.value || '0')) || 0;
         const paid = parseFloat(String(foundOrder.paidAmount || '0')) || 0;
         const balance = total - paid;
 
         return {
             ...foundOrder,
             clientName: clientName,
+            totalAmount: total,
+            paidAmount: paid,
+            balance: balance,
             initials: clientName.substring(0, 2).toUpperCase() || 'CX',
             initialsColor: 'bg-muted text-muted-foreground',
             date: foundOrder.createdAt ? new Date(foundOrder.createdAt).toLocaleDateString('es-MX', {

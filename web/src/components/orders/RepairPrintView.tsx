@@ -200,7 +200,7 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                                 <div className="flex items-end gap-2 text-sm col-span-1">
                                     <span className="font-black">Total</span>
                                     <div className="flex-1 border-b-2 border-zinc-900 pb-1 font-black text-lg">
-                                        {Number(order.value || 0).toLocaleString()} MXN
+                                        {Number(order.totalAmount || order.value || 0).toLocaleString()} MXN
                                     </div>
                                 </div>
 
