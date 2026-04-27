@@ -62,7 +62,7 @@ export class FlowWhatsAppProvider implements IWhatsAppProvider {
         if (options.template.includes('now')) {
             const name = options.components[0]?.parameters[0]?.text || 'Cliente';
             const code = options.components[0]?.parameters[1]?.text || '---';
-            content = `🔔 ¡Hola ${name}! Es tu turno. Por favor, acércate a la ventanilla con tu código: *${code}*. ¡Te esperamos! ✨`;
+            content = `🔔 ¡Hola ${name}! Es tu turno. Por favor, acércate al mostrador con tu código: *${code}*. ¡Te esperamos! ✨`;
         } else if (options.template.includes('near')) {
             const name = options.components[0]?.parameters[0]?.text || 'Cliente';
             content = `📢 ¡Hola ${name}! Tu turno está cerca. Por favor, mantente atento, serás llamado en unos momentos. 🙏`;
