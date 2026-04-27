@@ -66,7 +66,8 @@ export class QueueService {
                                         OrderStatus.APPROVED,
                                         OrderStatus.RECEIVED
                                     ]
-                                }
+                                },
+                                queueTicket: null
                             },
                             orderBy: { createdAt: 'desc' }
                         });
