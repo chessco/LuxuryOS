@@ -15,86 +15,96 @@ export class QueueService {
     ) { }
 
     async createTicket(tenantId: string, data: CreateQueueTicketDto) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-        return this.prisma.$transaction(async (tx) => {
-            const count = await tx.queueTicket.count({
-                where: {
-                    tenantId,
-                    kind: data.kind,
-                    createdAt: { gte: today },
-                },
-            });
+            return await this.prisma.$transaction(async (tx) => {
+                const count = await tx.queueTicket.count({
+                    where: {
+                        tenantId,
+                        kind: data.kind,
+                        createdAt: { gte: today },
+                    },
+                });
 
-            const prefixMap = {
-                [QueueTicketKind.REPAIR]: 'R',
-                [QueueTicketKind.SALE]: 'V',
-                [QueueTicketKind.PICKUP]: 'P',
-            };
+                const prefixMap = {
+                    [QueueTicketKind.REPAIR]: 'R',
+                    [QueueTicketKind.SALE]: 'V',
+                    [QueueTicketKind.PICKUP]: 'P',
+                };
 
-            const prefix = prefixMap[data.kind] || 'T';
-            const code = `${prefix}-${(count + 1).toString().padStart(3, '0')}`;
-            const qrToken = uuidv4();
+                const prefix = prefixMap[data.kind] || 'T';
+                const code = `${prefix}-${(count + 1).toString().padStart(3, '0')}`;
+                const qrToken = uuidv4();
 
-            let linkedOrderId: string | undefined = undefined;
+                let linkedOrderId: string | undefined = undefined;
 
-            if (data.kind === QueueTicketKind.PICKUP) {
-                const conditions: any[] = [];
-                if (data.customerName) conditions.push({ name: { contains: data.customerName } });
-                if (data.customerPhone) {
-                    const digits = data.customerPhone.replace(/\D/g, '');
-                    const searchPhone = digits.length >= 10 ? digits.slice(-10) : digits;
-                    if (searchPhone) conditions.push({ phone: { contains: searchPhone } });
+                if (data.kind === QueueTicketKind.PICKUP) {
+                    const conditions: any[] = [];
+                    if (data.customerName && data.customerName.length > 2) {
+                        conditions.push({ client: { name: { contains: data.customerName } } });
+                    }
+                    
+                    if (data.customerPhone) {
+                        const digits = data.customerPhone.replace(/\D/g, '');
+                        const searchPhone = digits.length >= 10 ? digits.slice(-10) : digits;
+                        if (searchPhone) {
+                            conditions.push({ client: { phone: { contains: searchPhone } } });
+                        }
+                    }
+
+                    if (conditions.length > 0) {
+                        const order = await tx.order.findFirst({
+                            where: {
+                                tenantId,
+                                OR: conditions,
+                                status: {
+                                    in: [
+                                        OrderStatus.READY_FOR_PICKUP,
+                                        OrderStatus.REPAIR_COMPLETED,
+                                        OrderStatus.APPROVED,
+                                        OrderStatus.RECEIVED
+                                    ]
+                                }
+                            },
+                            orderBy: { createdAt: 'desc' }
+                        });
+                        if (order) linkedOrderId = order.id;
+                    }
                 }
 
-                if (conditions.length > 0) {
-                    const order = await tx.order.findFirst({
-                        where: {
-                            tenantId,
-                            client: { OR: conditions },
-                            OR: [
-                                { status: OrderStatus.READY_FOR_PICKUP },
-                                { status: OrderStatus.REPAIR_COMPLETED },
-                                { stage: OrderStage.EN_PRODUCCION },
-                                { stage: OrderStage.CONTROL_CALIDAD },
-                                { status: OrderStatus.APPROVED },
-                                { status: OrderStatus.RECEIVED }
-                            ]
-                        },
-                        orderBy: { createdAt: 'desc' }
-                    });
-                    if (order) linkedOrderId = order.id;
-                }
-            }
+                const ticket = await tx.queueTicket.create({
+                    data: {
+                        tenantId,
+                        kind: data.kind,
+                        customerName: data.customerName,
+                        customerPhone: data.customerPhone,
+                        customerEmail: data.customerEmail,
+                        code,
+                        qrToken,
+                        orderId: linkedOrderId,
+                        recommendations: data.recommendationIds ? {
+                            create: data.recommendationIds.map(id => ({
+                                recommendationId: id
+                            }))
+                        } : undefined,
+                    },
+                });
 
-            const ticket = await tx.queueTicket.create({
-                data: {
-                    tenantId,
-                    kind: data.kind,
-                    customerName: data.customerName,
-                    customerPhone: data.customerPhone,
-                    customerEmail: data.customerEmail,
-                    code,
-                    qrToken,
-                    orderId: linkedOrderId,
-                    recommendations: data.recommendationIds ? {
-                        create: data.recommendationIds.map(id => ({
-                            recommendationId: id
-                        }))
-                    } : undefined,
-                },
+                await tx.queueEvent.create({
+                    data: {
+                        ticketId: ticket.id,
+                        toStatus: QueueTicketStatus.WAITING,
+                    },
+                });
+
+                return ticket;
             });
-
-            await tx.queueEvent.create({
-                data: {
-                    ticketId: ticket.id,
-                    toStatus: QueueTicketStatus.WAITING,
-                },
-            });
-
-            return ticket;
-        });
+        } catch (error: any) {
+            console.error('[QueueService] Error in createTicket:', error);
+            throw error; // Rethrow to be caught by controller
+        }
     }
 
     async getPublicTickets(tenantId: string) {
