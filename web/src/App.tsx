@@ -16,6 +16,7 @@ import Kiosk from './pages/Kiosk';
 import PublicScreen from './pages/PublicScreen';
 import StaffQueue from './pages/StaffQueue';
 import Pickup from './pages/Pickup';
+import Integrations from './pages/Integrations';
 import Sidebar from './components/Sidebar';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -71,6 +72,11 @@ function App() {
                         <Route path="/settings/queue" element={
                             <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
                                 <QueueSettings />
+                            </RoleRedirect>
+                        } />
+                        <Route path="/settings/integrations" element={
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
+                                <Integrations />
                             </RoleRedirect>
                         } />
                         <Route path="/messages" element={

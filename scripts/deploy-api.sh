@@ -18,12 +18,17 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
-# Build and restart containers
-echo "📦 Building and restarting containers..."
-docker compose --env-file $ENV_FILE -f docker-compose.prod.yml up -d --build
+# Build and restart API service (Isolated)
+echo "📦 Building and restarting API service..."
+docker compose -f docker-compose.prod.yml build api
+docker compose -f docker-compose.prod.yml up -d api
 
 # Clean up unused images
 echo "🧹 Cleaning up old images..."
 docker image prune -f
+
+echo "📊 Verifying service status..."
+docker ps | grep luxury-api-prod
+docker logs --tail 20 luxury-api-prod
 
 echo "✅ Deployment finished successfully!"
