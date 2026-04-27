@@ -7,6 +7,7 @@ import {
     UseGuards,
     Req,
     Query,
+    BadRequestException,
 } from '@nestjs/common';
 import { QueueService } from './queue.service';
 import { CreateQueueTicketDto } from './dto/create-queue-ticket.dto';
@@ -23,10 +24,24 @@ export class QueueController {
 
     @Post('tickets')
     async create(@Body() data: CreateQueueTicketDto, @Req() req: any) {
-        const tenantId = req.headers['x-tenant-id'] || '071ab28f-da33-4bf8-90ed-f8a1af880078';
-        const ticket = await this.queueService.createTicket(tenantId, data);
-        this.queueGateway.notifyUpdate(tenantId);
-        return ticket;
+        try {
+            const tenantId = req.headers['x-tenant-id'] || '071ab28f-da33-4bf8-90ed-f8a1af880078';
+            const ticket = await this.queueService.createTicket(tenantId, data);
+            
+            try {
+                if (this.queueGateway && this.queueGateway.notifyUpdate) {
+                    this.queueGateway.notifyUpdate(tenantId);
+                }
+            } catch (gwError) {
+                console.error('[QueueController] Gateway notification failed:', gwError);
+            }
+
+            return ticket;
+        } catch (error: any) {
+            console.error('[QueueController] Error creating ticket:', error);
+            const message = error.response?.message || error.message;
+            throw new BadRequestException(`Error: ${message}`);
+        }
     }
 
     @Get('tickets/public')
