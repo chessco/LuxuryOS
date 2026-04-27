@@ -269,13 +269,16 @@ export class QueueService {
     }
 
     async searchPickups(tenantId: string, name?: string, phone?: string) {
+        const conditions: any[] = [];
+        if (name) conditions.push({ customerName: { contains: name } });
+        if (phone) conditions.push({ customerPhone: { contains: phone } });
+
         return this.prisma.queueTicket.findMany({
             where: {
                 tenantId,
                 kind: QueueTicketKind.PICKUP,
                 status: QueueTicketStatus.WAITING,
-                customerName: name ? { contains: name } : undefined,
-                customerPhone: phone ? { contains: phone } : undefined,
+                ...(conditions.length > 0 ? { OR: conditions } : {})
             },
             include: { order: true },
         });
