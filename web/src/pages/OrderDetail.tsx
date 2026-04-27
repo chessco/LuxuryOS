@@ -419,12 +419,14 @@ const OrderDetail: React.FC = () => {
             </header>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard label="Valor Total" value={Number(order.value || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('value', v)} subtext="Impuestos incluidos" icon="payments" color="text-foreground" />
-                <StatCard label="Costo de Producción" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('cost', v)} subtext="Materiales + Mano de obra" icon="precision_manufacturing" color="text-foreground" />
-                <StatCard label="Margen Estimado" value={(parseValue(order.value) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Rentabilidad alta" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-10">
+                <StatCard label="Valor Total" value={Number(order.value || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('value', v)} subtext="Venta" icon="payments" color="text-foreground" />
+                <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
+                <StatCard label="Resta" value={Number(order.balance || 0).toLocaleString() + ' MXN'} subtext="Pendiente" icon="pending_actions" color="text-amber-500" alert={order.balance > 0 ? "priority_high" : undefined} alertColor="text-amber-500" />
+                <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('cost', v)} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
+                <StatCard label="Margen" value={(parseValue(order.value) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
                 <StatCard
-                    label="Fecha de Entrega"
+                    label="Entrega"
                     value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
                     onUpdate={(v) => updateField('dueDate', v)}
                     isDate
@@ -433,7 +435,7 @@ const OrderDetail: React.FC = () => {
                             const days = Math.ceil((new Date(order.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
                             return days > 0 ? `Quedan ${days} días` : days === 0 ? "Entrega hoy" : `Atrasa ${Math.abs(days)} días`;
                         })()
-                    ) : "Sin fecha asignada"}
+                    ) : "Sin fecha"}
                     icon="event"
                     color="text-foreground"
                     alert={order.dueDate && new Date(order.dueDate) < new Date() ? "priority_high" : undefined}
@@ -518,7 +520,20 @@ const OrderDetail: React.FC = () => {
                                         <DetailRow label="Kilataje" value={piece.karats || '-'} />
                                         <DetailRow label="Peso" value={piece.weight ? `${piece.weight} gr` : '-'} />
                                         <DetailRow label="Medida" value={piece.size || '-'} />
+                                        <DetailRow label="Grosor" value={piece.thickness || '-'} />
                                         <DetailRow label="Código" value={piece.itemCode || '-'} />
+                                        {(piece.laborCost || piece.materialCost) && (
+                                            <div className="pt-4 border-t border-border/50 space-y-4">
+                                                <DetailRow label="Mano de Obra" value={piece.laborCost ? `${Number(piece.laborCost).toLocaleString()} MXN` : '-'} />
+                                                <DetailRow label="Material" value={piece.materialCost ? `${Number(piece.materialCost).toLocaleString()} MXN` : '-'} />
+                                            </div>
+                                        )}
+                                        {piece.description && (
+                                            <div className="pt-4 border-t border-border/50">
+                                                <span className="text-zinc-400 dark:text-zinc-600 text-[8px] font-black uppercase tracking-widest block mb-2 transition-colors">Descripción / Trabajo</span>
+                                                <p className="text-foreground text-[11px] font-medium leading-relaxed bg-muted/50 p-3 rounded-xl border border-border/50 transition-colors">{piece.description}</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}

@@ -15,6 +15,8 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         pieceType: order.pieceType,
         value: order.value,
         cost: order.cost,
+        laborCost: order.laborCost || 0,
+        materialCost: order.materialCost || 0,
         priority: order.priority,
         notes: order.notes || '',
         dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split('T')[0] : '',
@@ -45,7 +47,9 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
             karats: order.karats || '',
             weight: order.weight || '',
             size: order.size || '',
-            itemCode: order.itemCode || ''
+            thickness: order.thickness || '',
+            itemCode: order.itemCode || '',
+            description: order.description || ''
         }
     ];
 
@@ -59,7 +63,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
     };
 
     const addItem = () => {
-        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', itemCode: '' }]);
+        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', description: '' }]);
     };
 
     const removeItem = (index: number) => {
@@ -84,6 +88,8 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                 value: cleanNumber(formData.value),
                 cost: cleanNumber(formData.cost),
                 totalAmount: cleanNumber(formData.value), // Ensure totalAmount is synced
+                laborCost: cleanNumber(formData.laborCost),
+                materialCost: cleanNumber(formData.materialCost),
                 ...mainItem, // metal, color, etc.
                 pieceType: mainItem.item,
                 specifications: { ...order.specifications, items }
@@ -254,8 +260,21 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                         <input value={item.size} onChange={(e) => handleItemChange(index, 'size', e.target.value)} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner" placeholder="7" />
                                     </div>
                                     <div className="space-y-2">
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Grosor</label>
+                                        <input value={item.thickness} onChange={(e) => handleItemChange(index, 'thickness', e.target.value)} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner" placeholder="2mm" />
+                                    </div>
+                                    <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">SKU</label>
                                         <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner" placeholder="REF-01" />
+                                    </div>
+                                    <div className="col-span-2 space-y-2">
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Descripción del Trabajo</label>
+                                        <textarea
+                                            value={item.description}
+                                            onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                                            className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 transition-all outline-none min-h-[80px] resize-none shadow-inner"
+                                            placeholder="Ajuste, pulido, etc."
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -270,11 +289,19 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                         </h3>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Venta (MXN)</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Mano de Obra (MXN)</label>
+                                <input type="number" value={formData.laborCost} onChange={(e) => setFormData({ ...formData, laborCost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Material (MXN)</label>
+                                <input type="number" value={formData.materialCost} onChange={(e) => setFormData({ ...formData, materialCost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Venta Total (MXN)</label>
                                 <input type="number" value={formData.value} onChange={(e) => setFormData({ ...formData, value: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Costo (MXN)</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Costo Total (MXN)</label>
                                 <input type="number" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
                             </div>
                         </div>
