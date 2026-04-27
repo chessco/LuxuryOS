@@ -422,7 +422,15 @@ const OrderDetail: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-10">
                 <StatCard label="Valor Total" value={Number(order.value || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('value', v)} subtext="Venta" icon="payments" color="text-foreground" />
                 <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
-                <StatCard label="Resta" value={Number(order.balance || 0).toLocaleString() + ' MXN'} subtext="Pendiente" icon="pending_actions" color="text-amber-500" alert={order.balance > 0 ? "priority_high" : undefined} alertColor="text-amber-500" />
+                <StatCard 
+                    label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
+                    value={Math.abs(Number(order.balance || 0)).toLocaleString() + ' MXN'} 
+                    subtext={order.balance < 0 ? "Cliente tiene crédito" : "Pendiente de liquidar"} 
+                    icon={order.balance < 0 ? "account_balance" : "pending_actions"} 
+                    color={order.balance < 0 ? "text-emerald-500" : "text-amber-500"} 
+                    alert={order.balance > 0 ? "priority_high" : undefined} 
+                    alertColor="text-amber-500" 
+                />
                 <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('cost', v)} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
                 <StatCard label="Margen" value={(parseValue(order.value) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
                 <StatCard

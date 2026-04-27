@@ -16,13 +16,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, tot
 
     if (!isOpen) return null;
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const value = parseFloat(amount);
-        if (value <= 0 || value > pendingAmount) {
-            alert('Monto inválido');
-            return;
-        }
+        const handleSubmit = async (e: React.FormEvent) => {
+            e.preventDefault();
+            const value = parseFloat(amount);
+            
+            // Allow any positive payment if totalAmount is 0 (advance)
+            // or if the value is within the pending amount
+            const isValid = totalAmount === 0 ? value > 0 : (value > 0 && value <= pendingAmount);
+
+            if (!isValid) {
+                alert(totalAmount === 0 ? 'Monto debe ser mayor a 0' : 'Monto inválido o excede el saldo');
+                return;
+            }
 
         setIsLoading(true);
         try {
@@ -77,7 +82,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, tot
                             <form onSubmit={handleSubmit} className="flex-1 p-8 space-y-10 overflow-y-auto custom-scrollbar">
                                 <div className="space-y-4">
                                     <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] px-1 transition-colors">Monto a Pagar</label>
-                                    {pendingAmount <= 0 ? (
+                                    {(pendingAmount <= 0 && totalAmount > 0) ? (
                                         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-emerald-600 text-[10px] font-black uppercase tracking-widest text-center transition-colors">
                                             El pedido ya está liquidado
                                         </div>
@@ -90,9 +95,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, tot
                                                 onChange={(e) => setAmount(e.target.value)}
                                                 className="w-full bg-muted/50 border border-border rounded-2xl py-5 pl-12 pr-6 text-foreground text-2xl font-black outline-none focus:border-indigo-500 transition-all placeholder:text-muted-foreground/30 shadow-inner [color-scheme:light] dark:[color-scheme:dark]"
                                                 placeholder="0.00"
-                                                max={pendingAmount}
+                                                max={totalAmount > 0 ? pendingAmount : undefined}
                                                 autoFocus
                                             />
+                                            {totalAmount === 0 && (
+                                                <p className="mt-2 px-2 text-indigo-500 text-[9px] font-bold uppercase tracking-widest animate-pulse">
+                                                    Registrando Anticipo (Total pendiente por definir)
+                                                </p>
+                                            )}
                                         </div>
                                     )}
                                 </div>
