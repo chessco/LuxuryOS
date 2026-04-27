@@ -11,6 +11,7 @@ import { RepairPrintView } from '../components/orders/RepairPrintView';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const [order, setOrder] = useState<any | null>(null);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -338,7 +339,7 @@ const OrderDetail: React.FC = () => {
 
             // For numbers
             let processedValue = value;
-            if (field === 'value' || field === 'cost' || field === 'laborCost' || field === 'materialCost') {
+            if (field === 'value' || field === 'cost' || field === 'laborCost' || field === 'materialCost' || field === 'totalAmount') {
                 const str = String(value || '0').replace(/[^0-9.-]/g, '');
                 processedValue = parseFloat(str) || 0;
             }
@@ -419,8 +420,9 @@ const OrderDetail: React.FC = () => {
             </header>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-10">
-                <StatCard label="Valor Total" value={Number(order.value || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('value', v)} subtext="Venta" icon="payments" color="text-foreground" />
+            {/* Stats Grid */}
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${user.role === 'VENDEDOR' ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4 mb-10`}>
+                <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('totalAmount', v)} subtext="Venta" icon="payments" color="text-foreground" />
                 <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
                 <StatCard 
                     label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
@@ -431,8 +433,12 @@ const OrderDetail: React.FC = () => {
                     alert={order.balance > 0 ? "priority_high" : undefined} 
                     alertColor="text-amber-500" 
                 />
-                <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('cost', v)} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
-                <StatCard label="Margen" value={(parseValue(order.value) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
+                {user.role !== 'VENDEDOR' && (
+                    <>
+                        <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('cost', v)} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
+                        <StatCard label="Margen" value={(parseValue(order.totalAmount) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
+                    </>
+                )}
                 <StatCard
                     label="Entrega"
                     value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
