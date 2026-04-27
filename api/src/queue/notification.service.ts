@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { IWhatsAppProvider, MetaWhatsAppProvider } from './providers/whatsapp.provider';
+import { IWhatsAppProvider, FlowWhatsAppProvider } from './providers/whatsapp.provider';
 import { ConfigService } from '@nestjs/config';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class NotificationService {
@@ -10,12 +11,13 @@ export class NotificationService {
     constructor(
         private prisma: PrismaService,
         private configService: ConfigService,
+        private settingsService: SettingsService,
     ) {
-        const phoneId = this.configService.get<string>('WA_PHONE_NUMBER_ID');
-        const token = this.configService.get<string>('WA_ACCESS_TOKEN');
+        const flowApiUrl = this.configService.get<string>('FLOW_API_URL', 'https://flow-api.pitayacode.io');
+        const internalKey = this.configService.get<string>('FLOW_INTERNAL_KEY', 'pitaya_internal_secret_2026');
 
-        if (phoneId && token) {
-            this.whatsappProvider = new MetaWhatsAppProvider(phoneId, token);
+        if (flowApiUrl && internalKey) {
+            this.whatsappProvider = new FlowWhatsAppProvider(flowApiUrl, internalKey);
         }
     }
 
@@ -54,7 +56,15 @@ export class NotificationService {
         dedupeKey: string,
         components: any[]
     ) {
-        if (!this.whatsappProvider) {
+        // Dynamic Provider Check
+        const flowUrl = await this.settingsService.getSetting(tenantId, 'flow_api_url');
+        const flowKey = await this.settingsService.getSetting(tenantId, 'flow_internal_key');
+
+        const provider = (flowUrl && flowKey)
+            ? new FlowWhatsAppProvider(flowUrl, flowKey)
+            : this.whatsappProvider;
+
+        if (!provider) {
             console.log(`[WhatsApp Mock] Sending ${template} to ${recipient}`, { components, dedupeKey });
             return;
         }
@@ -65,7 +75,7 @@ export class NotificationService {
         });
         if (existing && existing.status === 'SENT') return;
 
-        const messageId = await this.whatsappProvider.sendMessage({
+        const messageId = await provider.sendMessage({
             recipient,
             template,
             components,

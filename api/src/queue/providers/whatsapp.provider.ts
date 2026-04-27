@@ -52,3 +52,41 @@ export class MetaWhatsAppProvider implements IWhatsAppProvider {
         }
     }
 }
+
+export class FlowWhatsAppProvider implements IWhatsAppProvider {
+    constructor(private apiUrl: string, private apiKey: string) {}
+
+    async sendMessage(options: WhatsAppOptions): Promise<string | null> {
+        // Map templates to human readable messages for Flow
+        let content = '';
+        if (options.template.includes('now')) {
+            const name = options.components[0]?.parameters[0]?.text || 'Cliente';
+            const code = options.components[0]?.parameters[1]?.text || '---';
+            content = `🔔 ¡Hola ${name}! Es tu turno. Por favor, acércate a la ventanilla con tu código: *${code}*. ¡Te esperamos! ✨`;
+        } else if (options.template.includes('near')) {
+            const name = options.components[0]?.parameters[0]?.text || 'Cliente';
+            content = `📢 ¡Hola ${name}! Tu turno está cerca. Por favor, mantente atento, serás llamado en unos momentos. 🙏`;
+        } else {
+            content = `Aviso de Turno: ${options.template}`;
+        }
+
+        try {
+            const response = await fetch(`${this.apiUrl}/whatsapp/internal/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tenantId: 'edd1ac37-5ff9-4e46-bc7f-fff3c414d718', // Default Flow Tenant
+                    to: options.recipient,
+                    content: content,
+                    key: this.apiKey
+                })
+            });
+
+            const data = await response.json();
+            return data.providerId || 'SUCCESS';
+        } catch (error) {
+            console.error('[Flow WhatsApp] Exception:', error);
+            return null;
+        }
+    }
+}
