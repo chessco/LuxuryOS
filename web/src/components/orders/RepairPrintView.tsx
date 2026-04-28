@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface RepairPrintViewProps {
     isOpen: boolean;
@@ -68,7 +69,12 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                     <div ref={printRef} className="flex flex-col font-serif print:text-black">
                         {/* Header */}
                         <div className="flex justify-between items-start mb-8 border-b-2 border-zinc-300 pb-4">
-                            <div className="flex-1"></div>
+                            <div className="flex-1">
+                                <div className="bg-white p-1 inline-block border border-zinc-200">
+                                    <QRCodeSVG value={order.id} size={50} />
+                                    <p className="text-[7px] font-mono mt-0.5 text-center truncate w-[50px]">{order.id.split('-')[0]}</p>
+                                </div>
+                            </div>
                             <div className="flex-1 text-center">
                                 <h2 className="text-2xl font-black uppercase tracking-[0.2em]">REPARACIÓN</h2>
                             </div>
