@@ -576,7 +576,7 @@ const OrderDetail: React.FC = () => {
                             )}
                             <div>
                                 <h4 className="text-foreground font-bold text-lg transition-colors">{order.clientName}</h4>
-                                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1 transition-colors">VIP • Madrid, ES</p>
+                                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1 transition-colors">{order.client?.status || 'Activo'} • {order.client?.location || 'MÉXICO'}</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
