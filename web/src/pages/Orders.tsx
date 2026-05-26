@@ -65,6 +65,12 @@ const LAYAWAY_COLUMNS: Column[] = [
     { id: 'LAYAWAY_EXPIRED', name: 'Apartado Vencido', color: 'bg-red-500' },
 ];
 
+export const getStatusLabel = (stage: string) => {
+    const allCols = [...STANDARD_COLUMNS, ...REPAIR_COLUMNS, ...MANUFACTURE_COLUMNS, ...LAYAWAY_COLUMNS];
+    const col = allCols.find(c => c.id === stage);
+    return col ? col.name : stage;
+};
+
 const Orders: React.FC = () => {
     const { variant } = useTheme();
     const location = useLocation();
@@ -77,9 +83,7 @@ const Orders: React.FC = () => {
                 STANDARD_COLUMNS;
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<'kanban' | 'table'>(() => {
-        return variant === 'notion' ? 'table' : 'kanban';
-    });
+    const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
     const [orders, setOrders] = useState<any[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [clients, setClients] = useState<any[]>([]);
@@ -108,6 +112,7 @@ const Orders: React.FC = () => {
                         item: o.pieceType,
                         value: `$${Number(o.value).toLocaleString()} MXN`,
                         status: stage, // keep raw stage for logic, map for display
+                        statusLabel: getStatusLabel(stage),
                         initials: o.client?.name?.substring(0, 2).toUpperCase() || 'NC',
                         initialsColor: 'bg-muted text-muted-foreground border border-border',
                         // ... map other fields if needed
@@ -226,7 +231,7 @@ const Orders: React.FC = () => {
 
         if (targetStage && activeOrder && activeOrder.stage !== targetStage) {
             // Optimistic Update
-            setOrders(prev => prev.map(o => o.id === activeOrder.id ? { ...o, stage: targetStage, status: targetStage } : o));
+            setOrders(prev => prev.map(o => o.id === activeOrder.id ? { ...o, stage: targetStage, status: targetStage, statusLabel: getStatusLabel(targetStage) } : o));
 
             try {
                 await OrdersService.moveOrder(activeOrder.id, targetStage);
@@ -652,7 +657,7 @@ const SortableKanbanCard: React.FC<{ order: OrderMock, isBig?: boolean }> = ({ o
     );
 };
 
-const KanbanCard: React.FC<OrderMock & { isBig?: boolean, isOverlay?: boolean }> = ({ id, client, item, value, status, statusType, initials, initialsColor, avatar, progress, isPaid, isBig, isOverlay, receivedDate, receivedTime }) => (
+const KanbanCard: React.FC<OrderMock & { isBig?: boolean, isOverlay?: boolean, statusLabel?: string }> = ({ id, client, item, value, status, statusLabel, statusType, initials, initialsColor, avatar, progress, isPaid, isBig, isOverlay, receivedDate, receivedTime }) => (
     <div
         className={`group flex flex-col gap-4 rounded-2xl bg-card p-5 border border-border hover:border-indigo-500/50 transition-all cursor-pointer active:cursor-grabbing relative hover:-translate-y-1 shadow-sm backdrop-blur-sm ${isBig ? 'border-l-4 border-l-foreground ring-1 ring-border' : ''} ${isOverlay ? 'bg-card border-border shadow-2xl skew-y-2 opacity-90' : ''}`}
     >
@@ -687,7 +692,7 @@ const KanbanCard: React.FC<OrderMock & { isBig?: boolean, isOverlay?: boolean }>
                 statusType === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                     statusType === 'new' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' :
                         'bg-muted text-muted-foreground border-border'
-                }`}>{status}</span>
+                }`}>{statusLabel || status}</span>
             {progress && (
                 <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-foreground block" style={{ width: `${progress}%` }}></div>

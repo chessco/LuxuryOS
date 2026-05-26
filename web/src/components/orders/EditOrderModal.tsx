@@ -18,6 +18,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         laborCost: order.laborCost || 0,
         materialCost: order.materialCost || 0,
         priority: order.priority,
+        location: order.location || '',
         notes: order.notes || '',
         dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split('T')[0] : '',
         clientId: order.clientId,
@@ -195,6 +196,16 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                     value={formData.dueDate}
                                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                                     className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none [color-scheme:light] dark:[color-scheme:dark] shadow-inner"
+                                />
+                            </div>
+                            <div className="col-span-2 space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Ubicación (Física)</label>
+                                <input
+                                    type="text"
+                                    value={formData.location}
+                                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner"
+                                    placeholder="Ej. Taller Central, Caja Fuerte, Vitrina..."
                                 />
                             </div>
                         </div>

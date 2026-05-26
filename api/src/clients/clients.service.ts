@@ -12,25 +12,27 @@ export class ClientsService {
     }
 
     async create(tenantId: string, data: any) {
-        const { name, email, phone } = data;
+        const { name, email, phone, location } = data;
         return this.prisma.client.create({
             data: {
                 name,
                 email,
                 phone,
+                location,
                 tenantId,
             },
         });
     }
 
     async update(tenantId: string, id: string, data: any) {
-        const { name, email, phone } = data;
+        const { name, email, phone, location } = data;
         return this.prisma.client.update({
             where: { id, tenantId },
             data: {
                 name,
                 email,
                 phone,
+                location,
             },
         });
     }

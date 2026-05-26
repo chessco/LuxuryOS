@@ -13,6 +13,7 @@ export interface Client {
     lastOrder: string;
     initials: string;
     initialsColor: string;
+    location?: string;
     tags?: string[];
 }
 
@@ -168,7 +169,7 @@ export default function ClientsPage() {
                                         </td>
                                         <td className="py-4 px-6">
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-foreground text-xs font-medium">CDMX, México</span>
+                                                <span className="text-foreground text-xs font-medium">{client.location || 'Cd Obregon, Sonora'}</span>
                                                 <span className="text-muted-foreground text-[10px] font-bold">{client.phone}</span>
                                             </div>
                                         </td>
@@ -240,6 +241,7 @@ const ClientModal: React.FC<{ client: Client | null, onClose: () => void, onSave
         name: '',
         email: '',
         phone: '',
+        location: 'Cd Obregon, Sonora',
         tags: []
     });
 
@@ -280,6 +282,21 @@ const ClientModal: React.FC<{ client: Client | null, onClose: () => void, onSave
                             className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
                             placeholder="Ej. Sofía Martínez"
                         />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Ubicación</label>
+                        <select
+                            name="location"
+                            value={formData.location || 'Cd Obregon, Sonora'}
+                            onChange={handleChange as any}
+                            className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all appearance-none cursor-pointer"
+                        >
+                            <option value="Cd Obregon, Sonora">Cd Obregon, Sonora</option>
+                            <option value="Hermosillo, Sonora">Hermosillo, Sonora</option>
+                            <option value="Navojoa, Sonora">Navojoa, Sonora</option>
+                            <option value="Guaymas, Sonora">Guaymas, Sonora</option>
+                            <option value="Nogales, Sonora">Nogales, Sonora</option>
+                        </select>
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-2">

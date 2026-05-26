@@ -7,6 +7,7 @@ import Inventory from './pages/Inventory';
 import Finance from './pages/Finance';
 import AIAssistant from './pages/AIAssistant';
 import Settings from './pages/Settings';
+import AtelierSettings from './pages/AtelierSettings';
 import Login from './pages/Login';
 import QueueSettings from './pages/QueueSettings';
 import OrderDetail from './pages/OrderDetail';
@@ -48,9 +49,13 @@ function App() {
                         <Route path="/orders" element={<Orders />} />
                         <Route path="/orders/:id" element={<OrderDetail />} />
                         <Route path="/clients" element={<Clients />} />
-                        <Route path="/inventory" element={<Inventory />} />
+                        <Route path="/inventory" element={
+                            <RoleRedirect allowedRoles={['SYSTEM_ADMIN']} redirectTo="/orders">
+                                <Inventory />
+                            </RoleRedirect>
+                        } />
                         <Route path="/finance" element={
-                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
+                            <RoleRedirect allowedRoles={['SYSTEM_ADMIN']} redirectTo="/orders">
                                 <Finance />
                             </RoleRedirect>
                         } />
@@ -62,6 +67,11 @@ function App() {
                         <Route path="/settings" element={
                             <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
                                 <Settings />
+                            </RoleRedirect>
+                        } />
+                        <Route path="/settings/atelier" element={
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
+                                <AtelierSettings />
                             </RoleRedirect>
                         } />
                         <Route path="/settings/users" element={
