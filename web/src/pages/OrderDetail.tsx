@@ -8,6 +8,7 @@ import { ManufacturePanel } from '../components/orders/ManufacturePanel';
 import { PaymentModal } from '../components/orders/PaymentModal';
 import { EditOrderModal } from '../components/orders/EditOrderModal';
 import { RepairPrintView } from '../components/orders/RepairPrintView';
+import { getStatusLabel } from './Orders';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -46,6 +47,7 @@ const OrderDetail: React.FC = () => {
                 day: '2-digit', month: '2-digit', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
             }) : 'N/A',
+            statusLabel: getStatusLabel(foundOrder.status || foundOrder.orderStatus || ''),
             statusType: foundOrder.priority === 'ALTA' ? 'urgent' : 'normal',
             pendingAmount: `${balance.toLocaleString()} MXN`,
             paidAmountFormatted: `${paid.toLocaleString()} MXN`,
@@ -276,7 +278,7 @@ const OrderDetail: React.FC = () => {
                         acts.push({
                             user: "Tú",
                             action: "actualizaste el estado a",
-                            target: foundOrder.status || foundOrder.orderStatus,
+                            target: getStatusLabel(foundOrder.status || foundOrder.orderStatus),
                             time: foundOrder.updatedAt ? new Date(foundOrder.updatedAt).toLocaleString() : 'Hoy',
                             dotColor: "bg-indigo-500"
                         });
@@ -378,7 +380,7 @@ const OrderDetail: React.FC = () => {
                             <span className={`px-3 py-1 bg-muted border border-border text-[9px] font-black uppercase tracking-widest rounded-full transition-colors ${order.statusType === 'urgent' ? 'text-red-600 border-red-500/20 bg-red-500/5' :
                                 order.statusType === 'success' ? 'text-emerald-600 border-emerald-500/20 bg-emerald-500/5' :
                                     'text-indigo-600 border-indigo-500/20 bg-indigo-500/5'
-                                }`}>{order.status}</span>
+                                }`}>{order.statusLabel || order.status}</span>
                         </div>
                         <div className="flex items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
                             <div className="flex items-center gap-2">

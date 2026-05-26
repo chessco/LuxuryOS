@@ -13,6 +13,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
     const pathname = location.pathname;
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userName = user.name || user.email || 'Usuario';
+    const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
+    const atelierName = atelierSettings.name || 'Business Suite';
     const { variant, mode, toggleMode } = useTheme();
     const userRole = user.role === 'TENANT_ADMIN' 
         ? 'Atelier Manager' 
@@ -58,13 +60,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
         }
         return true;
     }).map(section => {
-        if (user.role === 'VENDEDOR' && section.title === 'Operaciones') {
-            return {
-                ...section,
-                items: section.items.filter(item => item.path !== '/finance')
-            };
+        let items = section.items;
+        
+        if (user.role !== 'SYSTEM_ADMIN') {
+            items = items.filter(item => item.path !== '/finance' && item.path !== '/inventory');
         }
-        return section;
+
+        return {
+            ...section,
+            items
+        };
     });
 
     return (
@@ -89,7 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                         </div>
                         <div className="flex flex-col">
                             <h1 className="text-foreground text-lg font-bold leading-none tracking-tight">Luxury OS</h1>
-                            <p className="text-muted-foreground text-[10px] font-medium tracking-widest mt-1 uppercase">Business Suite</p>
+                            <p className="text-muted-foreground text-[10px] font-medium tracking-widest mt-1 uppercase">{atelierName}</p>
                         </div>
                     </div>
                     {/* Close button for mobile */}

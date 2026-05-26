@@ -122,7 +122,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders }) => {
                                             order.statusType === 'new' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' :
                                                 'bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700'
                                         }`}>
-                                        {order.status}
+                                        {order.statusLabel || order.status}
                                     </span>
                                 </td>
                                 <td className="px-8 py-6">
