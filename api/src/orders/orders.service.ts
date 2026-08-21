@@ -16,6 +16,8 @@ export class OrdersService {
         const query: any = { tenantId };
         if (type) {
             query.type = type;
+        } else {
+            query.type = 'STANDARD';
         }
 
         const orders = await this.prisma.order.findMany({
