@@ -961,14 +961,6 @@ const NewOrderDrawer: React.FC<{
                                 <span className="size-1.5 rounded-full bg-amber-500"></span>
                                 Ficha Técnica (Piezas)
                             </h3>
-                            <button
-                                type="button"
-                                onClick={addItem}
-                                className="flex items-center gap-2 text-indigo-400 hover:text-white transition-colors text-[9px] font-black uppercase tracking-widest"
-                            >
-                                <span className="material-symbols-outlined text-sm">add_circle</span>
-                                Agregar Pieza
-                            </button>
                         </div>
 
                         {items.map((item, index) => (
@@ -1067,6 +1059,18 @@ const NewOrderDrawer: React.FC<{
                                 </div>
                             </div>
                         ))}
+
+                        {/* Add Piece Button (Moved below list of pieces) */}
+                        <div className="flex justify-end pt-2">
+                            <button
+                                type="button"
+                                onClick={addItem}
+                                className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-indigo-500/50 hover:border-indigo-500 text-indigo-400 hover:text-white transition-all h-12 px-6 text-[10px] font-black uppercase tracking-widest bg-indigo-500/5 hover:bg-indigo-500/10 active:scale-95"
+                            >
+                                <span className="material-symbols-outlined text-sm">add_circle</span>
+                                <span>Agregar Otra Pieza</span>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Section: Valores (Moved to End) */}
