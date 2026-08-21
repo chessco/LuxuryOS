@@ -589,10 +589,6 @@ const NewOrderDrawer: React.FC<{
                 alert(`Por favor, introduce el grosor para la pieza #${i + 1}.`);
                 return;
             }
-            if (!item.itemCode?.trim()) {
-                alert(`Por favor, introduce el SKU / Código para la pieza #${i + 1}.`);
-                return;
-            }
         }
 
         // Sync first item to top-level fields for backward compatibility
@@ -1045,7 +1041,7 @@ const NewOrderDrawer: React.FC<{
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">SKU / Cód</label>
-                                        <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="ABC-123" required />
+                                        <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="ABC-123" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Observaciones / Notas de la Pieza</label>
