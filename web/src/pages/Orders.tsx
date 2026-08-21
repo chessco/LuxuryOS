@@ -923,37 +923,6 @@ const NewOrderDrawer: React.FC<{
                         <textarea name="notes" value={formData.notes} onChange={handleChange as any} className="w-full bg-muted/50 border border-border rounded-xl py-4 px-4 text-sm text-foreground transition-all min-h-[100px] resize-none outline-none focus:border-indigo-500" placeholder="Ej: Grabado láser interior..." />
                     </div>
 
-                    {/* Section: Valores */}
-                    <div className="space-y-6">
-                        <h3 className="text-foreground text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2 pt-2 border-t border-border">
-                            <span className="size-1.5 rounded-full bg-emerald-500"></span>
-                            Finanzas y Prioridad
-                        </h3>
-                        <div className="flex flex-col gap-4">
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Mano de Obra</label>
-                                <input name="value" value={formData.value} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Material</label>
-                                <input name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Atelier</label>
-                                <select
-                                    name="priority"
-                                    value={formData.priority}
-                                    onChange={handleChange as any}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
-                                >
-                                    <option value="Baja">Baja</option>
-                                    <option value="Media">Media</option>
-                                    <option value="Alta">Alta</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Section: Piezas */}
                     <div className="space-y-8">
                         <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -1058,6 +1027,37 @@ const NewOrderDrawer: React.FC<{
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    {/* Section: Valores (Moved to End) */}
+                    <div className="space-y-6">
+                        <h3 className="text-foreground text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2 pt-2 border-t border-border">
+                            <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                            Finanzas y Prioridad
+                        </h3>
+                        <div className="flex flex-col gap-4">
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Mano de Obra</label>
+                                <input name="value" value={formData.value} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Material</label>
+                                <input name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Atelier</label>
+                                <select
+                                    name="priority"
+                                    value={formData.priority}
+                                    onChange={handleChange as any}
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="Baja">Baja</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Alta">Alta</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </form>
 
