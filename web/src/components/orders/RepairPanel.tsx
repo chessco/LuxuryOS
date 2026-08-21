@@ -9,9 +9,6 @@ interface RepairPanelProps {
 
 const REPAIR_STEPS = [
     { status: OrderStatus.RECEIVED, label: 'Recibido', icon: 'package_2' },
-    { status: OrderStatus.DIAGNOSIS_PENDING, label: 'Diagnóstico', icon: 'biotech' },
-    { status: OrderStatus.QUOTE_SENT, label: 'Presupuesto', icon: 'request_quote' },
-    { status: OrderStatus.APPROVED, label: 'Aprobado', icon: 'task_alt' },
     { status: OrderStatus.IN_REPAIR, label: 'En Taller', icon: 'handyman' },
     { status: OrderStatus.REPAIR_COMPLETED, label: 'Listo', icon: 'verified' },
     { status: OrderStatus.DELIVERED, label: 'Entregado', icon: 'local_shipping' }

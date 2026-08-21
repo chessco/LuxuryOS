@@ -23,11 +23,7 @@ export class RepairStrategy implements OrderStrategy {
 
     private getAllowedTransitions(currentStatus: OrderStatus): OrderStatus[] {
         const allowedTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
-            [OrderStatus.RECEIVED]: [OrderStatus.DIAGNOSIS_PENDING, OrderStatus.CANCELLED],
-            [OrderStatus.DIAGNOSIS_PENDING]: [OrderStatus.QUOTE_SENT, OrderStatus.CANCELLED],
-            [OrderStatus.QUOTE_SENT]: [OrderStatus.APPROVED, OrderStatus.CANCELLED],
-            [OrderStatus.APPROVED]: [OrderStatus.IN_REPAIR, OrderStatus.WAITING_PARTS],
-            [OrderStatus.WAITING_PARTS]: [OrderStatus.IN_REPAIR],
+            [OrderStatus.RECEIVED]: [OrderStatus.IN_REPAIR, OrderStatus.CANCELLED],
             [OrderStatus.IN_REPAIR]: [OrderStatus.REPAIR_COMPLETED],
             [OrderStatus.REPAIR_COMPLETED]: [OrderStatus.DELIVERED],
             [OrderStatus.DELIVERED]: [],

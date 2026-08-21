@@ -46,11 +46,8 @@ const STANDARD_COLUMNS: Column[] = [
 
 const REPAIR_COLUMNS: Column[] = [
     { id: 'RECEIVED', name: 'Recibido', color: 'bg-zinc-500' },
-    { id: 'DIAGNOSIS_PENDING', name: 'Diagnóstico', color: 'bg-amber-400' },
-    { id: 'QUOTE_SENT', name: 'Presupuesto', color: 'bg-indigo-400' },
-    { id: 'APPROVED', name: 'Aprobado', color: 'bg-emerald-400' },
-    { id: 'IN_REPAIR', name: 'En Reparación', color: 'bg-white', focus: true },
-    { id: 'REPAIR_COMPLETED', name: 'Listo', color: 'bg-purple-400' },
+    { id: 'IN_REPAIR', name: 'En Taller', color: 'bg-white', focus: true },
+    { id: 'REPAIR_COMPLETED', name: 'Listo', color: 'bg-emerald-400' },
 ];
 
 const MANUFACTURE_COLUMNS: Column[] = [
