@@ -8,6 +8,7 @@ import { ManufacturePanel } from '../components/orders/ManufacturePanel';
 import { PaymentModal } from '../components/orders/PaymentModal';
 import { EditOrderModal } from '../components/orders/EditOrderModal';
 import { RepairPrintView } from '../components/orders/RepairPrintView';
+import { LabelPrintModal } from '../components/orders/LabelPrintModal';
 import { getStatusLabel } from './Orders';
 
 const OrderDetail: React.FC = () => {
@@ -17,6 +18,7 @@ const OrderDetail: React.FC = () => {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
+    const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(2);
     const [notesBuffer, setNotesBuffer] = useState('');
     const [activities, setActivities] = useState<any[]>([]);
@@ -397,6 +399,10 @@ const OrderDetail: React.FC = () => {
                         <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm">
                             <span className="material-symbols-outlined text-[20px]">edit</span>
                             <span>Editar Detalles</span>
+                        </button>
+                        <button onClick={() => setIsLabelPrintOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest">
+                            <span className="material-symbols-outlined text-[20px]">print</span>
+                            <span>Imprimir Etiqueta</span>
                         </button>
                         {order.type === OrderType.REPAIR && (
                             <button
@@ -801,6 +807,12 @@ const OrderDetail: React.FC = () => {
             <RepairPrintView
                 isOpen={isPrintViewOpen}
                 onClose={() => setIsPrintViewOpen(false)}
+                order={order}
+            />
+
+            <LabelPrintModal
+                isOpen={isLabelPrintOpen}
+                onClose={() => setIsLabelPrintOpen(false)}
                 order={order}
             />
         </div>

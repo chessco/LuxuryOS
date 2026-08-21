@@ -10,6 +10,7 @@ import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragStar
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LabelPrintModal } from '../components/orders/LabelPrintModal';
 
 // --- Interfaces for View ---
 export interface Order {
@@ -88,6 +89,8 @@ const Orders: React.FC = () => {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [clients, setClients] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [labelPrintOrder, setLabelPrintOrder] = useState<any | null>(null);
+    const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -214,9 +217,14 @@ const Orders: React.FC = () => {
                 specifications: { items: uppercaseItems }
             };
 
-            await OrdersService.create(payload);
+            const created = await OrdersService.create(payload);
             fetchBoard();
             setIsModalOpen(false);
+
+            if (newOrder.shouldPrintLabel) {
+                setLabelPrintOrder(created);
+                setIsLabelPrintOpen(true);
+            }
         } catch (error) {
             console.error("Create order error", error);
             alert("Error al crear el pedido. Verifica que los datos sean correctos.");
@@ -464,6 +472,15 @@ const Orders: React.FC = () => {
                     />
                 )}
             </AnimatePresence>
+
+            <LabelPrintModal
+                isOpen={isLabelPrintOpen}
+                onClose={() => {
+                    setIsLabelPrintOpen(false);
+                    setLabelPrintOrder(null);
+                }}
+                order={labelPrintOrder}
+            />
         </div>
     );
 };
@@ -480,6 +497,8 @@ const NewOrderDrawer: React.FC<{
     const [searchMode, setSearchMode] = useState<'name' | 'phone'>('name');
     const [selectedClientInfo, setSelectedClientInfo] = useState<any>(null);
     const [phoneSearchValue, setPhoneSearchValue] = useState('');
+    const [shouldPrintLabel, setShouldPrintLabel] = useState(false);
+
     const [formData, setFormData] = useState<any>({
         client: '',
         value: '',
@@ -609,7 +628,8 @@ const NewOrderDrawer: React.FC<{
             ...mainItem,
             pieceType: mainItem.item,
             notes: mainItem.notes || '', // Map first item notes to top-level order notes
-            specifications: { items }
+            specifications: { items },
+            shouldPrintLabel: shouldPrintLabel // Flag to open print label preview
         };
 
         onSave(submissionData);
@@ -1113,13 +1133,28 @@ const NewOrderDrawer: React.FC<{
                 </form>
 
                 {/* Footer Actions */}
-                <div className="p-8 border-t border-border bg-muted/20 grid grid-cols-2 gap-4">
+                <div className="p-8 border-t border-border bg-muted/20 grid grid-cols-3 gap-4">
                     <button type="button" onClick={onClose} className="py-4 rounded-xl text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground transition-all">
                         Cancelar
                     </button>
                     <button
+                        type="button"
+                        onClick={() => {
+                            setShouldPrintLabel(true);
+                            setTimeout(() => {
+                                const form = document.getElementById('new-order-form') as HTMLFormElement;
+                                form?.requestSubmit();
+                            }, 50);
+                        }}
+                        className="py-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">print</span>
+                        <span>Imprimir Etiqueta</span>
+                    </button>
+                    <button
                         type="submit"
                         form="new-order-form"
+                        onClick={() => setShouldPrintLabel(false)}
                         className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95"
                     >
                         Crear Pedido
