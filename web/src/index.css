@@ -20,7 +20,7 @@
         --card: 0 0% 100%;
         --card-foreground: 240 10% 3.9%;
         --muted: 240 4.8% 95.9%;
-        --muted-foreground: 240 3.8% 46.1%;
+        --muted-foreground: 240 5% 30%;
         --border: 240 5.9% 90%;
         --primary: 240 5.9% 10%;
         --primary-foreground: 0 0% 98%;
@@ -50,22 +50,24 @@
     */
     .theme-notion {
         --background: 0 0% 100%;
-        --foreground: 0 0% 20%;
-        /* Softer black #333 */
+        --foreground: 0 0% 15%;
+        /* Softer black #262626 */
         --sidebar: 60 7% 96.5%;
         /* #F7F7F5 */
-        --sidebar-foreground: 0 0% 32%;
-        /* #525252 */
+        --sidebar-foreground: 0 0% 28%;
+        /* #474747 */
         --header: 0 0% 100%;
         --card: 0 0% 100%;
-        --card-foreground: 0 0% 20%;
-        --muted: 0 0% 96%;
-        /* #F5F5F5 */
-        --muted-foreground: 0 0% 60%;
-        --border: 0 0% 90%;
-        --primary: 0 0% 20%;
+        --card-foreground: 0 0% 15%;
+        --muted: 0 0% 95%;
+        /* #F2F2F2 */
+        --muted-foreground: 0 0% 35%;
+        /* Darker grey #595959 for high visibility */
+        --border: 0 0% 85%;
+        /* Slightly more defined borders #D9D9D9 */
+        --primary: 0 0% 15%;
         --primary-foreground: 0 0% 98%;
-        --accent: 0 0% 95%;
+        --accent: 0 0% 93%;
     }
 
     .theme-notion.dark {
