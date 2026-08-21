@@ -558,6 +558,43 @@ const NewOrderDrawer: React.FC<{
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        // Strict validation: Ensure all required fields for each item are filled
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (!item.item?.trim()) {
+                alert(`Por favor, introduce el nombre de la pieza #${i + 1}.`);
+                return;
+            }
+            if (!item.metal) {
+                alert(`Por favor, selecciona el metal para la pieza #${i + 1}.`);
+                return;
+            }
+            if (!item.color) {
+                alert(`Por favor, selecciona el color para la pieza #${i + 1}.`);
+                return;
+            }
+            if (!item.karats) {
+                alert(`Por favor, selecciona los quilates para la pieza #${i + 1}.`);
+                return;
+            }
+            if (!item.weight?.trim()) {
+                alert(`Por favor, introduce el peso para la pieza #${i + 1}.`);
+                return;
+            }
+            if (!item.size?.trim()) {
+                alert(`Por favor, introduce la medida para la pieza #${i + 1}.`);
+                return;
+            }
+            if (!item.thickness?.trim()) {
+                alert(`Por favor, introduce el grosor para la pieza #${i + 1}.`);
+                return;
+            }
+            if (!item.itemCode?.trim()) {
+                alert(`Por favor, introduce el SKU / Código para la pieza #${i + 1}.`);
+                return;
+            }
+        }
+
         // Sync first item to top-level fields for backward compatibility
         const mainItem = items[0] || {};
         const submissionData = {
@@ -607,7 +644,7 @@ const NewOrderDrawer: React.FC<{
                 </div>
 
                 {/* Form Body */}
-                <form className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar" onSubmit={handleSubmit}>
+                <form id="new-order-form" className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar" onSubmit={handleSubmit}>
                     {/* Section: Cliente */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -1070,7 +1107,8 @@ const NewOrderDrawer: React.FC<{
                         Cancelar
                     </button>
                     <button
-                        onClick={handleSubmit}
+                        type="submit"
+                        form="new-order-form"
                         className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95"
                     >
                         Crear Pedido
