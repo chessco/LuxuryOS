@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import api from '../services/api';
 
 const ThemeOption: React.FC<{ id: 'pitaya' | 'notion', name: string, desc: string, previewClass: string }> = ({ id, name, desc, previewClass }) => {
     const { variant, setVariant } = useTheme();
@@ -36,44 +35,6 @@ const ThemeOption: React.FC<{ id: 'pitaya' | 'notion', name: string, desc: strin
 
 const SettingsPage: React.FC = () => {
     const { mode, toggleMode } = useTheme();
-    const [clearing, setClearing] = useState(false);
-    
-    // Auth info
-    const userStr = localStorage.getItem('user');
-    const user = userStr ? JSON.parse(userStr) : null;
-    const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
-
-    const handleClearDemoData = async () => {
-        const confirm1 = window.confirm(
-            '⚠️ ATENCIÓN: Esta acción eliminará permanentemente todas las órdenes (reparaciones, fabricaciones, apartados), el historial de turnos y todos los clientes registrados en la base de datos de pruebas.\n\n¿Deseas continuar?'
-        );
-        if (!confirm1) return;
-
-        const confirm2 = window.prompt(
-            'Para confirmar la eliminación permanente de todos los datos de pruebas, escribe "BORRAR TODO" a continuación:'
-        );
-        if (confirm2 !== 'BORRAR TODO') {
-            alert('Confirmación incorrecta. Acción cancelada.');
-            return;
-        }
-
-        try {
-            setClearing(true);
-            await api.post('/settings/clear-demo-data');
-            
-            // Clean local mock inventory from localStorage if any exists
-            localStorage.removeItem('inventory_data');
-            
-            alert('¡Datos de prueba eliminados exitosamente! La sucursal ha quedado limpia.');
-            window.location.reload();
-        } catch (error: any) {
-            console.error(error);
-            alert(error.response?.data?.message || 'Error al eliminar los datos de prueba.');
-        } finally {
-            setClearing(false);
-        }
-    };
-
     const sections = [
         { title: 'Perfil del Atelier', icon: 'home_repair_service', description: 'Nombre, dirección e información comercial', path: '/settings/atelier' },
         { title: 'Usuarios y Permisos', icon: 'manage_accounts', description: 'Gestione su equipo y roles de acceso', path: '/settings/users' },
@@ -145,28 +106,6 @@ const SettingsPage: React.FC = () => {
                         />
                     </div>
                 </div>
-
-                {/* Danger Zone for System Admin only */}
-                {isSystemAdmin && (
-                    <div className="mt-6 p-8 rounded-3xl bg-red-500/5 border border-red-500/20 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between transition-colors shadow-sm">
-                        <div className="flex items-start gap-4">
-                            <span className="material-symbols-outlined text-red-500 text-[32px] mt-1">warning</span>
-                            <div>
-                                <h3 className="text-red-500 text-sm font-black uppercase tracking-widest transition-colors">Zona de Peligro – Acciones del Sistema</h3>
-                                <p className="text-muted-foreground text-xs font-medium leading-relaxed mt-1 transition-colors">
-                                    Elimina de forma permanente todas las órdenes, clientes, inventarios y el historial de turnos de prueba. Esta acción no se puede deshacer.
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleClearDemoData}
-                            disabled={clearing}
-                            className="w-full md:w-auto px-6 py-4 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 whitespace-nowrap"
-                        >
-                            {clearing ? 'Limpiando...' : 'Borrar Datos de Pruebas'}
-                        </button>
-                    </div>
-                )}
 
                 <div className="mt-6 p-8 rounded-3xl bg-muted/30 border border-border/50 flex items-center justify-between transition-colors shadow-inner">
                     <div className="flex items-center gap-4">

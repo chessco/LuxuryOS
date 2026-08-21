@@ -33,4 +33,51 @@ export class SettingsService {
     });
     return setting?.value || defaultValue || '';
   }
+
+  async clearDemoData(tenantId: string) {
+    // Delete in sequence to avoid foreign key constraint violations
+    
+    // 1. Delete payments belonging to orders of this tenant
+    await this.prisma.payment.deleteMany({
+      where: {
+        order: { tenantId }
+      }
+    });
+
+    // 2. Delete queue events of tickets of this tenant
+    await this.prisma.queueEvent.deleteMany({
+      where: {
+        ticket: { tenantId }
+      }
+    });
+
+    // 3. Delete notification logs of this tenant
+    await this.prisma.notificationLog.deleteMany({
+      where: { tenantId }
+    });
+
+    // 4. Delete queue ticket recommendations of tickets of this tenant
+    await this.prisma.queueTicketRecommendation.deleteMany({
+      where: {
+        ticket: { tenantId }
+      }
+    });
+
+    // 5. Delete queue tickets of this tenant
+    await this.prisma.queueTicket.deleteMany({
+      where: { tenantId }
+    });
+
+    // 6. Delete orders of this tenant
+    await this.prisma.order.deleteMany({
+      where: { tenantId }
+    });
+
+    // 7. Delete clients of this tenant
+    await this.prisma.client.deleteMany({
+      where: { tenantId }
+    });
+
+    return { success: true };
+  }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -20,5 +20,13 @@ export class SettingsController {
     );
     await Promise.all(promises);
     return { success: true };
+  }
+
+  @Post('clear-demo-data')
+  async clearDemoData(@Req() req: any) {
+    if (req.user.role !== 'SYSTEM_ADMIN') {
+      throw new ForbiddenException('Solo el administrador del sistema puede realizar esta acción');
+    }
+    return this.settingsService.clearDemoData(req.user.tenantId);
   }
 }

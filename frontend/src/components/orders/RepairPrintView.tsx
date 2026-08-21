@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { QRCodeSVG } from 'qrcode.react';
 
 interface RepairPrintViewProps {
     isOpen: boolean;
@@ -34,20 +33,19 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
     // Ensure we have at least 2 slots as in the image
     const displayPieces = [...pieces];
     while (displayPieces.length < 2) {
-        displayPieces.push({ _isFiller: true });
+        displayPieces.push({});
     }
 
     const today = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4 sm:p-8 print:bg-white print:p-0 transition-colors">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm print:bg-white print:p-0 transition-colors">
                 <motion.div
-                    id="print-view"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="relative bg-[#fdf2cf] w-full max-w-[800px] min-h-[500px] p-6 sm:p-12 text-zinc-900 shadow-2xl overflow-visible print:w-full print:h-auto print:shadow-none print:p-4 print:bg-white print:m-0"
+                    className="relative bg-[#fdf2cf] w-[800px] min-h-[500px] p-12 text-zinc-900 shadow-2xl overflow-hidden print:w-full print:h-full print:shadow-none print:p-8"
                 >
                     {/* UI Only Buttons */}
                     <div className="absolute top-4 right-4 flex gap-3 print:hidden">
@@ -66,15 +64,10 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                         </button>
                     </div>
 
-                    <div ref={printRef} className="flex flex-col font-serif print:text-black">
+                    <div ref={printRef} className="flex flex-col h-full font-serif print:text-black">
                         {/* Header */}
                         <div className="flex justify-between items-start mb-8 border-b-2 border-zinc-300 pb-4">
-                            <div className="flex-1">
-                                <div className="bg-white p-1 inline-block border border-zinc-200">
-                                    <QRCodeSVG value={order.id} size={50} />
-                                    <p className="text-[7px] font-mono mt-0.5 text-center truncate w-[50px]">{order.id.split('-')[0]}</p>
-                                </div>
-                            </div>
+                            <div className="flex-1"></div>
                             <div className="flex-1 text-center">
                                 <h2 className="text-2xl font-black uppercase tracking-[0.2em]">REPARACIÓN</h2>
                             </div>
@@ -96,78 +89,78 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
 
                         {/* Pieces Loop */}
                         <div className="space-y-10">
-                            {displayPieces.map((piece: any, idx) => (
+                            {displayPieces.slice(0, 2).map((piece: any, idx) => (
                                 <div key={idx} className="relative">
                                     <div className="absolute -left-6 top-1 text-lg font-black">•</div>
-                                    <div className="grid grid-cols-12 gap-y-4 gap-x-4">
-                                        <div className="col-span-5 flex items-end gap-2 text-xs">
+                                    <div className="grid grid-cols-4 gap-y-4 gap-x-6">
+                                        <div className="col-span-1 flex items-end gap-2 text-xs">
                                             <span className="font-bold">Pieza</span>
-                                            <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5 line-clamp-1 break-all">
+                                            <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
                                                 {piece.item}
                                             </div>
                                         </div>
-                                        <div className="col-span-3 flex items-end gap-2 text-xs">
+                                        <div className="col-span-1 flex items-end gap-2 text-xs">
                                             <span className="font-bold">Metal</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
                                                 {piece.metal}
                                             </div>
                                         </div>
-                                        <div className="col-span-2 flex items-end gap-2 text-xs">
+                                        <div className="col-span-1 flex items-end gap-2 text-xs">
                                             <span className="font-bold">Color</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
                                                 {piece.color}
                                             </div>
                                         </div>
-                                        <div className="col-span-2 flex items-end gap-2 text-xs">
+                                        <div className="col-span-1 flex items-end gap-2 text-xs">
                                             <span className="font-bold">Kilates</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
                                                 {piece.karats}
                                             </div>
                                         </div>
 
-                                        <div className="col-span-2 flex items-end gap-2 text-xs">
+                                        <div className="col-span-1 flex items-end gap-2 text-xs">
                                             <span className="font-bold">Gr</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
                                                 {piece.weight}
                                             </div>
                                         </div>
-                                        <div className="col-span-3 flex items-end gap-2 text-xs">
+                                        <div className="col-span-1 flex items-end gap-2 text-xs">
                                             <span className="font-bold">Medida</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
                                                 {piece.size}
                                             </div>
                                         </div>
-                                        <div className="col-span-3 flex items-end gap-2 text-xs">
+                                        <div className="col-span-1 flex items-end gap-2 text-xs">
                                             <span className="font-bold">Grosor</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
                                                 {piece.thickness}
                                             </div>
                                         </div>
-                                        <div className="col-span-4 flex items-end gap-2 text-xs">
+                                        <div className="col-span-1 flex items-end gap-2 text-xs">
                                             <span className="font-bold">Codigo</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5 text-[10px]">
-                                                {piece.itemCode || (!piece._isFiller ? `#ORD-${order.id?.substring(0, 6)}` : '')}
+                                                {piece.itemCode || `#ORD-${order.id?.substring(0, 6)}`}
                                             </div>
                                         </div>
 
-                                        <div className="col-span-12 flex items-start gap-2 text-xs">
+                                        <div className="col-span-4 flex items-start gap-2 text-xs">
                                             <span className="font-bold mt-1">Descripcion</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[40px] pb-0.5 leading-relaxed">
-                                                {piece.description || (!piece._isFiller ? order.notes : '')}
+                                                {piece.description || order.notes}
                                             </div>
                                         </div>
 
-                                        <div className="col-span-6"></div>
-                                        <div className="col-span-3 flex items-end gap-2 text-[10px]">
-                                            <span className="font-bold whitespace-nowrap">Mano de obra</span>
+                                        <div className="col-span-2"></div>
+                                        <div className="col-span-1 flex items-end gap-2 text-[10px]">
+                                            <span className="font-bold">Mano de obra</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
-                                                {Number((idx === 0 ? order.value : 0) || piece.laborCost || 0).toLocaleString()} MXN
+                                                {piece.laborCost ? `${Number(piece.laborCost).toLocaleString()} MXN` : ''}
                                             </div>
                                         </div>
-                                        <div className="col-span-3 flex items-end gap-2 text-[10px]">
+                                        <div className="col-span-1 flex items-end gap-2 text-[10px]">
                                             <span className="font-bold">Material</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
-                                                {Number((idx === 0 ? order.cost : 0) || piece.materialCost || 0).toLocaleString()} MXN
+                                                {piece.materialCost ? `${Number(piece.materialCost).toLocaleString()} MXN` : ''}
                                             </div>
                                         </div>
                                     </div>
@@ -206,7 +199,7 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                                 <div className="flex items-end gap-2 text-sm col-span-1">
                                     <span className="font-black">Total</span>
                                     <div className="flex-1 border-b-2 border-zinc-900 pb-1 font-black text-lg">
-                                        {Number(Number(order.value || 0) + Number(order.cost || 0)).toLocaleString()} MXN
+                                        {Number(order.value || 0).toLocaleString()} MXN
                                     </div>
                                 </div>
 
@@ -241,35 +234,18 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                     <style dangerouslySetInnerHTML={{
                         __html: `
                         @media print {
-                            @page {
-                                size: auto;
-                                margin: 5mm;
-                            }
-                            body {
-                                margin: 0;
-                                padding: 0;
-                                background: white;
-                            }
                             body * {
                                 visibility: hidden;
                             }
                             #print-view, #print-view * {
                                 visibility: visible;
                             }
-                             #print-view {
-                                 position: relative !important;
-                                 width: 100% !important;
-                                 height: auto !important;
-                                 margin: 0 !important;
-                                 padding: 5mm !important;
-                                 box-shadow: none !important;
-                                 border: none !important;
-                                 overflow: visible !important;
-                                 background: white !important;
-                             }
-                             .page-break {
-                                 page-break-before: always;
-                             }
+                            #print-view {
+                                position: absolute;
+                                left: 0;
+                                top: 0;
+                                width: 100%;
+                            }
                         }
                     ` }} />
                 </motion.div>

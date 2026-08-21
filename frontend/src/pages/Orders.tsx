@@ -65,12 +65,6 @@ const LAYAWAY_COLUMNS: Column[] = [
     { id: 'LAYAWAY_EXPIRED', name: 'Apartado Vencido', color: 'bg-red-500' },
 ];
 
-export const getStatusLabel = (stage: string) => {
-    const allCols = [...STANDARD_COLUMNS, ...REPAIR_COLUMNS, ...MANUFACTURE_COLUMNS, ...LAYAWAY_COLUMNS];
-    const col = allCols.find(c => c.id === stage);
-    return col ? col.name : stage;
-};
-
 const Orders: React.FC = () => {
     const { variant } = useTheme();
     const location = useLocation();
@@ -83,7 +77,9 @@ const Orders: React.FC = () => {
                 STANDARD_COLUMNS;
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
+    const [viewMode, setViewMode] = useState<'kanban' | 'table'>(() => {
+        return variant === 'notion' ? 'table' : 'kanban';
+    });
     const [orders, setOrders] = useState<any[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [clients, setClients] = useState<any[]>([]);
@@ -112,7 +108,6 @@ const Orders: React.FC = () => {
                         item: o.pieceType,
                         value: `$${Number(o.value).toLocaleString()} MXN`,
                         status: stage, // keep raw stage for logic, map for display
-                        statusLabel: getStatusLabel(stage),
                         initials: o.client?.name?.substring(0, 2).toUpperCase() || 'NC',
                         initialsColor: 'bg-muted text-muted-foreground border border-border',
                         // ... map other fields if needed
@@ -148,11 +143,6 @@ const Orders: React.FC = () => {
 
     const handleCreateOrder = async (newOrder: any) => {
         try {
-            // We need clientId, not just name. 
-            // In a real app Autocomplete should return ID. 
-            // For now, assuming we handle it or send name and backend handles it (backend needs update for name-based create)
-            // Or we just fetch clients and find ID.
-
             // Finding the client ID based on the name from Autocomplete
             let selectedClient = clients.find(c => c.name.toLowerCase().trim() === newOrder.client.toLowerCase().trim());
 
@@ -243,7 +233,7 @@ const Orders: React.FC = () => {
 
         if (targetStage && activeOrder && activeOrder.stage !== targetStage) {
             // Optimistic Update
-            setOrders(prev => prev.map(o => o.id === activeOrder.id ? { ...o, stage: targetStage, status: targetStage, statusLabel: getStatusLabel(targetStage) } : o));
+            setOrders(prev => prev.map(o => o.id === activeOrder.id ? { ...o, stage: targetStage, status: targetStage } : o));
 
             try {
                 await OrdersService.moveOrder(activeOrder.id, targetStage);
@@ -259,69 +249,8 @@ const Orders: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
-    // Apply search and filters
-    const filteredOrders = React.useMemo(() => {
-        let result = orders;
-
-        // Search filter
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase().trim();
-            result = result.filter(o =>
-                (o.client && String(o.client).toLowerCase().includes(q)) ||
-                (o.id && o.id.toLowerCase().includes(q)) ||
-                (o.item && String(o.item).toLowerCase().includes(q)) ||
-                (o.pieceType && String(o.pieceType).toLowerCase().includes(q))
-            );
-        }
-
-        // Active filter
-        if (activeFilter) {
-            if (activeFilter === 'Esta Semana') {
-                const now = new Date();
-                const startOfWeek = new Date(now);
-                startOfWeek.setDate(now.getDate() - now.getDay());
-                startOfWeek.setHours(0, 0, 0, 0);
-                result = result.filter(o => {
-                    if (!o.createdAt) return false;
-                    return new Date(o.createdAt) >= startOfWeek;
-                });
-            } else if (activeFilter === 'Prioridad Alta') {
-                result = result.filter(o =>
-                    o.priority === 'ALTA' || o.priority === 'Alta' || o.priority === 'alta'
-                );
-            } else {
-                // Filter by piece type (e.g. 'Anillos' matches 'Anillo', 'anillo', etc.)
-                const filterLower = activeFilter.toLowerCase();
-                result = result.filter(o => {
-                    const piece = (o.item || o.pieceType || '').toLowerCase();
-                    return piece.includes(filterLower) || filterLower.includes(piece);
-                });
-            }
-        }
-
-        return result;
-    }, [orders, searchQuery, activeFilter]);
-
-    // Dynamic piece type filters from actual data
-    const pieceTypeFilters = React.useMemo(() => {
-        const types = new Map<string, number>();
-        orders.forEach(o => {
-            const t = (o.item || o.pieceType || '').trim();
-            if (t) {
-                const key = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
-                types.set(key, (types.get(key) || 0) + 1);
-            }
-        });
-        return Array.from(types.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3)
-            .map(([name]) => name);
-    }, [orders]);
-
-    const filterButtons = ['Esta Semana', 'Prioridad Alta', ...pieceTypeFilters];
-
     const getOrdersByStatus = (columnId: string) => {
-        return filteredOrders.filter(o => o.status === columnId);
+        return orders.filter(o => o.status === columnId); // Updated to use the mapped status key from backend
     };
 
     return (
@@ -374,7 +303,7 @@ const Orders: React.FC = () => {
                             />
                         </div>
                         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                            {filterButtons.map(f => (
+                            {['Esta Semana', 'Prioridad Alta', 'Anillos', 'Más filtros'].map(f => (
                                 <button
                                     key={f}
                                     onClick={() => setActiveFilter(activeFilter === f ? null : f)}
@@ -384,22 +313,11 @@ const Orders: React.FC = () => {
                                         }`}
                                 >
                                     <span>{f}</span>
-                                    {activeFilter === f ? (
-                                        <span className="material-symbols-outlined text-[18px]">close</span>
-                                    ) : (
-                                        <span className="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
-                                    )}
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        {f === 'Más filtros' ? 'filter_list' : 'keyboard_arrow_down'}
+                                    </span>
                                 </button>
                             ))}
-                            {(activeFilter || searchQuery) && (
-                                <button
-                                    onClick={() => { setActiveFilter(null); setSearchQuery(''); }}
-                                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all whitespace-nowrap"
-                                >
-                                    <span className="material-symbols-outlined text-[16px]">filter_list_off</span>
-                                    Limpiar
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -438,7 +356,7 @@ const Orders: React.FC = () => {
                 </DndContext>
             ) : (
                 <main className="flex-1 overflow-y-auto pb-10 custom-scrollbar">
-                    <OrdersTable orders={filteredOrders} />
+                    <OrdersTable orders={orders} />
                 </main>
             )}
 
@@ -468,7 +386,6 @@ const NewOrderDrawer: React.FC<{
     const [newClientData, setNewClientData] = useState({ name: '', phone: '', email: '' });
     const [searchMode, setSearchMode] = useState<'name' | 'phone'>('name');
     const [selectedClientInfo, setSelectedClientInfo] = useState<any>(null);
-    const [phoneSearchValue, setPhoneSearchValue] = useState('');
     const [formData, setFormData] = useState<any>({
         client: '',
         value: '',
@@ -532,21 +449,15 @@ const NewOrderDrawer: React.FC<{
     const activePlaceholder = searchMode === 'phone' ? 'Buscar por teléfono...' : 'Buscar o crear cliente...';
 
     const handleClientSelect = (val: string) => {
-        // If searching by phone, resolve client name from phone
+        setFormData(prev => ({ ...prev, client: val }));
         if (searchMode === 'phone') {
-            setPhoneSearchValue(val);
-            const found = clients.find(c => c.phone && c.phone.replace(/\s/g, '') === val.replace(/\s/g, ''));
+            const found = clients.find(c => c.phone === val);
             if (found) {
                 setFormData(prev => ({ ...prev, client: found.name }));
                 setSelectedClientInfo(found);
-            } else {
-                // Don't pollute formData.client with phone digits
-                setSelectedClientInfo(null);
+                return;
             }
-            return;
         }
-        setFormData(prev => ({ ...prev, client: val }));
-        // If name matches exactly, show info
         const found = clients.find(c => c.name.toLowerCase().trim() === val.toLowerCase().trim());
         setSelectedClientInfo(found || null);
     };
@@ -623,7 +534,7 @@ const NewOrderDrawer: React.FC<{
                                         setNewClientData(prev => ({ ...prev, name: formData.client || '' }));
                                     }
                                 }}
-                                className="flex items-center gap-1.5 text-indigo-500 hover:text-foreground transition-colors text-[9px] font-black uppercase tracking-widest"
+                                className="flex items-center gap-1.5 text-indigo-400 hover:text-white transition-colors text-[9px] font-black uppercase tracking-widest"
                                 title="Agregar nuevo cliente directamente"
                             >
                                 <span className="material-symbols-outlined text-[14px]">
@@ -642,7 +553,6 @@ const NewOrderDrawer: React.FC<{
                                         setSearchMode('name');
                                         setFormData(prev => ({ ...prev, client: '' }));
                                         setSelectedClientInfo(null);
-                                        setPhoneSearchValue('');
                                     }}
                                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
                                         searchMode === 'name'
@@ -659,7 +569,6 @@ const NewOrderDrawer: React.FC<{
                                         setSearchMode('phone');
                                         setFormData(prev => ({ ...prev, client: '' }));
                                         setSelectedClientInfo(null);
-                                        setPhoneSearchValue('');
                                     }}
                                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
                                         searchMode === 'phone'
@@ -674,8 +583,8 @@ const NewOrderDrawer: React.FC<{
                         )}
 
                         {showQuickAddClient ? (
-                            <div className="p-5 rounded-2xl bg-muted/60 backdrop-blur-md border border-indigo-500/30 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                                <div className="flex items-center justify-between pb-2 border-b border-border">
+                            <div className="p-5 rounded-2xl bg-zinc-900/60 backdrop-blur-md border border-indigo-500/30 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                                <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
                                     <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
                                         <span className="material-symbols-outlined text-[16px]">person_add</span>
                                         Alta Rápida de Cliente
@@ -732,60 +641,14 @@ const NewOrderDrawer: React.FC<{
                                 <AutocompleteInput
                                     name="client"
                                     value={searchMode === 'phone'
-                                        ? (selectedClientInfo ? selectedClientInfo.name : phoneSearchValue)
+                                        ? (clients.find(c => c.name === formData.client)?.phone || formData.client || '')
                                         : (formData.client || '')}
                                     onChange={handleClientSelect}
-                                    options={searchMode === 'phone' ? [] : activeOptions}
+                                    options={activeOptions}
                                     placeholder={activePlaceholder}
                                     icon={activeIcon}
                                     required
                                 />
-
-                                {/* Phone Search Results - matching clients with select button */}
-                                {searchMode === 'phone' && phoneSearchValue && !selectedClientInfo && (() => {
-                                    const matchingClients = clients.filter(c =>
-                                        c.phone && c.phone.replace(/\s/g, '').includes(phoneSearchValue.replace(/\s/g, ''))
-                                    ).slice(0, 5);
-
-                                    if (matchingClients.length === 0) return null;
-
-                                    return (
-                                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest px-1">
-                                                {matchingClients.length} cliente{matchingClients.length > 1 ? 's' : ''} encontrado{matchingClients.length > 1 ? 's' : ''}
-                                            </p>
-                                            {matchingClients.map(client => (
-                                                <div
-                                                    key={client.id}
-                                                    className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border hover:border-indigo-500/40 transition-all group/result"
-                                                >
-                                                    <div className="size-9 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-black text-xs shrink-0">
-                                                        {client.name?.substring(0, 2).toUpperCase()}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm text-foreground font-bold truncate">{client.name}</p>
-                                                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                            <span className="material-symbols-outlined text-[12px]">call</span>
-                                                            {client.phone}
-                                                        </p>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setFormData(prev => ({ ...prev, client: client.name }));
-                                                            setSelectedClientInfo(client);
-                                                            setPhoneSearchValue(client.phone);
-                                                        }}
-                                                        className="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black uppercase tracking-wider px-3 py-2 rounded-lg transition-all active:scale-95 flex items-center gap-1.5"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                                                        Seleccionar
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    );
-                                })()}
 
                                 {/* Selected Client Info Card */}
                                 {selectedClientInfo && (
@@ -803,7 +666,6 @@ const NewOrderDrawer: React.FC<{
                                                 onClick={() => {
                                                     setSelectedClientInfo(null);
                                                     setFormData(prev => ({ ...prev, client: '' }));
-                                                    setPhoneSearchValue('');
                                                 }}
                                                 className="text-muted-foreground hover:text-foreground transition-colors"
                                             >
@@ -830,7 +692,7 @@ const NewOrderDrawer: React.FC<{
                                     </div>
                                 )}
 
-                                {searchMode === 'name' && formData.client && !clientOptions.some(opt => opt.toLowerCase().trim() === formData.client.toLowerCase().trim()) && !selectedClientInfo && (
+                                {formData.client && !clientOptions.some(opt => opt.toLowerCase().trim() === formData.client.toLowerCase().trim()) && !selectedClientInfo && (
                                     <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                                         <p className="text-xs text-indigo-400 font-bold flex items-center gap-1.5">
                                             <span className="material-symbols-outlined text-[16px]">person_add</span>
@@ -894,8 +756,8 @@ const NewOrderDrawer: React.FC<{
                                         <span className="material-symbols-outlined text-xs">close</span>
                                     </button>
                                 )}
-                                <div className="flex flex-col gap-4">
-                                    <div className="space-y-2">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2 space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Pieza #{index + 1}</label>
                                         <input
                                             value={item.item}
@@ -907,58 +769,23 @@ const NewOrderDrawer: React.FC<{
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Metal</label>
-                                        <select
-                                            value={item.metal}
-                                            onChange={(e) => handleItemChange(index, 'metal', e.target.value)}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="Oro">Oro</option>
-                                            <option value="Plata">Plata</option>
-                                            <option value="Platino">Platino</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
+                                        <input value={item.metal} onChange={(e) => handleItemChange(index, 'metal', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="Oro, Plata" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Color</label>
-                                        <select
-                                            value={item.color}
-                                            onChange={(e) => handleItemChange(index, 'color', e.target.value)}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="Amarillo">Amarillo</option>
-                                            <option value="Blanco">Blanco</option>
-                                            <option value="Rosa">Rosa</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
+                                        <input value={item.color} onChange={(e) => handleItemChange(index, 'color', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="Am, Bl, Rs" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Quilates</label>
-                                        <select
-                                            value={item.karats}
-                                            onChange={(e) => handleItemChange(index, 'karats', e.target.value)}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="10 K">10 K</option>
-                                            <option value="14 K">14 K</option>
-                                            <option value="18 K">18 K</option>
-                                            <option value="21.6 K">21.6 K</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
+                                        <input value={item.karats} onChange={(e) => handleItemChange(index, 'karats', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="14k, 18k" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Peso (Gr)</label>
-                                        <input value={item.weight} onChange={(e) => handleItemChange(index, 'weight', e.target.value)} onBlur={() => { if (item.weight && !item.weight.toUpperCase().endsWith('GR')) handleItemChange(index, 'weight', `${item.weight.trim()} GR`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="0.00" />
+                                        <input value={item.weight} onChange={(e) => handleItemChange(index, 'weight', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="0.00" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Medida</label>
-                                        <input value={item.size} onChange={(e) => handleItemChange(index, 'size', e.target.value)} onBlur={() => { if (item.size && !item.size.toUpperCase().endsWith('CM')) handleItemChange(index, 'size', `${item.size.trim()} CM`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="7, 18cm" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Grosor</label>
-                                        <input value={item.thickness || ''} onChange={(e) => handleItemChange(index, 'thickness', e.target.value)} onBlur={() => { if (item.thickness && !item.thickness.toUpperCase().endsWith('MM')) handleItemChange(index, 'thickness', `${item.thickness.trim()} MM`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="2mm" />
+                                        <input value={item.size} onChange={(e) => handleItemChange(index, 'size', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="7, 18cm" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">SKU / Cód</label>
@@ -975,16 +802,16 @@ const NewOrderDrawer: React.FC<{
                             <span className="size-1.5 rounded-full bg-emerald-500"></span>
                             Finanzas y Prioridad
                         </h3>
-                        <div className="flex flex-col gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Mano de Obra</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Precio Venta</label>
                                 <input name="value" value={formData.value} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Material</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Costo Total</label>
                                 <input name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
                             </div>
-                            <div className="space-y-2">
+                            <div className="col-span-2 space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Atelier</label>
                                 <select
                                     name="priority"
@@ -1084,7 +911,7 @@ const SortableKanbanCard: React.FC<{ order: OrderMock, isBig?: boolean }> = ({ o
     );
 };
 
-const KanbanCard: React.FC<OrderMock & { isBig?: boolean, isOverlay?: boolean, statusLabel?: string }> = ({ id, client, item, value, status, statusLabel, statusType, initials, initialsColor, avatar, progress, isPaid, isBig, isOverlay, receivedDate, receivedTime }) => (
+const KanbanCard: React.FC<OrderMock & { isBig?: boolean, isOverlay?: boolean }> = ({ id, client, item, value, status, statusType, initials, initialsColor, avatar, progress, isPaid, isBig, isOverlay, receivedDate, receivedTime }) => (
     <div
         className={`group flex flex-col gap-4 rounded-2xl bg-card p-5 border border-border hover:border-indigo-500/50 transition-all cursor-pointer active:cursor-grabbing relative hover:-translate-y-1 shadow-sm backdrop-blur-sm ${isBig ? 'border-l-4 border-l-foreground ring-1 ring-border' : ''} ${isOverlay ? 'bg-card border-border shadow-2xl skew-y-2 opacity-90' : ''}`}
     >
@@ -1119,7 +946,7 @@ const KanbanCard: React.FC<OrderMock & { isBig?: boolean, isOverlay?: boolean, s
                 statusType === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                     statusType === 'new' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' :
                         'bg-muted text-muted-foreground border-border'
-                }`}>{statusLabel || status}</span>
+                }`}>{status}</span>
             {progress && (
                 <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-foreground block" style={{ width: `${progress}%` }}></div>

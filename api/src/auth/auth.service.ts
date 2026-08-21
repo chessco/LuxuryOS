@@ -11,7 +11,22 @@ export class AuthService {
     ) { }
 
     async validateUser(email: string, pass: string): Promise<any> {
-        const user = await this.prisma.user.findUnique({ where: { email } });
+        const normalizedEmail = email.trim().toLowerCase();
+
+        let user: any = null;
+
+        if (normalizedEmail.includes('@')) {
+            // Full email provided — exact match
+            user = await this.prisma.user.findFirst({
+                where: { email: normalizedEmail },
+            });
+        } else {
+            // Partial email (just the username part before @)
+            user = await this.prisma.user.findFirst({
+                where: { email: { startsWith: normalizedEmail } },
+            });
+        }
+
         if (user && (await bcrypt.compare(pass, user.passwordHash))) {
             const { passwordHash, ...result } = user;
             return result;
