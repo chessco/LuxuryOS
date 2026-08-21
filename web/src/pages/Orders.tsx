@@ -504,7 +504,7 @@ const NewOrderDrawer: React.FC<{
     });
 
     const [items, setItems] = useState<any[]>([
-        { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '' }
+        { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '' }
     ]);
 
     const handleItemChange = (index: number, field: string, value: string) => {
@@ -514,7 +514,7 @@ const NewOrderDrawer: React.FC<{
     };
 
     const addItem = () => {
-        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '' }]);
+        setItems([...items, { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '' }]);
     };
 
     const removeItem = (index: number) => {
