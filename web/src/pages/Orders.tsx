@@ -474,11 +474,10 @@ const NewOrderDrawer: React.FC<{
         value: '',
         cost: '',
         priority: 'Media',
-        notes: '',
     });
 
     const [items, setItems] = useState<any[]>([
-        { item: '', metal: '', color: '', karats: '', weight: '', size: '', itemCode: '' }
+        { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '' }
     ]);
 
     const handleItemChange = (index: number, field: string, value: string) => {
@@ -488,7 +487,7 @@ const NewOrderDrawer: React.FC<{
     };
 
     const addItem = () => {
-        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', itemCode: '' }]);
+        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '' }]);
     };
 
     const removeItem = (index: number) => {
@@ -565,6 +564,7 @@ const NewOrderDrawer: React.FC<{
             ...formData,
             ...mainItem,
             pieceType: mainItem.item,
+            notes: mainItem.notes || '', // Map first item notes to top-level order notes
             specifications: { items }
         };
 
@@ -917,15 +917,9 @@ const NewOrderDrawer: React.FC<{
                         )}
                     </div>
 
-                    {/* Section: Notas */}
-                    <div className="space-y-4 pt-2 border-t border-border">
-                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Observaciones</label>
-                        <textarea name="notes" value={formData.notes} onChange={handleChange as any} className="w-full bg-muted/50 border border-border rounded-xl py-4 px-4 text-sm text-foreground transition-all min-h-[100px] resize-none outline-none focus:border-indigo-500" placeholder="Ej: Grabado láser interior..." />
-                    </div>
-
                     {/* Section: Piezas */}
-                    <div className="space-y-8">
-                        <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <div className="space-y-8 border-t border-border pt-4">
+                        <div className="flex items-center justify-between">
                             <h3 className="text-foreground text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2">
                                 <span className="size-1.5 rounded-full bg-amber-500"></span>
                                 Ficha Técnica (Piezas)
@@ -1023,6 +1017,15 @@ const NewOrderDrawer: React.FC<{
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">SKU / Cód</label>
                                         <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="ABC-123" required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Observaciones / Notas de la Pieza</label>
+                                        <textarea
+                                            value={item.notes || ''}
+                                            onChange={(e) => handleItemChange(index, 'notes', e.target.value)}
+                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none min-h-[80px] resize-none"
+                                            placeholder="Grabado láser, soldadura láser, etc."
+                                        />
                                     </div>
                                 </div>
                             </div>
