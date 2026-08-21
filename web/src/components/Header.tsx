@@ -60,7 +60,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                         </div>
                         <div className="absolute -bottom-0.5 -right-0.5 size-3.5 bg-emerald-500 border-2 border-background rounded-full shadow-lg"></div>
                     </div>
-                    <button onClick={() => { }} className="flex size-10 items-center justify-center rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all ml-1">
+                    <button
+                        onClick={() => {
+                            localStorage.removeItem('token');
+                            localStorage.removeItem('user');
+                            window.location.href = '/login';
+                        }}
+                        className="flex size-10 items-center justify-center rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all ml-1"
+                    >
                         <span className="material-symbols-outlined text-[20px]">logout</span>
                     </button>
                 </div>
