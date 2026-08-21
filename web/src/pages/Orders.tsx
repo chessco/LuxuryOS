@@ -735,11 +735,62 @@ const NewOrderDrawer: React.FC<{
                                         ? (selectedClientInfo ? selectedClientInfo.name : phoneSearchValue)
                                         : (formData.client || '')}
                                     onChange={handleClientSelect}
-                                    options={searchMode === 'phone' ? [] : activeOptions}
+                                    options={[]}
                                     placeholder={activePlaceholder}
                                     icon={activeIcon}
                                     required
                                 />
+
+                                {/* Name Search Results - matching clients with select button */}
+                                {searchMode === 'name' && formData.client && !selectedClientInfo && (() => {
+                                    const matchingClients = clients.filter(c =>
+                                        c.name && c.name.toLowerCase().includes(formData.client.toLowerCase())
+                                    ).slice(0, 5);
+
+                                    if (matchingClients.length === 0) return null;
+
+                                    // If there is an exact name match already selected, don't show the suggestions
+                                    const exactMatch = matchingClients.find(c => c.name.toLowerCase().trim() === formData.client.toLowerCase().trim());
+                                    if (exactMatch && selectedClientInfo?.id === exactMatch.id) return null;
+
+                                    return (
+                                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest px-1">
+                                                {matchingClients.length} cliente{matchingClients.length > 1 ? 's' : ''} encontrado{matchingClients.length > 1 ? 's' : ''}
+                                            </p>
+                                            {matchingClients.map(client => (
+                                                <div
+                                                    key={client.id}
+                                                    className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border hover:border-indigo-500/40 transition-all group/result"
+                                                >
+                                                    <div className="size-9 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-black text-xs shrink-0">
+                                                        {client.name?.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm text-foreground font-bold truncate">{client.name}</p>
+                                                        {client.phone && (
+                                                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                                <span className="material-symbols-outlined text-[12px]">call</span>
+                                                                {client.phone}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFormData(prev => ({ ...prev, client: client.name }));
+                                                            setSelectedClientInfo(client);
+                                                        }}
+                                                        className="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black uppercase tracking-wider px-3 py-2 rounded-lg transition-all active:scale-95 flex items-center gap-1.5"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                                                        Seleccionar
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Phone Search Results - matching clients with select button */}
                                 {searchMode === 'phone' && phoneSearchValue && !selectedClientInfo && (() => {
