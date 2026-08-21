@@ -89,13 +89,20 @@ export class OrdersService {
                 margin,
                 status: status ?? undefined, // Let Prisma default to DRAFT if undefined
             },
+            include: {
+                client: true,
+                queueTicket: true,
+            }
         });
     }
 
     async getOrders(tenantId: string) {
         const orders = await this.prisma.order.findMany({
             where: { tenantId },
-            include: { client: true },
+            include: { 
+                client: true,
+                queueTicket: true
+            },
         });
 
         // Sort in memory to avoid "Out of sort memory" errors in limited MySQL environments
@@ -109,7 +116,11 @@ export class OrdersService {
     async getOrder(tenantId: string, id: string) {
         return this.prisma.order.findUnique({
             where: { id, tenantId },
-            include: { client: true, payments: true },
+            include: { 
+                client: true, 
+                payments: true,
+                queueTicket: true
+            },
         });
     }
 
