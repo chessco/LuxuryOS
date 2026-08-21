@@ -1085,7 +1085,7 @@ const NewOrderDrawer: React.FC<{
                                 <input name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Atelier</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Joyero</label>
                                 <select
                                     name="priority"
                                     value={formData.priority}
