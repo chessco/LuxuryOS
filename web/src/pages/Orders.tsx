@@ -148,19 +148,15 @@ const Orders: React.FC = () => {
 
     const handleCreateOrder = async (newOrder: any) => {
         try {
-            // We need clientId, not just name. 
-            // In a real app Autocomplete should return ID. 
-            // For now, assuming we handle it or send name and backend handles it (backend needs update for name-based create)
-            // Or we just fetch clients and find ID.
-
-            // Finding the client ID based on the name from Autocomplete
-            let selectedClient = clients.find(c => c.name.toLowerCase().trim() === newOrder.client.toLowerCase().trim());
+            // Find or create client using UPPERCASE
+            const clientNameUpper = newOrder.client.toUpperCase().trim();
+            let selectedClient = clients.find(c => c.name.toLowerCase().trim() === clientNameUpper.toLowerCase().trim());
 
             if (!selectedClient) {
                 try {
-                    // Create new client first
+                    // Create new client first with name in UPPERCASE
                     selectedClient = await ClientsService.create({
-                        name: newOrder.client.trim(),
+                        name: clientNameUpper,
                         phone: newOrder.newClientPhone?.trim() || undefined,
                         email: newOrder.newClientEmail?.trim() || undefined
                     });
@@ -174,14 +170,28 @@ const Orders: React.FC = () => {
                 }
             }
 
-
             const cleanNumber = (val: any) => {
                 const str = String(val || '0').replace(/[^0-9.-]/g, '');
                 return parseFloat(str) || 0;
             };
 
+            // Map all pieces in specifications to UPPERCASE
+            const uppercaseItems = (newOrder.specifications?.items || []).map((item: any) => ({
+                item: (item.item || '').toUpperCase().trim(),
+                metal: (item.metal || '').toUpperCase().trim(),
+                color: (item.color || '').toUpperCase().trim(),
+                karats: (item.karats || '').toUpperCase().trim(),
+                weight: (item.weight || '').toUpperCase().trim(),
+                size: (item.size || '').toUpperCase().trim(),
+                thickness: (item.thickness || '').toUpperCase().trim(),
+                itemCode: (item.itemCode || '').toUpperCase().trim(),
+                notes: (item.notes || '').toUpperCase().trim()
+            }));
+
+            const firstItem = uppercaseItems[0] || {};
+
             const payload = {
-                pieceType: newOrder.item,
+                pieceType: firstItem.item || '',
                 value: cleanNumber(newOrder.value),
                 cost: cleanNumber(newOrder.cost),
                 totalAmount: cleanNumber(newOrder.value),
@@ -189,18 +199,19 @@ const Orders: React.FC = () => {
                 priority: newOrder.priority === 'Alta' ? 'ALTA' : 'MEDIA',
                 clientId: selectedClient.id,
                 stage: 'INTERES_LEAD',
-                type: orderType as any,
-                // New Fields
-                metal: newOrder.metal,
-                color: newOrder.color,
-                karats: newOrder.karats,
-                weight: newOrder.weight,
-                size: newOrder.size,
-                thickness: newOrder.thickness,
-                itemCode: newOrder.itemCode,
+                type: (orderType || 'STANDARD').toUpperCase() as any,
+                // New Fields in UPPERCASE
+                metal: firstItem.metal || '',
+                color: firstItem.color || '',
+                karats: firstItem.karats || '',
+                weight: firstItem.weight || '',
+                size: firstItem.size || '',
+                thickness: firstItem.thickness || '',
+                itemCode: firstItem.itemCode || '',
                 laborCost: cleanNumber(newOrder.laborCost),
                 materialCost: cleanNumber(newOrder.materialCost),
-                notes: newOrder.notes
+                notes: firstItem.notes || '',
+                specifications: { items: uppercaseItems }
             };
 
             await OrdersService.create(payload);
