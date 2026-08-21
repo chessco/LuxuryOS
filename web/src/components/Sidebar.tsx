@@ -93,8 +93,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                             <span className="material-symbols-outlined text-white text-xl">diamond</span>
                         </div>
                         <div className="flex flex-col">
-                            <h1 className="text-foreground text-lg font-bold leading-none tracking-tight">Luxury OS</h1>
-                            <p className="text-muted-foreground text-[10px] font-medium tracking-widest mt-1 uppercase">{atelierName}</p>
+                            <h1 className="text-foreground text-lg font-bold leading-none tracking-tight uppercase">{atelierName}</h1>
+                            <p className="text-muted-foreground text-[10px] font-medium tracking-widest mt-1 uppercase">Luxury OS</p>
                         </div>
                     </div>
                     {/* Close button for mobile */}
