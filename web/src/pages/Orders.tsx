@@ -917,6 +917,43 @@ const NewOrderDrawer: React.FC<{
                         )}
                     </div>
 
+                    {/* Section: Notas */}
+                    <div className="space-y-4 pt-2 border-t border-border">
+                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Observaciones</label>
+                        <textarea name="notes" value={formData.notes} onChange={handleChange as any} className="w-full bg-muted/50 border border-border rounded-xl py-4 px-4 text-sm text-foreground transition-all min-h-[100px] resize-none outline-none focus:border-indigo-500" placeholder="Ej: Grabado láser interior..." />
+                    </div>
+
+                    {/* Section: Valores */}
+                    <div className="space-y-6">
+                        <h3 className="text-foreground text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2 pt-2 border-t border-border">
+                            <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                            Finanzas y Prioridad
+                        </h3>
+                        <div className="flex flex-col gap-4">
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Mano de Obra</label>
+                                <input name="value" value={formData.value} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Material</label>
+                                <input name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Atelier</label>
+                                <select
+                                    name="priority"
+                                    value={formData.priority}
+                                    onChange={handleChange as any}
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="Baja">Baja</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Alta">Alta</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Section: Piezas */}
                     <div className="space-y-8">
                         <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -962,6 +999,7 @@ const NewOrderDrawer: React.FC<{
                                             value={item.metal}
                                             onChange={(e) => handleItemChange(index, 'metal', e.target.value)}
                                             className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                            required
                                         >
                                             <option value="">Seleccionar...</option>
                                             <option value="Oro">Oro</option>
@@ -976,6 +1014,7 @@ const NewOrderDrawer: React.FC<{
                                             value={item.color}
                                             onChange={(e) => handleItemChange(index, 'color', e.target.value)}
                                             className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                            required
                                         >
                                             <option value="">Seleccionar...</option>
                                             <option value="Amarillo">Amarillo</option>
@@ -990,6 +1029,7 @@ const NewOrderDrawer: React.FC<{
                                             value={item.karats}
                                             onChange={(e) => handleItemChange(index, 'karats', e.target.value)}
                                             className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                            required
                                         >
                                             <option value="">Seleccionar...</option>
                                             <option value="10 K">10 K</option>
@@ -1001,60 +1041,23 @@ const NewOrderDrawer: React.FC<{
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Peso (Gr)</label>
-                                        <input value={item.weight} onChange={(e) => handleItemChange(index, 'weight', e.target.value)} onBlur={() => { if (item.weight && !item.weight.toUpperCase().endsWith('GR')) handleItemChange(index, 'weight', `${item.weight.trim()} GR`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="0.00" />
+                                        <input value={item.weight} onChange={(e) => handleItemChange(index, 'weight', e.target.value)} onBlur={() => { if (item.weight && !item.weight.toUpperCase().endsWith('GR')) handleItemChange(index, 'weight', `${item.weight.trim()} GR`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="0.00" required />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Medida</label>
-                                        <input value={item.size} onChange={(e) => handleItemChange(index, 'size', e.target.value)} onBlur={() => { if (item.size && !item.size.toUpperCase().endsWith('CM')) handleItemChange(index, 'size', `${item.size.trim()} CM`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="7, 18cm" />
+                                        <input value={item.size} onChange={(e) => handleItemChange(index, 'size', e.target.value)} onBlur={() => { if (item.size && !item.size.toUpperCase().endsWith('CM')) handleItemChange(index, 'size', `${item.size.trim()} CM`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="7, 18cm" required />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Grosor</label>
-                                        <input value={item.thickness || ''} onChange={(e) => handleItemChange(index, 'thickness', e.target.value)} onBlur={() => { if (item.thickness && !item.thickness.toUpperCase().endsWith('MM')) handleItemChange(index, 'thickness', `${item.thickness.trim()} MM`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="2mm" />
+                                        <input value={item.thickness || ''} onChange={(e) => handleItemChange(index, 'thickness', e.target.value)} onBlur={() => { if (item.thickness && !item.thickness.toUpperCase().endsWith('MM')) handleItemChange(index, 'thickness', `${item.thickness.trim()} MM`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="2mm" required />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">SKU / Cód</label>
-                                        <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="ABC-123" />
+                                        <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="ABC-123" required />
                                     </div>
                                 </div>
                             </div>
                         ))}
-                    </div>
-
-                    {/* Section: Valores */}
-                    <div className="space-y-6">
-                        <h3 className="text-foreground text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2 pt-2 border-t border-border">
-                            <span className="size-1.5 rounded-full bg-emerald-500"></span>
-                            Finanzas y Prioridad
-                        </h3>
-                        <div className="flex flex-col gap-4">
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Mano de Obra</label>
-                                <input name="value" value={formData.value} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Material</label>
-                                <input name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Atelier</label>
-                                <select
-                                    name="priority"
-                                    value={formData.priority}
-                                    onChange={handleChange as any}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
-                                >
-                                    <option value="Baja">Baja</option>
-                                    <option value="Media">Media</option>
-                                    <option value="Alta">Alta</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Section: Notas */}
-                    <div className="space-y-4 pt-2 border-t border-border">
-                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Observaciones</label>
-                        <textarea name="notes" value={formData.notes} onChange={handleChange as any} className="w-full bg-muted/50 border border-border rounded-xl py-4 px-4 text-sm text-foreground transition-all min-h-[100px] resize-none outline-none focus:border-indigo-500" placeholder="Ej: Grabado láser interior..." />
                     </div>
                 </form>
 
