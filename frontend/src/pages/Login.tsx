@@ -5,8 +5,8 @@ import api from '../services/api';
 export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState('admin@pitayacode.io');
+    const [password, setPassword] = useState('pitaya123');
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -14,12 +14,9 @@ export default function LoginPage() {
         setLoading(true);
         setError(null);
 
-        // Normalize: case-insensitive, trim whitespace
-        let loginEmail = email.trim().toLowerCase();
-
         try {
             const response = await api.post('/auth/login', {
-                email: loginEmail,
+                email,
                 password
             });
 
@@ -65,8 +62,6 @@ export default function LoginPage() {
                             <input
                                 type="text"
                                 required
-                                autoFocus
-                                autoComplete="off"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full bg-muted border border-border rounded-2xl py-4 pl-12 pr-4 text-sm text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"

@@ -35,16 +35,10 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({ value, onChange, 
 
         if (inputValue.length > 0) {
             const filtered = options.filter(opt =>
-                opt.toLowerCase().includes(inputValue.toLowerCase())
-            ).slice(0, 8); // Limit to 8 suggestions
+                opt.toLowerCase().includes(inputValue.toLowerCase()) && opt !== inputValue
+            ).slice(0, 5); // Limit to 5 suggestions
             setFilteredOptions(filtered);
-            setIsOpen(filtered.length > 0);
-
-            // Auto-fire selection on exact match so parent can load client info
-            const exactMatch = options.find(opt => opt.toLowerCase() === inputValue.toLowerCase());
-            if (exactMatch && exactMatch !== inputValue) {
-                onChange(exactMatch);
-            }
+            setIsOpen(true);
         } else {
             setFilteredOptions([]);
             setIsOpen(false);
@@ -59,12 +53,14 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({ value, onChange, 
     const handleFocus = () => {
         if (value.length > 0) {
             const filtered = options.filter(opt =>
-                opt.toLowerCase().includes(value.toLowerCase())
-            ).slice(0, 8);
+                opt.toLowerCase().includes(value.toLowerCase()) && opt !== value
+            ).slice(0, 5);
             setFilteredOptions(filtered);
-            setIsOpen(filtered.length > 0);
+            setIsOpen(true);
         } else {
-            setFilteredOptions(options.slice(0, 8));
+            // Optionally show recent or recommended if empty? For now, nothing.
+            // Or let's show top 5 options if empty to help discovery
+            setFilteredOptions(options.slice(0, 5));
             setIsOpen(true);
         }
     };

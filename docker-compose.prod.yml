@@ -14,7 +14,7 @@ services:
       timeout: 5s
       retries: 20
     networks:
-      - luxury_network
+      - pitaya_net
 
   api:
     build:
@@ -33,11 +33,11 @@ services:
       - PORT=3002
       - NODE_ENV=production
     networks:
-      - luxury_network
+      - pitaya_net
 
 networks:
-  luxury_network:
-    driver: bridge
+  pitaya_net:
+    external: true
 
 volumes:
   mysql_prod_data:
