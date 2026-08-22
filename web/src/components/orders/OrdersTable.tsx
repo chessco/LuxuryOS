@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 interface OrdersTableProps {
     orders: any[];
+    onOrderDeleted?: () => void;
 }
 
 type SortConfig = {
@@ -10,9 +11,12 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-export const OrdersTable: React.FC<OrdersTableProps> = ({ orders }) => {
+export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted }) => {
     const navigate = useNavigate();
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isSystemAdmin = user.role === 'SYSTEM_ADMIN';
 
     const sortedOrders = useMemo(() => {
         let sortableItems = [...orders];
@@ -87,6 +91,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders }) => {
                             <HeaderTh label="Estado" sortKey="status" />
                             <HeaderTh label="Valor" sortKey="value" />
                             <HeaderTh label="Prioridad" sortKey="priority" align="right" />
+                            {isSystemAdmin && <th className="px-8 py-6 w-16"></th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800/30">
@@ -137,6 +142,30 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders }) => {
                                         <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black uppercase tracking-widest transition-colors">{order.priority}</span>
                                     </div>
                                 </td>
+                                {isSystemAdmin && (
+                                    <td className="px-8 py-6 text-center">
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm("¿Seguro que deseas eliminar permanentemente este pedido? Esta acción no se puede deshacer y borrará todos los pagos asociados.")) {
+                                                    try {
+                                                        const { OrdersService } = await import('../../services/orders.service');
+                                                        await OrdersService.deleteOrder(order.id);
+                                                        alert("Pedido eliminado exitosamente.");
+                                                        if (onOrderDeleted) onOrderDeleted();
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                        alert("Error al eliminar el pedido.");
+                                                    }
+                                                }
+                                            }}
+                                            className="size-8 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white flex items-center justify-center border border-red-500/20 transition-all active:scale-95 mx-auto"
+                                            title="Eliminar Pedido"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                                        </button>
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>

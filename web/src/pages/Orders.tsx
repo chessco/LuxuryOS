@@ -228,6 +228,17 @@ const Orders: React.FC = () => {
         }
     };
 
+    const handleDeleteOrder = async (id: string) => {
+        try {
+            await OrdersService.deleteOrder(id);
+            alert("Pedido eliminado exitosamente.");
+            fetchBoard();
+        } catch (error) {
+            console.error(error);
+            alert("Error al eliminar el pedido.");
+        }
+    };
+
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
     };
@@ -454,7 +465,7 @@ const Orders: React.FC = () => {
                 </DndContext>
             ) : (
                 <main className="flex-1 overflow-y-auto pb-10 custom-scrollbar">
-                    <OrdersTable orders={filteredOrders} />
+                    <OrdersTable orders={filteredOrders} onOrderDeleted={fetchBoard} />
                 </main>
             )}
 
@@ -1184,7 +1195,7 @@ const KanbanColumn: React.FC<{ id: string, name: string, color: string, count: n
             <SortableContext items={orders.map(o => o.id)} strategy={verticalListSortingStrategy}>
                 <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 no-scrollbar">
                     {orders.map(order => (
-                        <SortableKanbanCard key={order.id} order={order} isBig={id === 'production'} />
+                        <SortableKanbanCard key={order.id} order={order} isBig={id === 'production'} onDelete={handleDeleteOrder} />
                     ))}
                 </div>
             </SortableContext>
@@ -1192,7 +1203,7 @@ const KanbanColumn: React.FC<{ id: string, name: string, color: string, count: n
     );
 };
 
-const SortableKanbanCard: React.FC<{ order: OrderMock, isBig?: boolean }> = ({ order, isBig }) => {
+const SortableKanbanCard: React.FC<{ order: OrderMock, isBig?: boolean, onDelete?: (id: string) => void }> = ({ order, isBig, onDelete }) => {
     const navigate = useNavigate();
     const {
         attributes,
@@ -1209,15 +1220,41 @@ const SortableKanbanCard: React.FC<{ order: OrderMock, isBig?: boolean }> = ({ o
         opacity: isDragging ? 0.4 : 1,
     };
 
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isSystemAdmin = user.role === 'SYSTEM_ADMIN';
+
     return (
         <div
             ref={setNodeRef}
             style={style}
-            {...attributes}
-            {...listeners}
-            onClick={() => navigate(`/orders/${order.id}`)}
+            className="relative group/sortable"
         >
-            <KanbanCard {...order} isBig={isBig} />
+            <div
+                {...attributes}
+                {...listeners}
+                onClick={() => navigate(`/orders/${order.id}`)}
+            >
+                <KanbanCard {...order} isBig={isBig} />
+            </div>
+
+            {isSystemAdmin && onDelete && (
+                <button
+                    onMouseDown={(e) => {
+                        e.stopPropagation();
+                    }}
+                    onClick={async (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        if (window.confirm("¿Seguro que deseas eliminar permanentemente este pedido? Esta acción no se puede deshacer y borrará todos los pagos asociados.")) {
+                            onDelete(order.id);
+                        }
+                    }}
+                    className="absolute top-3 right-3 size-7 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white flex items-center justify-center border border-red-500/20 opacity-0 group-hover/sortable:opacity-100 transition-all active:scale-95 z-20 shadow-md"
+                    title="Eliminar Pedido"
+                >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                </button>
+            )}
         </div>
     );
 };
