@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -13,9 +13,12 @@ export class ClientsService {
 
     async create(tenantId: string, data: any) {
         const { name, email, phone, location } = data;
+        if (!name || !name.trim()) {
+            throw new BadRequestException('El nombre del cliente es obligatorio');
+        }
         return this.prisma.client.create({
             data: {
-                name,
+                name: name.toUpperCase().trim(),
                 email,
                 phone,
                 location,
@@ -26,10 +29,13 @@ export class ClientsService {
 
     async update(tenantId: string, id: string, data: any) {
         const { name, email, phone, location } = data;
+        if (name !== undefined && (!name || !name.trim())) {
+            throw new BadRequestException('El nombre del cliente es obligatorio');
+        }
         return this.prisma.client.update({
             where: { id, tenantId },
             data: {
-                name,
+                name: name ? name.toUpperCase().trim() : undefined,
                 email,
                 phone,
                 location,

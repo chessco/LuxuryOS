@@ -596,6 +596,11 @@ const NewOrderDrawer: React.FC<{
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (!formData.client?.trim()) {
+            alert("El nombre del cliente es obligatorio para registrar el pedido.");
+            return;
+        }
+
         // Strict validation: Ensure all required fields for each item are filled
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
