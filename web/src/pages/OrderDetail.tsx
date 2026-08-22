@@ -316,6 +316,21 @@ const OrderDetail: React.FC = () => {
         }
     };
 
+    const handleDeleteOrder = async () => {
+        if (!id) return;
+        if (!window.confirm("¿Estás completamente seguro de eliminar esta orden? Esta acción no se puede deshacer y borrará todos los pagos asociados.")) {
+            return;
+        }
+        try {
+            await OrdersService.deleteOrder(id);
+            alert("Pedido eliminado exitosamente.");
+            window.location.href = "/orders";
+        } catch (error) {
+            console.error(error);
+            alert("Error al eliminar el pedido.");
+        }
+    };
+
     const handleStepChange = (index: number) => {
         if (index === currentStep) return;
 
@@ -396,6 +411,15 @@ const OrderDetail: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
+                        {user.role === 'SYSTEM_ADMIN' && (
+                            <button 
+                                onClick={handleDeleteOrder} 
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 hover:bg-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">delete</span>
+                                <span>Borrar Pedido</span>
+                            </button>
+                        )}
                         <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm">
                             <span className="material-symbols-outlined text-[20px]">edit</span>
                             <span>Editar Detalles</span>

@@ -3,11 +3,13 @@ import {
     Get,
     Patch,
     Post,
+    Delete,
     Body,
     Param,
     UseGuards,
     Request,
     Query,
+    ForbiddenException,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -65,5 +67,13 @@ export class OrdersController {
     @Post('orders/:id/generate-image')
     async generateAIImage(@Param('id') id: string, @Request() req) {
         return this.ordersService.generateAIImage(req.user.tenantId, id);
+    }
+
+    @Delete('orders/:id')
+    async deleteOrder(@Param('id') id: string, @Request() req) {
+        if (req.user.role !== 'SYSTEM_ADMIN') {
+            throw new ForbiddenException('Solo el rol SYSTEM_ADMIN puede eliminar pedidos');
+        }
+        return this.ordersService.deleteOrder(req.user.tenantId, id);
     }
 }
