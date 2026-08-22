@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { IWhatsAppProvider, FlowWhatsAppProvider } from './providers/whatsapp.provider';
+import { IWhatsAppProvider, FlowWhatsAppProvider, PitayaCoreWhatsAppProvider } from './providers/whatsapp.provider';
 import { ConfigService } from '@nestjs/config';
 import { SettingsService } from '../settings/settings.service';
 
@@ -57,12 +57,30 @@ export class NotificationService {
         components: any[]
     ) {
         // Dynamic Provider Check
-        const flowUrl = await this.settingsService.getSetting(tenantId, 'flow_api_url');
-        const flowKey = await this.settingsService.getSetting(tenantId, 'flow_internal_key');
+        const providerType = await this.settingsService.getSetting(tenantId, 'whatsapp_provider', 'FLOW');
 
-        const provider = (flowUrl && flowKey)
-            ? new FlowWhatsAppProvider(flowUrl, flowKey)
-            : this.whatsappProvider;
+        let provider: IWhatsAppProvider | null = null;
+
+        if (providerType === 'PITAYACORE') {
+            const pitayaUrl = await this.settingsService.getSetting(tenantId, 'pitayacore_api_url', 'https://pitayacore-api.pitayacode.io');
+            const pitayaKey = await this.settingsService.getSetting(tenantId, 'pitayacore_api_key');
+            const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id');
+
+            if (pitayaUrl && pitayaKey && pitayaTenant) {
+                provider = new PitayaCoreWhatsAppProvider(pitayaUrl, pitayaKey, pitayaTenant);
+            }
+        } else {
+            const flowUrl = await this.settingsService.getSetting(tenantId, 'flow_api_url');
+            const flowKey = await this.settingsService.getSetting(tenantId, 'flow_internal_key');
+
+            if (flowUrl && flowKey) {
+                provider = new FlowWhatsAppProvider(flowUrl, flowKey);
+            }
+        }
+
+        if (!provider) {
+            provider = this.whatsappProvider;
+        }
 
         if (!provider) {
             console.log(`[WhatsApp Mock] Sending ${template} to ${recipient}`, { components, dedupeKey });
