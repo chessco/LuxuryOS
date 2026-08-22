@@ -63,12 +63,10 @@ export class NotificationService {
 
         if (providerType === 'PITAYACORE') {
             const pitayaUrl = await this.settingsService.getSetting(tenantId, 'pitayacore_api_url', 'https://pitayacore-api.pitayacode.io');
-            const pitayaKey = await this.settingsService.getSetting(tenantId, 'pitayacore_api_key');
-            const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id');
+            const pitayaKey = await this.settingsService.getSetting(tenantId, 'pitayacore_api_key', 'pitaya_internal_secret_2026');
+            const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id', '87E0D095');
 
-            if (pitayaUrl && pitayaKey && pitayaTenant) {
-                provider = new PitayaCoreWhatsAppProvider(pitayaUrl, pitayaKey, pitayaTenant);
-            }
+            provider = new PitayaCoreWhatsAppProvider(pitayaUrl, pitayaKey, pitayaTenant);
         } else {
             const flowUrl = await this.settingsService.getSetting(tenantId, 'flow_api_url');
             const flowKey = await this.settingsService.getSetting(tenantId, 'flow_internal_key');

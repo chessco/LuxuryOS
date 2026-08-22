@@ -24,8 +24,9 @@ const IntegrationsPage: React.FC = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setSettings(prev => ({ 
-                whatsapp_provider: 'FLOW',
+                whatsapp_provider: 'PITAYACORE',
                 pitayacore_api_url: 'https://pitayacore-api.pitayacode.io',
+                pitayacore_api_key: 'pitaya_internal_secret_2026',
                 pitayacore_tenant_id: '87E0D095',
                 ...prev, 
                 ...response.data 
@@ -82,7 +83,7 @@ const IntegrationsPage: React.FC = () => {
                         <div className="max-w-2xl w-full">
                             <h2 className="text-2xl font-black uppercase tracking-wider mb-2">WhatsApp Bot</h2>
                             <p className="text-muted-foreground text-sm font-medium mb-8 leading-relaxed">
-                                Automatice las notificaciones de turnos y recordatorios al WhatsApp de sus clientes seleccionando entre la integración oficial o una librería local de conexión.
+                                Automatice las notificaciones de turnos y recordatorios al WhatsApp de sus clientes seleccionando entre la integración oficial o una API externa basada en una librería JS.
                             </p>
 
                             <div className="flex flex-col gap-2 mb-8">
@@ -108,7 +109,7 @@ const IntegrationsPage: React.FC = () => {
                                                 : 'border-border bg-muted/30 text-muted-foreground hover:border-indigo-500/50 hover:text-foreground'
                                         }`}
                                     >
-                                        Librería Local (PitayaCore)
+                                        Librería JS (PitayaCore)
                                     </button>
                                 </div>
                             </div>
