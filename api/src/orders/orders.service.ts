@@ -235,4 +235,29 @@ export class OrdersService {
             data: { imageUrl: mockImageUrl }
         });
     }
+
+    async deleteOrder(tenantId: string, id: string) {
+        const order = await this.prisma.order.findUnique({
+            where: { id },
+            include: { queueTicket: true }
+        });
+        if (!order) {
+            throw new NotFoundException('Pedido no encontrado');
+        }
+
+        if (order.queueTicket) {
+            await this.prisma.queueTicket.update({
+                where: { id: order.queueTicket.id },
+                data: { orderId: null }
+            });
+        }
+
+        await this.prisma.payment.deleteMany({
+            where: { orderId: id }
+        });
+
+        return this.prisma.order.delete({
+            where: { id }
+        });
+    }
 }
