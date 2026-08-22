@@ -450,6 +450,7 @@ const Orders: React.FC = () => {
                                     count={getOrdersByStatus(col.id).length}
                                     focus={col.focus}
                                     orders={getOrdersByStatus(col.id)}
+                                    onDelete={handleDeleteOrder}
                                 />
                             ))}
                         </div>
@@ -1178,7 +1179,7 @@ const NewOrderDrawer: React.FC<{
     );
 };
 
-const KanbanColumn: React.FC<{ id: string, name: string, color: string, count: number, focus?: boolean, orders: OrderMock[] }> = ({ id, name, color, count, focus, orders }) => {
+const KanbanColumn: React.FC<{ id: string, name: string, color: string, count: number, focus?: boolean, orders: OrderMock[], onDelete?: (id: string) => void }> = ({ id, name, color, count, focus, orders, onDelete }) => {
     const { setNodeRef } = useSortable({
         id: id,
         data: {
@@ -1200,7 +1201,7 @@ const KanbanColumn: React.FC<{ id: string, name: string, color: string, count: n
             <SortableContext items={orders.map(o => o.id)} strategy={verticalListSortingStrategy}>
                 <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1 no-scrollbar">
                     {orders.map(order => (
-                        <SortableKanbanCard key={order.id} order={order} isBig={id === 'production'} onDelete={handleDeleteOrder} />
+                        <SortableKanbanCard key={order.id} order={order} isBig={id === 'production'} onDelete={onDelete} />
                     ))}
                 </div>
             </SortableContext>
