@@ -44,6 +44,18 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
         }
     };
 
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
+
+    const handleStepClick = async (status: string) => {
+        if (!isAuthorized) return;
+        try {
+            await onUpdateStatus({ status });
+        } catch (error) {
+            console.error("Failed to jump step", error);
+        }
+    };
+
     return (
         <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
             <header className="flex items-center justify-between mb-10">
@@ -74,15 +86,21 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                     const isCurrent = idx === currentIndex;
 
                     return (
-                        <div key={step.status} className="relative z-10 flex flex-col items-center gap-2 group">
-                            <div className={`size-10 rounded-full flex items-center justify-center transition-all duration-500 border-2 ${isCurrent ? 'bg-amber-500 border-amber-400 text-black scale-110 shadow-[0_0_20px_rgba(245,158,11,0.4)]' :
-                                isActive ? 'bg-background border-amber-500 text-amber-500' :
-                                    'bg-background border-border text-muted-foreground/30'
+                        <div 
+                            key={step.status} 
+                            onClick={() => handleStepClick(step.status)}
+                            className={`relative z-10 flex flex-col items-center gap-2 group ${isAuthorized ? 'cursor-pointer' : ''}`}
+                        >
+                            <div className={`size-10 rounded-full flex items-center justify-center transition-all duration-500 border-2 ${
+                                isCurrent ? 'bg-amber-500 border-amber-400 text-black scale-110 shadow-[0_0_20px_rgba(245,158,11,0.4)]' :
+                                isActive ? 'bg-background border-amber-500 text-amber-500 hover:border-amber-400' :
+                                    'bg-background border-border text-muted-foreground/30 hover:border-zinc-500/50'
                                 }`}>
                                 <span className="material-symbols-outlined text-[18px]">{step.icon}</span>
                             </div>
-                            <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${isActive ? 'text-foreground' : 'text-muted-foreground'
-                                }`}>{step.label}</span>
+                            <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${
+                                isActive ? 'text-foreground font-black' : 'text-muted-foreground'
+                            }`}>{step.label}</span>
                         </div>
                     );
                 })}

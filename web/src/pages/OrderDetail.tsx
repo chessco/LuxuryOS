@@ -331,8 +331,22 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    const handleStepChange = (index: number) => {
+    const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
+
+    const handleStepChange = async (index: number) => {
         if (index === currentStep) return;
+
+        if (isAuthorized) {
+            const stepStatus = STEPS[index].status;
+            try {
+                await OrdersService.updateOrder(id!, { stage: stepStatus });
+                window.location.reload();
+            } catch (error) {
+                console.error(error);
+                alert("Error al actualizar la fase de producción.");
+            }
+            return;
+        }
 
         setCurrentStep(index);
 
@@ -710,6 +724,7 @@ const OrderDetail: React.FC = () => {
                                             icon={step.icon}
                                             status={status}
                                             onClick={() => handleStepChange(index)}
+                                            isAuthorized={isAuthorized}
                                         />
                                     );
                                 })}
@@ -925,12 +940,12 @@ const STEPS = [
     { name: 'Entrega', icon: 'local_shipping' }
 ];
 
-const FlowStep: React.FC<{ name: string, icon: string, status: 'completed' | 'current' | 'upcoming', onClick: () => void }> = ({ name, icon, status, onClick }) => (
-    <div onClick={onClick} className="relative z-10 flex flex-col items-center gap-3 group cursor-pointer">
-        <div className={`size-12 rounded-full flex items-center justify-center transition-all duration-500 ${status !== 'upcoming' ? 'bg-white dark:bg-zinc-950 border-2' : 'bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 text-zinc-300 dark:text-zinc-700 group-hover:border-zinc-400 dark:group-hover:border-zinc-700 group-hover:text-zinc-500 dark:group-hover:text-zinc-500'} ${status === 'completed' ? 'border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''} ${status === 'current' ? 'border-indigo-500 text-zinc-900 dark:text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110' : ''}`}>
+const FlowStep: React.FC<{ name: string, icon: string, status: 'completed' | 'current' | 'upcoming', onClick: () => void, isAuthorized?: boolean }> = ({ name, icon, status, onClick, isAuthorized }) => (
+    <div onClick={onClick} className={`relative z-10 flex flex-col items-center gap-3 group ${isAuthorized ? 'cursor-pointer' : 'cursor-default pointer-events-none opacity-85'}`}>
+        <div className={`size-12 rounded-full flex items-center justify-center transition-all duration-500 ${status !== 'upcoming' ? 'bg-white dark:bg-zinc-950 border-2' : 'bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 text-zinc-300 dark:text-zinc-700' + (isAuthorized ? ' group-hover:border-zinc-400 dark:group-hover:border-zinc-700 group-hover:text-zinc-500 dark:group-hover:text-zinc-500' : '')} ${status === 'completed' ? 'border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''} ${status === 'current' ? 'border-indigo-500 text-zinc-900 dark:text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110' : ''}`}>
             <span className={`material-symbols-outlined text-[20px] ${status === 'completed' ? 'icon-fill' : ''}`}>{status === 'completed' ? 'check_circle' : icon}</span>
         </div>
-        <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${status === 'completed' ? 'text-emerald-500' : status === 'current' ? 'text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-700 group-hover:text-zinc-500'}`}>{name}</span>
+        <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${status === 'completed' ? 'text-emerald-500' : status === 'current' ? 'text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-700' + (isAuthorized ? ' group-hover:text-zinc-500' : '')}`}>{name}</span>
     </div>
 );
 
