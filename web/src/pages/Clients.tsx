@@ -59,6 +59,10 @@ export default function ClientsPage() {
     };
 
     const handleSave = async (clientData: any) => {
+        if (!clientData.name || !clientData.name.trim()) {
+            alert('El nombre del cliente es obligatorio');
+            return;
+        }
         try {
             if (editingClient) {
                 // Edit
@@ -271,7 +275,14 @@ const ClientModal: React.FC<{ client: Client | null, onClose: () => void, onSave
                     </button>
                 </div>
 
-                <form className="p-8 space-y-6" onSubmit={(e) => { e.preventDefault(); onSave(formData); }}>
+                <form className="p-8 space-y-6" onSubmit={(e) => { 
+                    e.preventDefault(); 
+                    if (!formData.name?.trim()) {
+                        alert("El nombre del cliente es obligatorio.");
+                        return;
+                    }
+                    onSave(formData); 
+                }}>
                     <div className="space-y-2">
                         <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Nombre Completo</label>
                         <input
