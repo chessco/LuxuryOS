@@ -3,8 +3,12 @@ import axios from 'axios';
 
 const IntegrationsPage: React.FC = () => {
     const [settings, setSettings] = useState<Record<string, string>>({
+        whatsapp_provider: 'FLOW',
         flow_api_url: '',
-        flow_internal_key: ''
+        flow_internal_key: '',
+        pitayacore_api_url: '',
+        pitayacore_api_key: '',
+        pitayacore_tenant_id: ''
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -19,7 +23,13 @@ const IntegrationsPage: React.FC = () => {
             const response = await axios.get(`${import.meta.env.VITE_API_URL}/settings`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setSettings(prev => ({ ...prev, ...response.data }));
+            setSettings(prev => ({ 
+                whatsapp_provider: 'FLOW',
+                pitayacore_api_url: 'https://pitayacore-api.pitayacode.io',
+                pitayacore_tenant_id: '87E0D095',
+                ...prev, 
+                ...response.data 
+            }));
         } catch (error) {
             console.error('Error fetching settings:', error);
             alert('No se pudieron cargar las configuraciones');
@@ -69,38 +79,106 @@ const IntegrationsPage: React.FC = () => {
                              </div>
                         </div>
 
-                        <div className="max-w-2xl">
-                            <h2 className="text-2xl font-black uppercase tracking-wider mb-2">Flow WhatsApp Bot</h2>
+                        <div className="max-w-2xl w-full">
+                            <h2 className="text-2xl font-black uppercase tracking-wider mb-2">WhatsApp Bot</h2>
                             <p className="text-muted-foreground text-sm font-medium mb-8 leading-relaxed">
-                                Automatice las notificaciones de turnos, entregas y recordatorios directamente al WhatsApp de sus clientes a través de su bot inteligente de Flow.
+                                Automatice las notificaciones de turnos y recordatorios al WhatsApp de sus clientes seleccionando entre la integración oficial o una librería local de conexión.
                             </p>
 
-                            <div className="grid grid-cols-1 gap-6">
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Flow API URL</label>
-                                    <input 
-                                        type="text" 
-                                        value={settings.flow_api_url}
-                                        onChange={(e) => setSettings({ ...settings, flow_api_url: e.target.value })}
-                                        placeholder="https://flow-api.pitayacode.io"
-                                        className="bg-muted/50 border border-border rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Internal API Key</label>
-                                    <div className="relative">
-                                        <input 
-                                            type="password" 
-                                            value={settings.flow_internal_key}
-                                            onChange={(e) => setSettings({ ...settings, flow_internal_key: e.target.value })}
-                                            placeholder="••••••••••••••••"
-                                            className="w-full bg-muted/50 border border-border rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                                        />
-                                        <span className="absolute right-6 top-1/2 -translate-y-1/2 material-symbols-outlined text-muted-foreground/30">key</span>
-                                    </div>
+                            <div className="flex flex-col gap-2 mb-8">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Proveedor de WhatsApp Activo</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSettings(s => ({ ...s, whatsapp_provider: 'FLOW' }))}
+                                        className={`py-4 rounded-2xl text-xs font-black uppercase tracking-widest border-2 transition ${
+                                            (settings.whatsapp_provider || 'FLOW') === 'FLOW'
+                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                                                : 'border-border bg-muted/30 text-muted-foreground hover:border-indigo-500/50 hover:text-foreground'
+                                        }`}
+                                    >
+                                        Meta Oficial (Flow)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSettings(s => ({ ...s, whatsapp_provider: 'PITAYACORE' }))}
+                                        className={`py-4 rounded-2xl text-xs font-black uppercase tracking-widest border-2 transition ${
+                                            settings.whatsapp_provider === 'PITAYACORE'
+                                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                                                : 'border-border bg-muted/30 text-muted-foreground hover:border-indigo-500/50 hover:text-foreground'
+                                        }`}
+                                    >
+                                        Librería Local (PitayaCore)
+                                    </button>
                                 </div>
                             </div>
+
+                            {(settings.whatsapp_provider || 'FLOW') === 'FLOW' ? (
+                                <div className="grid grid-cols-1 gap-6">
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Flow API URL</label>
+                                        <input 
+                                            type="text" 
+                                            value={settings.flow_api_url || ''}
+                                            onChange={(e) => setSettings({ ...settings, flow_api_url: e.target.value })}
+                                            placeholder="https://flow-api.pitayacode.io"
+                                            className="bg-muted/50 border border-border rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Internal API Key</label>
+                                        <div className="relative">
+                                            <input 
+                                                type="password" 
+                                                value={settings.flow_internal_key || ''}
+                                                onChange={(e) => setSettings({ ...settings, flow_internal_key: e.target.value })}
+                                                placeholder="••••••••••••••••"
+                                                className="w-full bg-muted/50 border border-border rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
+                                            />
+                                            <span className="absolute right-6 top-1/2 -translate-y-1/2 material-symbols-outlined text-muted-foreground/30">key</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-6">
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">PitayaCore API URL</label>
+                                        <input 
+                                            type="text" 
+                                            value={settings.pitayacore_api_url || ''}
+                                            onChange={(e) => setSettings({ ...settings, pitayacore_api_url: e.target.value })}
+                                            placeholder="https://pitayacore-api.pitayacode.io"
+                                            className="bg-muted/50 border border-border rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">PitayaCore API Key (Connection Token)</label>
+                                        <div className="relative">
+                                            <input 
+                                                type="password" 
+                                                value={settings.pitayacore_api_key || ''}
+                                                onChange={(e) => setSettings({ ...settings, pitayacore_api_key: e.target.value })}
+                                                placeholder="••••••••••••••••"
+                                                className="w-full bg-muted/50 border border-border rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
+                                            />
+                                            <span className="absolute right-6 top-1/2 -translate-y-1/2 material-symbols-outlined text-muted-foreground/30">key</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Tenant ID de CRED en PitayaCore</label>
+                                        <input 
+                                            type="text" 
+                                            value={settings.pitayacore_tenant_id || ''}
+                                            onChange={(e) => setSettings({ ...settings, pitayacore_tenant_id: e.target.value })}
+                                            placeholder="Escribe el tenant id (ej. 87E0D095)"
+                                            className="bg-muted/50 border border-border rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="mt-10 flex items-center gap-4">
                                 <button 

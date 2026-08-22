@@ -90,3 +90,52 @@ export class FlowWhatsAppProvider implements IWhatsAppProvider {
         }
     }
 }
+
+export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
+    constructor(
+        private apiUrl: string,
+        private apiKey: string,
+        private tenantId: string
+    ) {}
+
+    async sendMessage(options: WhatsAppOptions): Promise<string | null> {
+        let content = '';
+        if (options.template.includes('now')) {
+            const name = options.components[0]?.parameters[0]?.text || 'Cliente';
+            const code = options.components[0]?.parameters[1]?.text || '---';
+            content = `🔔 ¡Hola ${name}! Es tu turno. Por favor, acércate al mostrador con tu código: *${code}*. ¡Te esperamos! ✨`;
+        } else if (options.template.includes('near')) {
+            const name = options.components[0]?.parameters[0]?.text || 'Cliente';
+            content = `📢 ¡Hola ${name}! Tu turno está cerca. Por favor, mantente atento, serás llamado en unos momentos. 🙏`;
+        } else {
+            content = `Aviso de Turno: ${options.template}`;
+        }
+
+        try {
+            const response = await fetch(`${this.apiUrl}/whatsapp/send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': this.apiKey,
+                    'x-tenant-id': this.tenantId
+                },
+                body: JSON.stringify({
+                    to: options.recipient,
+                    content: content
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error('[PitayaCore WhatsApp] Error response:', errText);
+                return null;
+            }
+
+            const data = await response.json();
+            return data.id || data.providerId || 'SUCCESS';
+        } catch (error) {
+            console.error('[PitayaCore WhatsApp] Exception:', error);
+            return null;
+        }
+    }
+}
