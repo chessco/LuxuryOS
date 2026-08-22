@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { QueueService } from '../services/queue.service';
 import { QRCodeSVG } from 'qrcode.react';
 
 const Kiosk: React.FC = () => {
+    const navigate = useNavigate();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [kind, setKind] = useState<'REPAIR' | 'SALE' | 'PICKUP'>('SALE');
@@ -56,7 +58,14 @@ const Kiosk: React.FC = () => {
 
     if (ticket) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-6 transition-colors transition-all">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-6 transition-colors transition-all relative">
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-300 font-bold text-xs uppercase tracking-wider shadow-sm z-30"
+                >
+                    <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                    Regresar
+                </button>
                 <div className="bg-card p-8 rounded-2xl border border-border shadow-2xl text-center max-w-sm w-full">
                     <h2 className="text-3xl font-bold mb-4">¡Turno Creado!</h2>
                     <div className="text-6xl font-black text-indigo-500 mb-6">{ticket.code}</div>
@@ -81,7 +90,14 @@ const Kiosk: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-6 transition-colors">
+        <div className="min-h-screen flex items-center justify-center bg-background p-6 transition-colors relative">
+            <button
+                onClick={() => navigate('/dashboard')}
+                className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-300 font-bold text-xs uppercase tracking-wider shadow-sm z-30"
+            >
+                <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                Regresar
+            </button>
             <div className="bg-card p-8 rounded-2xl border border-border shadow-2xl w-full max-w-md">
                 <h1 className="text-3xl font-bold text-foreground mb-8 text-center tracking-tight">Bienvenido a LuxuryOS</h1>
                 <form onSubmit={handleSubmit} className="space-y-6">
