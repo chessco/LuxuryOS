@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getStatusLabel } from '../../pages/Orders';
 
 interface OrdersTableProps {
     orders: any[];
@@ -122,13 +123,28 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted
                                     </div>
                                 </td>
                                 <td className="px-8 py-6">
-                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border transition-colors ${order.statusType === 'urgent' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                        order.statusType === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                            order.statusType === 'new' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' :
-                                                'bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700'
-                                        }`}>
-                                        {order.statusLabel || order.status}
-                                    </span>
+                                    {(() => {
+                                        const displayLabel = getStatusLabel(order.statusLabel || order.status || '');
+                                        const isDelivered = displayLabel === 'ENTREGADO' || order.status === 'DELIVERED';
+                                        const isReady = displayLabel === 'PARA ENTREGA' || order.status === 'REPAIR_COMPLETED' || order.status === 'READY_FOR_PICKUP';
+                                        return (
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border transition-colors ${
+                                                isDelivered
+                                                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                                    : isReady
+                                                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                                    : order.statusType === 'urgent'
+                                                    ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                                    : order.statusType === 'success'
+                                                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                                    : order.statusType === 'new'
+                                                    ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
+                                                    : 'bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700'
+                                            }`}>
+                                                {displayLabel}
+                                            </span>
+                                        );
+                                    })()}
                                 </td>
                                 <td className="px-8 py-6">
                                     <span className="text-zinc-900 dark:text-white font-black tracking-tight transition-colors">{order.value}</span>
