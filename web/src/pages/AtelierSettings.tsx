@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 
+import api from '../services/api';
+
 interface AtelierSettingsData {
     name: string;
     address: string;
@@ -12,8 +14,8 @@ interface AtelierSettingsData {
 }
 
 const DEFAULT_SETTINGS: AtelierSettingsData = {
-    name: 'Luxury Atelier',
-    address: 'Av. Presidente Masaryk 123, Polanco, CDMX',
+    name: 'Cared',
+    address: 'Plaza Tutuli',
     phone: '+52 55 1234 5678',
     email: 'contacto@luxuryatelier.com',
     taxId: 'LUX123456789',
@@ -26,14 +28,25 @@ const AtelierSettings: React.FC = () => {
     const [saved, setSaved] = useState(false);
 
     useEffect(() => {
-        const stored = localStorage.getItem('atelier_settings');
-        if (stored) {
+        const loadSettings = async () => {
+            const stored = localStorage.getItem('atelier_settings');
+            let current = stored ? JSON.parse(stored) : DEFAULT_SETTINGS;
             try {
-                setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(stored) });
+                const { data: apiSettings } = await api.get('/settings');
+                if (apiSettings) {
+                    if (apiSettings.atelier_name) current.name = apiSettings.atelier_name;
+                    if (apiSettings.atelier_address) current.address = apiSettings.atelier_address;
+                    if (apiSettings.atelier_phone) current.phone = apiSettings.atelier_phone;
+                    if (apiSettings.atelier_email) current.email = apiSettings.atelier_email;
+                    if (apiSettings.atelier_tax_id) current.taxId = apiSettings.atelier_tax_id;
+                    if (apiSettings.atelier_currency) current.currency = apiSettings.atelier_currency;
+                }
             } catch (e) {
-                console.error("Failed to parse settings", e);
+                console.error("Failed to load settings from API", e);
             }
-        }
+            setSettings({ ...DEFAULT_SETTINGS, ...current });
+        };
+        loadSettings();
     }, []);
 
     const handleChange = (field: keyof AtelierSettingsData, value: string) => {
@@ -41,8 +54,20 @@ const AtelierSettings: React.FC = () => {
         setSaved(false);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         localStorage.setItem('atelier_settings', JSON.stringify(settings));
+        try {
+            await api.post('/settings', {
+                atelier_name: settings.name,
+                atelier_address: settings.address,
+                atelier_phone: settings.phone,
+                atelier_email: settings.email,
+                atelier_tax_id: settings.taxId,
+                atelier_currency: settings.currency,
+            });
+        } catch (e) {
+            console.error("Failed to save settings to API", e);
+        }
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
     };

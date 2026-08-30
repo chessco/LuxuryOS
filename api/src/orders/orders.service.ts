@@ -4,12 +4,16 @@ import { OrderStage, OrderStatus, Prisma } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
 
 import { OrderStrategyFactory } from './strategies/order-strategy.factory';
+import { NotificationService } from '../queue/notification.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class OrdersService {
     constructor(
         private prisma: PrismaService,
         private strategyFactory: OrderStrategyFactory,
+        private notificationService: NotificationService,
+        private settingsService: SettingsService,
     ) { }
 
     async getBoard(tenantId: string, type?: string) {
@@ -259,5 +263,59 @@ export class OrdersService {
         return this.prisma.order.delete({
             where: { id }
         });
+    }
+
+    async sendOrderWhatsApp(tenantId: string, id: string) {
+        const order = await this.prisma.order.findUnique({
+            where: { id, tenantId },
+            include: { client: true }
+        });
+
+        if (!order) {
+            throw new NotFoundException('Pedido no encontrado');
+        }
+
+        const phone = order.client?.phone;
+        if (!phone) {
+            throw new NotFoundException('El cliente no tiene teléfono configurado');
+        }
+
+        const orderCode = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
+        const clientName = (order.client?.name || 'Cliente').toUpperCase();
+        const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-MX', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        }) : new Date().toLocaleDateString('es-MX');
+
+        const spec = order.specifications as any;
+        const pieceInfo = spec?.items?.[0] || {
+            item: order.pieceType || 'PIEZA',
+            metal: order.metal || '-',
+            color: order.color || '-',
+            karats: order.karats || '-',
+            weight: order.weight || '-',
+            size: order.size || '-',
+            thickness: order.thickness || '-'
+        };
+
+        const atelierName = await this.settingsService.getSetting(tenantId, 'atelier_name', 'CARED');
+        const atelierAddress = await this.settingsService.getSetting(tenantId, 'atelier_address', 'Plaza Tutuli');
+
+        const message = `🔔 *${atelierName.toUpperCase()} - PEDIDO* 🔔
+*Dirección:* ${atelierAddress}
+
+*Código:* ${orderCode}
+*Cliente:* ${clientName}
+*Pieza:* ${pieceInfo.item.toUpperCase()}
+*Metal:* ${pieceInfo.metal.toUpperCase()}
+*Color:* ${pieceInfo.color.toUpperCase()}
+*Quilates:* ${pieceInfo.karats.toUpperCase()}
+*Peso:* ${pieceInfo.weight.toUpperCase()}
+*Medida:* ${pieceInfo.size.toUpperCase()}
+*Fecha:* ${dateStr}
+
+Gracias por su preferencia. ✨`;
+
+        const success = await this.notificationService.sendCustomMessage(tenantId, phone, message);
+        return { success };
     }
 }

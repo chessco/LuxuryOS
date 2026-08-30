@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import JsBarcode from 'jsbarcode';
+import axios from 'axios';
 
 interface LabelPrintModalProps {
     isOpen: boolean;
@@ -10,6 +11,95 @@ interface LabelPrintModalProps {
 
 export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClose, order }) => {
     const barcodeRef = useRef<SVGSVGElement>(null);
+    const [sending, setSending] = useState(false);
+
+    // --- Shared helper: build phone + encoded message for wa.me links ---
+    const buildWhatsAppData = () => {
+        const phone = order?.client?.phone || (order as any)?.clientPhone || '';
+        if (!phone) return null;
+
+        const orderCode = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
+        const clientName = (order.client?.name || (order as any).clientName || 'Cliente').toUpperCase();
+        const dateStr = order.createdAt
+            ? new Date(order.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : new Date().toLocaleDateString('es-MX');
+
+        const spec = order.specifications as any;
+        const pieceInfo = spec?.items?.[0] || {
+            item: order.pieceType || 'PIEZA',
+            metal: order.metal || '-',
+            color: order.color || '-',
+            karats: order.karats || '-',
+            weight: order.weight || '-',
+            size: order.size || '-',
+        };
+
+        const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
+        const atelierName = (atelierSettings.name || 'CARED').toUpperCase();
+        const atelierAddress = atelierSettings.address || 'Plaza Tutuli';
+
+        const message = [
+            `🔔 *${atelierName} - PEDIDO* 🔔`,
+            `*Dirección:* ${atelierAddress}`,
+            ``,
+            `*Código:* ${orderCode}`,
+            `*Cliente:* ${clientName}`,
+            `*Pieza:* ${String(pieceInfo.item).toUpperCase()}`,
+            `*Metal:* ${String(pieceInfo.metal).toUpperCase()}`,
+            `*Color:* ${String(pieceInfo.color).toUpperCase()}`,
+            `*Quilates:* ${String(pieceInfo.karats).toUpperCase()}`,
+            `*Peso:* ${String(pieceInfo.weight).toUpperCase()}`,
+            `*Medida:* ${String(pieceInfo.size).toUpperCase()}`,
+            `*Fecha:* ${dateStr}`,
+            ``,
+            `Gracias por su preferencia. ✨`,
+        ].join('\n');
+
+        // Normalise phone: strip non-digits, prepend Mexico +52 for 10-digit local numbers
+        let cleanPhone = phone.replace(/\D/g, '');
+        if (cleanPhone.length === 10) cleanPhone = `52${cleanPhone}`;
+
+        return { cleanPhone, encodedMessage: encodeURIComponent(message) };
+    };
+
+    // Single smart WhatsApp button — routes based on configured provider
+    const handleWhatsApp = async () => {
+        if (!order) return;
+        setSending(true);
+        try {
+            const token = localStorage.getItem('token');
+            // Fetch the current provider setting
+            const { data: settings } = await axios.get(
+                `${import.meta.env.VITE_API_URL}/settings`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            const provider: string = settings?.whatsapp_provider || 'PITAYACORE';
+
+            if (provider === 'LINKS') {
+                // Client-side: open wa.me link directly
+                const data = buildWhatsAppData();
+                if (!data) { alert('El cliente no tiene número de teléfono registrado.'); return; }
+                window.open(`https://wa.me/${data.cleanPhone}?text=${data.encodedMessage}`, '_blank');
+            } else {
+                // API-side: backend handles PITAYACORE or FLOW
+                const result = await axios.post(
+                    `${import.meta.env.VITE_API_URL}/kanban/orders/${order.id}/send-whatsapp`,
+                    {},
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                if (result.data?.success) {
+                    alert('✅ Etiqueta enviada por WhatsApp.');
+                } else {
+                    alert('No se pudo enviar el mensaje.');
+                }
+            }
+        } catch (err: any) {
+            console.error(err);
+            alert(err?.response?.data?.message || 'Error al enviar por WhatsApp.');
+        } finally {
+            setSending(false);
+        }
+    };
 
     useEffect(() => {
         if (isOpen && order && !order.queueTicket && barcodeRef.current) {
@@ -39,6 +129,10 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
     const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-MX', {
         day: '2-digit', month: '2-digit', year: 'numeric'
     }) : new Date().toLocaleDateString('es-MX');
+
+    const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
+    const atelierName = (atelierSettings.name || 'CARED').toUpperCase();
+    const atelierAddress = (atelierSettings.address || 'Plaza Tutuli').toUpperCase();
 
     // Extract piece info
     const pieceInfo = order.specifications?.items?.[0] || {
@@ -88,9 +182,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             }}
                         >
                             {/* Brand Header */}
-                            <div className="w-full border-b border-black pb-1.5 mb-1.5">
-                                <h4 className="text-sm font-black tracking-widest leading-none m-0">CARED</h4>
-                                <span className="text-[7px] font-black tracking-widest text-zinc-600 block mt-0.5 leading-none">LUXURY OS</span>
+                            <div className="w-full border-b border-black pb-1.5 mb-1.5 text-center">
+                                <h4 className="text-sm font-black tracking-widest leading-none m-0">{atelierName}</h4>
+                                <span className="text-[7px] font-bold tracking-wider text-zinc-600 block mt-0.5 leading-tight">{atelierAddress}</span>
                             </div>
 
                             {/* Ticket Details */}
@@ -188,13 +282,21 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `}} />
 
                 {/* Modal Footer Actions */}
-                <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 grid grid-cols-2 gap-4">
+                <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 grid grid-cols-3 gap-4">
                     <button 
                         type="button" 
                         onClick={onClose} 
                         className="py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
                     >
                         Cerrar
+                    </button>
+                    <button
+                        onClick={handleWhatsApp}
+                        disabled={sending}
+                        className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">{sending ? 'sync' : 'send'}</span>
+                        <span>{sending ? 'Enviando...' : 'WhatsApp'}</span>
                     </button>
                     <button
                         onClick={handlePrint}

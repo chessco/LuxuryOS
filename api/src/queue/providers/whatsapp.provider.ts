@@ -59,7 +59,9 @@ export class FlowWhatsAppProvider implements IWhatsAppProvider {
     async sendMessage(options: WhatsAppOptions): Promise<string | null> {
         // Map templates to human readable messages for Flow
         let content = '';
-        if (options.template.includes('now')) {
+        if (options.template === 'free_text') {
+            content = options.components[0]?.parameters[0]?.text || '';
+        } else if (options.template.includes('now')) {
             const name = options.components[0]?.parameters[0]?.text || 'Cliente';
             const code = options.components[0]?.parameters[1]?.text || '---';
             content = `🔔 ¡Hola ${name}! Es tu turno. Por favor, acércate al mostrador con tu código: *${code}*. ¡Te esperamos! ✨`;
@@ -100,7 +102,9 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
 
     async sendMessage(options: WhatsAppOptions): Promise<string | null> {
         let content = '';
-        if (options.template.includes('now')) {
+        if (options.template === 'free_text') {
+            content = options.components[0]?.parameters[0]?.text || '';
+        } else if (options.template.includes('now')) {
             const name = options.components[0]?.parameters[0]?.text || 'Cliente';
             const code = options.components[0]?.parameters[1]?.text || '---';
             content = `🔔 ¡Hola ${name}! Es tu turno. Por favor, acércate al mostrador con tu código: *${code}*. ¡Te esperamos! ✨`;
