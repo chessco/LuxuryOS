@@ -107,7 +107,7 @@ const Orders: React.FC = () => {
     const queryParams = new URLSearchParams(location.search);
     const orderType = queryParams.get('type');
 
-    const [activeFilter, setActiveFilter] = useState<string | null>(null);
+    const [activeFilter, setActiveFilter] = useState<string | null>('Recibido');
 
     const boardColumns = React.useMemo(() => {
         let base = orderType === 'REPAIR' ? REPAIR_COLUMNS :
@@ -347,18 +347,54 @@ const Orders: React.FC = () => {
 
         // Active filter
         if (activeFilter) {
-            if (activeFilter === 'Para Entrega') {
+            if (activeFilter === 'Recibido') {
+                result = result.filter(o =>
+                    o.status === 'RECEIVED' ||
+                    o.status === 'INTERES_LEAD' ||
+                    o.status === 'SPEC_PENDING' ||
+                    o.status === 'DRAFT' ||
+                    o.status === 'QUOTE_SENT' ||
+                    o.stage === 'RECEIVED' ||
+                    o.stage === 'INTERES_LEAD' ||
+                    o.stage === 'SPEC_PENDING' ||
+                    o.stage === 'DRAFT' ||
+                    o.statusLabel === 'RECIBIDO' ||
+                    o.statusLabel === 'INTERÉS / LEAD'
+                );
+            } else if (activeFilter === 'En Taller') {
+                result = result.filter(o =>
+                    o.status === 'IN_REPAIR' ||
+                    o.status === 'IN_PRODUCTION' ||
+                    o.status === 'QUALITY_CHECK' ||
+                    o.status === 'APROBADO_ANTICIPO' ||
+                    o.status === 'EN_PRODUCCION' ||
+                    o.status === 'CONTROL_CALIDAD' ||
+                    o.status === 'DIAGNOSIS_PENDING' ||
+                    o.status === 'WAITING_PARTS' ||
+                    o.status === 'MATERIALS_PENDING' ||
+                    o.stage === 'IN_REPAIR' ||
+                    o.stage === 'IN_PRODUCTION' ||
+                    o.stage === 'QUALITY_CHECK' ||
+                    o.stage === 'APROBADO_ANTICIPO' ||
+                    o.stage === 'EN_PRODUCCION' ||
+                    o.stage === 'CONTROL_CALIDAD' ||
+                    o.statusLabel === 'EN TALLER' ||
+                    o.statusLabel === 'PRODUCCIÓN' ||
+                    o.statusLabel === 'CONTROL CALIDAD'
+                );
+            } else if (activeFilter === 'Para Entrega') {
                 result = result.filter(o =>
                     o.status === 'READY_FOR_PICKUP' ||
                     o.status === 'REPAIR_COMPLETED' ||
                     o.status === 'READY' ||
                     o.stage === 'READY_FOR_PICKUP' ||
                     o.stage === 'REPAIR_COMPLETED' ||
-                    o.stage === 'READY'
+                    o.stage === 'READY' ||
+                    o.statusLabel === 'PARA ENTREGA'
                 );
             } else if (activeFilter === 'Entregados') {
                 result = result.filter(o =>
-                    o.status === 'DELIVERED' || o.stage === 'DELIVERED'
+                    o.status === 'DELIVERED' || o.stage === 'DELIVERED' || o.statusLabel === 'ENTREGADO'
                 );
             } else if (activeFilter === 'Esta Semana') {
                 const now = new Date();
@@ -402,7 +438,7 @@ const Orders: React.FC = () => {
             .map(([name]) => name);
     }, [orders]);
 
-    const filterButtons = ['Para Entrega', 'Entregados', 'Esta Semana', 'Prioridad Alta', ...pieceTypeFilters];
+    const filterButtons = ['Recibido', 'En Taller', 'Para Entrega', 'Entregados', 'Esta Semana', 'Prioridad Alta', ...pieceTypeFilters];
 
     const getOrdersByStatus = (columnId: string) => {
         return filteredOrders.filter(o => o.status === columnId);
@@ -466,10 +502,14 @@ const Orders: React.FC = () => {
                                         onClick={() => setActiveFilter(isActive ? null : f)}
                                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border shadow-sm whitespace-nowrap ${
                                             isActive
-                                                ? f === 'Entregados'
-                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                                                ? f === 'Recibido'
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md font-black'
+                                                    : f === 'En Taller'
+                                                    ? 'bg-purple-600 text-white border-purple-600 shadow-md font-black'
                                                     : f === 'Para Entrega'
                                                     ? 'bg-amber-500 text-black border-amber-500 shadow-md font-black'
+                                                    : f === 'Entregados'
+                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md font-black'
                                                     : 'bg-foreground text-background border-border shadow-md'
                                                 : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground'
                                         }`}
