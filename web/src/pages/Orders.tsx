@@ -63,11 +63,43 @@ const LAYAWAY_COLUMNS: Column[] = [
     { id: 'LAYAWAY_EXPIRED', name: 'Apartado Vencido', color: 'bg-red-500' },
 ];
 
-export const getStatusLabel = (stage: string) => {
-    const allCols = [...STANDARD_COLUMNS, ...REPAIR_COLUMNS, ...MANUFACTURE_COLUMNS, ...LAYAWAY_COLUMNS];
-    const col = allCols.find(c => c.id === stage);
-    return col ? col.name : stage;
+export const SPANISH_STATUS_MAP: Record<string, string> = {
+    'DELIVERED': 'ENTREGADO',
+    'RECEIVED': 'RECIBIDO',
+    'IN_REPAIR': 'EN TALLER',
+    'REPAIR_COMPLETED': 'PARA ENTREGA',
+    'READY_FOR_PICKUP': 'PARA ENTREGA',
+    'SPEC_PENDING': 'SPECS / DISEÑO',
+    'MATERIALS_PENDING': 'MATERIALES',
+    'IN_PRODUCTION': 'PRODUCCIÓN',
+    'QUALITY_CHECK': 'CONTROL CALIDAD',
+    'LAYAWAY_OPEN': 'APARTADO ABIERTO',
+    'LAYAWAY_EXPIRED': 'APARTADO VENCIDO',
+    'INTERES_LEAD': 'INTERÉS / LEAD',
+    'COTIZACION_ENVIADA': 'COTIZACIÓN ENVIADA',
+    'APROBADO_ANTICIPO': 'APROBADO / ANTICIPO',
+    'EN_PRODUCCION': 'PRODUCCIÓN',
+    'CONTROL_CALIDAD': 'CONTROL CALIDAD',
+    'DRAFT': 'BORRADOR',
+    'QUOTE_SENT': 'COTIZACIÓN ENVIADA',
+    'APPROVED': 'APROBADO',
+    'CANCELLED': 'CANCELADO',
+    'READY': 'PARA ENTREGA'
 };
+
+export const getStatusLabel = (stage: string) => {
+    if (!stage) return '';
+    const upper = stage.toUpperCase();
+    if (SPANISH_STATUS_MAP[upper]) {
+        return SPANISH_STATUS_MAP[upper];
+    }
+    const allCols = [...STANDARD_COLUMNS, ...REPAIR_COLUMNS, ...MANUFACTURE_COLUMNS, ...LAYAWAY_COLUMNS];
+    const col = allCols.find(c => c.id === stage || c.id === upper);
+    if (col) return col.name.toUpperCase();
+    return upper;
+};
+
+const DELIVERED_COLUMN: Column = { id: 'DELIVERED', name: 'Entregado', color: 'bg-emerald-600' };
 
 const Orders: React.FC = () => {
     const { variant } = useTheme();
@@ -75,10 +107,18 @@ const Orders: React.FC = () => {
     const queryParams = new URLSearchParams(location.search);
     const orderType = queryParams.get('type');
 
-    const boardColumns = orderType === 'REPAIR' ? REPAIR_COLUMNS :
-        orderType === 'MANUFACTURE' ? MANUFACTURE_COLUMNS :
-            orderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
-                STANDARD_COLUMNS;
+    const [activeFilter, setActiveFilter] = useState<string | null>(null);
+
+    const boardColumns = React.useMemo(() => {
+        let base = orderType === 'REPAIR' ? REPAIR_COLUMNS :
+            orderType === 'MANUFACTURE' ? MANUFACTURE_COLUMNS :
+                orderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
+                    STANDARD_COLUMNS;
+        if (activeFilter === 'Entregados') {
+            return [...base, DELIVERED_COLUMN];
+        }
+        return base;
+    }, [orderType, activeFilter]);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
@@ -284,11 +324,15 @@ const Orders: React.FC = () => {
     };
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
     // Apply search and filters
     const filteredOrders = React.useMemo(() => {
         let result = orders;
+
+        // Default rule: Exclude DELIVERED orders unless user explicitly selected 'Entregados'
+        if (activeFilter !== 'Entregados') {
+            result = result.filter(o => o.status !== 'DELIVERED' && o.stage !== 'DELIVERED');
+        }
 
         // Search filter
         if (searchQuery.trim()) {
@@ -303,7 +347,20 @@ const Orders: React.FC = () => {
 
         // Active filter
         if (activeFilter) {
-            if (activeFilter === 'Esta Semana') {
+            if (activeFilter === 'Para Entrega') {
+                result = result.filter(o =>
+                    o.status === 'READY_FOR_PICKUP' ||
+                    o.status === 'REPAIR_COMPLETED' ||
+                    o.status === 'READY' ||
+                    o.stage === 'READY_FOR_PICKUP' ||
+                    o.stage === 'REPAIR_COMPLETED' ||
+                    o.stage === 'READY'
+                );
+            } else if (activeFilter === 'Entregados') {
+                result = result.filter(o =>
+                    o.status === 'DELIVERED' || o.stage === 'DELIVERED'
+                );
+            } else if (activeFilter === 'Esta Semana') {
                 const now = new Date();
                 const startOfWeek = new Date(now);
                 startOfWeek.setDate(now.getDate() - now.getDay());
@@ -345,7 +402,7 @@ const Orders: React.FC = () => {
             .map(([name]) => name);
     }, [orders]);
 
-    const filterButtons = ['Esta Semana', 'Prioridad Alta', ...pieceTypeFilters];
+    const filterButtons = ['Para Entrega', 'Entregados', 'Esta Semana', 'Prioridad Alta', ...pieceTypeFilters];
 
     const getOrdersByStatus = (columnId: string) => {
         return filteredOrders.filter(o => o.status === columnId);
@@ -401,23 +458,31 @@ const Orders: React.FC = () => {
                             />
                         </div>
                         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                            {filterButtons.map(f => (
-                                <button
-                                    key={f}
-                                    onClick={() => setActiveFilter(activeFilter === f ? null : f)}
-                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border shadow-sm whitespace-nowrap ${activeFilter === f
-                                        ? 'bg-foreground text-background border-border shadow-md'
-                                        : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground'
+                            {filterButtons.map(f => {
+                                const isActive = activeFilter === f;
+                                return (
+                                    <button
+                                        key={f}
+                                        onClick={() => setActiveFilter(isActive ? null : f)}
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border shadow-sm whitespace-nowrap ${
+                                            isActive
+                                                ? f === 'Entregados'
+                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                                                    : f === 'Para Entrega'
+                                                    ? 'bg-amber-500 text-black border-amber-500 shadow-md font-black'
+                                                    : 'bg-foreground text-background border-border shadow-md'
+                                                : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground'
                                         }`}
-                                >
-                                    <span>{f}</span>
-                                    {activeFilter === f ? (
-                                        <span className="material-symbols-outlined text-[18px]">close</span>
-                                    ) : (
-                                        <span className="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
-                                    )}
-                                </button>
-                            ))}
+                                    >
+                                        <span>{f}</span>
+                                        {isActive ? (
+                                            <span className="material-symbols-outlined text-[18px]">close</span>
+                                        ) : (
+                                            <span className="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
                             {(activeFilter || searchQuery) && (
                                 <button
                                     onClick={() => { setActiveFilter(null); setSearchQuery(''); }}
@@ -1300,7 +1365,7 @@ const KanbanCard: React.FC<OrderMock & { isBig?: boolean, isOverlay?: boolean, s
                 statusType === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                     statusType === 'new' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' :
                         'bg-muted text-muted-foreground border-border'
-                }`}>{statusLabel || status}</span>
+                }`}>{getStatusLabel(statusLabel || status || '')}</span>
             {progress && (
                 <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-foreground block" style={{ width: `${progress}%` }}></div>
