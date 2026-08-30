@@ -21,6 +21,17 @@ export class NotificationService {
         }
     }
 
+    private formatPhoneNumber(phone: string): string {
+        if (!phone) return phone;
+        // Limpiamos cualquier espacio o guión
+        const cleaned = phone.replace(/\D/g, '');
+        // Si tiene exactamente 10 dígitos, asumimos que es de México y agregamos el 52
+        if (cleaned.length === 10) {
+            return `52${cleaned}`;
+        }
+        return cleaned;
+    }
+
     async notifyNearTurn(tenantId: string, ticketId: string, phone: string, name: string) {
         const template = this.configService.get<string>('WA_TEMPLATE_NEAR_TURN', 'queue_near_turn');
         const dedupeKey = `ticket:${ticketId}:near`;
@@ -56,15 +67,21 @@ export class NotificationService {
         dedupeKey: string,
         components: any[]
     ) {
+        recipient = this.formatPhoneNumber(recipient);
+        
         // Dynamic Provider Check
         const providerType = await this.settingsService.getSetting(tenantId, 'whatsapp_provider', 'FLOW');
 
         let provider: IWhatsAppProvider | null = null;
 
-        if (providerType === 'PITAYACORE') {
-            const pitayaUrl = await this.settingsService.getSetting(tenantId, 'pitayacore_api_url', 'https://pitayacore-api.pitayacode.io');
+        if (providerType === 'LINKS') {
+            // Links provider: sending is handled entirely client-side via wa.me links
+            console.log(`[WhatsApp Links] Backend skipped — frontend handles sending via wa.me for tenant ${tenantId}`);
+            return;
+        } else if (providerType === 'PITAYACORE') {
+            const pitayaUrl = await this.settingsService.getSetting(tenantId, 'pitayacore_api_url', 'https://pitayacore-api.pitayacode.io/api');
             const pitayaKey = await this.settingsService.getSetting(tenantId, 'pitayacore_api_key', 'pitaya_internal_secret_2026');
-            const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id', '87E0D095');
+            const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id', '87e0dd95-fd29-4e63-a219-18478c58e4c8');
 
             provider = new PitayaCoreWhatsAppProvider(pitayaUrl, pitayaKey, pitayaTenant);
         } else {
@@ -114,5 +131,55 @@ export class NotificationService {
                 providerMessageId: messageId,
             },
         });
+    }
+
+    async sendCustomMessage(tenantId: string, recipient: string, content: string): Promise<boolean> {
+        recipient = this.formatPhoneNumber(recipient);
+
+        // Dynamic Provider Check
+        const providerType = await this.settingsService.getSetting(tenantId, 'whatsapp_provider', 'FLOW');
+
+        let provider: IWhatsAppProvider | null = null;
+
+        if (providerType === 'LINKS') {
+            // Links provider: sending is handled entirely client-side via wa.me links
+            console.log(`[WhatsApp Links] Backend skipped — frontend handles sending via wa.me for tenant ${tenantId}`);
+            return true;
+        } else if (providerType === 'PITAYACORE') {
+            const pitayaUrl = await this.settingsService.getSetting(tenantId, 'pitayacore_api_url', 'https://pitayacore-api.pitayacode.io/api');
+            const pitayaKey = await this.settingsService.getSetting(tenantId, 'pitayacore_api_key', 'pitaya_internal_secret_2026');
+            const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id', '87e0dd95-fd29-4e63-a219-18478c58e4c8');
+
+            provider = new PitayaCoreWhatsAppProvider(pitayaUrl, pitayaKey, pitayaTenant);
+        } else {
+            const flowUrl = await this.settingsService.getSetting(tenantId, 'flow_api_url');
+            const flowKey = await this.settingsService.getSetting(tenantId, 'flow_internal_key');
+
+            if (flowUrl && flowKey) {
+                provider = new FlowWhatsAppProvider(flowUrl, flowKey);
+            }
+        }
+
+        if (!provider) {
+            provider = this.whatsappProvider;
+        }
+
+        if (!provider) {
+            console.log(`[WhatsApp Mock Custom] Sending to ${recipient}: ${content}`);
+            return true;
+        }
+
+        const messageId = await provider.sendMessage({
+            recipient,
+            template: 'free_text',
+            components: [
+                {
+                    type: 'body',
+                    parameters: [{ type: 'text', text: content }],
+                },
+            ],
+        });
+
+        return !!messageId;
     }
 }

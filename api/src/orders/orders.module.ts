@@ -8,6 +8,8 @@ import { ManufactureStrategy } from './strategies/manufacture.strategy';
 import { LayawayStrategy } from './strategies/layaway.strategy';
 
 import { StandardStrategy } from './strategies/standard.strategy';
+import { NotificationService } from '../queue/notification.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Module({
     providers: [
@@ -17,6 +19,8 @@ import { StandardStrategy } from './strategies/standard.strategy';
         ManufactureStrategy,
         LayawayStrategy,
         StandardStrategy,
+        NotificationService,
+        SettingsService,
     ],
     controllers: [OrdersController],
 })

@@ -25,9 +25,9 @@ const IntegrationsPage: React.FC = () => {
             });
             setSettings(prev => ({ 
                 whatsapp_provider: 'PITAYACORE',
-                pitayacore_api_url: 'https://pitayacore-api.pitayacode.io',
+                pitayacore_api_url: 'https://pitayacore-api.pitayacode.io/api',
                 pitayacore_api_key: 'pitaya_internal_secret_2026',
-                pitayacore_tenant_id: '87E0D095',
+                pitayacore_tenant_id: '87e0dd95-fd29-4e63-a219-18478c58e4c8',
                 ...prev, 
                 ...response.data 
             }));
@@ -88,7 +88,7 @@ const IntegrationsPage: React.FC = () => {
 
                             <div className="flex flex-col gap-2 mb-8">
                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Proveedor de WhatsApp Activo</label>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-3 gap-3">
                                     <button
                                         type="button"
                                         onClick={() => setSettings(s => ({ ...s, whatsapp_provider: 'FLOW' }))}
@@ -111,10 +111,51 @@ const IntegrationsPage: React.FC = () => {
                                     >
                                         Librería JS (PitayaCore)
                                     </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSettings(s => ({ ...s, whatsapp_provider: 'LINKS' }))}
+                                        className={`py-4 rounded-2xl text-xs font-black uppercase tracking-widest border-2 transition ${
+                                            settings.whatsapp_provider === 'LINKS'
+                                                ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                                                : 'border-border bg-muted/30 text-muted-foreground hover:border-emerald-500/50 hover:text-foreground'
+                                        }`}
+                                    >
+                                        🔗 Links (WA Web)
+                                    </button>
                                 </div>
                             </div>
 
-                            {(settings.whatsapp_provider || 'FLOW') === 'FLOW' ? (
+                            {settings.whatsapp_provider === 'LINKS' ? (
+                                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 flex flex-col gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="size-10 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+                                            <span className="material-symbols-outlined text-emerald-500 text-[20px]">link</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-black text-foreground">WhatsApp Web — Sin configuración requerida</p>
+                                            <p className="text-xs text-muted-foreground font-medium">No necesitas API ni credenciales. Todo funciona con links directos.</p>
+                                        </div>
+                                    </div>
+                                    <ul className="grid grid-cols-1 gap-2 pl-1">
+                                        {[
+                                            { icon: 'smartphone', label: 'Botón "WA App"', desc: 'Abre WhatsApp nativo con el mensaje pre-cargado' },
+                                            { icon: 'language', label: 'Botón "WA Web"', desc: 'Abre web.whatsapp.com directamente en el navegador' },
+                                            { icon: 'pin', label: 'Código de país México +52', desc: 'Se agrega automáticamente en números de 10 dígitos' },
+                                        ].map(({ icon, label, desc }) => (
+                                            <li key={label} className="flex items-start gap-3 py-2 border-b border-emerald-500/10 last:border-0">
+                                                <span className="material-symbols-outlined text-[15px] text-emerald-500 mt-0.5">{icon}</span>
+                                                <div>
+                                                    <span className="text-xs font-black text-foreground">{label}</span>
+                                                    <span className="text-xs text-muted-foreground font-medium"> — {desc}</span>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <p className="text-[10px] font-medium text-muted-foreground/60 mt-1">
+                                        El usuario final debe tener WhatsApp iniciado en su navegador o app para recibir el mensaje.
+                                    </p>
+                                </div>
+                            ) : (settings.whatsapp_provider || 'FLOW') === 'FLOW' ? (
                                 <div className="grid grid-cols-1 gap-6">
                                     <div className="flex flex-col gap-2">
                                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Flow API URL</label>
@@ -149,7 +190,7 @@ const IntegrationsPage: React.FC = () => {
                                             type="text" 
                                             value={settings.pitayacore_api_url || ''}
                                             onChange={(e) => setSettings({ ...settings, pitayacore_api_url: e.target.value })}
-                                            placeholder="https://pitayacore-api.pitayacode.io"
+                                            placeholder="https://pitayacore-api.pitayacode.io/api"
                                             className="bg-muted/50 border border-border rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-foreground"
                                         />
                                     </div>

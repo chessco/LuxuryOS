@@ -48,5 +48,10 @@ export const OrdersService = {
     async deleteOrder(id: string) {
         const response = await api.delete(`/kanban/orders/${id}`);
         return response.data;
+    },
+
+    async sendWhatsApp(id: string) {
+        const response = await api.post(`/kanban/orders/${id}/send-whatsapp`);
+        return response.data;
     }
 };

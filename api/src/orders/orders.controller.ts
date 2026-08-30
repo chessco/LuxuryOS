@@ -76,4 +76,9 @@ export class OrdersController {
         }
         return this.ordersService.deleteOrder(req.user.tenantId, id);
     }
+
+    @Post('orders/:id/send-whatsapp')
+    async sendOrderWhatsApp(@Param('id') id: string, @Request() req) {
+        return this.ordersService.sendOrderWhatsApp(req.user.tenantId, id);
+    }
 }
