@@ -287,37 +287,24 @@ export class OrdersService {
         }) : new Date().toLocaleDateString('es-MX');
 
         const spec = order.specifications as any;
-        const pieceInfo = spec?.items?.[0] || {
-            item: order.pieceType || order.item || 'PIEZA',
-            metal: order.metal || '-',
-            color: order.color || '-',
-            karats: order.karats || '-',
-            weight: order.weight || '-',
-            size: order.size || '-',
-            thickness: order.thickness || '-'
+        const getConcepto = (type: string) => {
+            const t = (type || '').toUpperCase();
+            if (t === 'REPAIR') return 'REPARACIÓN';
+            if (t === 'MANUFACTURE') return 'FABRICACIÓN';
+            if (t === 'LAYAWAY') return 'APARTADO';
+            return 'VENTA';
         };
 
-        let atelierName = await this.settingsService.getSetting(tenantId, 'atelier_name', 'CARED');
-        if (!atelierName || atelierName.toUpperCase().includes('LUXURY')) {
-            atelierName = 'CARED';
-        }
-        let atelierAddress = await this.settingsService.getSetting(tenantId, 'atelier_address', 'Plaza Tutuli');
-        if (!atelierAddress) {
-            atelierAddress = 'Plaza Tutuli';
-        }
+        const barcodeImageUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
-        const message = `🔔 *${atelierName.toUpperCase()} - PEDIDO* 🔔
-*Dirección:* ${atelierAddress}
+        const message = `🔔 *CARED* 🔔
 
-*Código:* ${orderCode}
-*Cliente:* ${clientName}
-*Pieza:* ${pieceInfo.item.toUpperCase()}
-*Metal:* ${pieceInfo.metal.toUpperCase()}
-*Color:* ${pieceInfo.color.toUpperCase()}
-*Quilates:* ${pieceInfo.karats.toUpperCase()}
-*Peso:* ${pieceInfo.weight.toUpperCase()}
-*Medida:* ${pieceInfo.size.toUpperCase()}
 *Fecha:* ${dateStr}
+*Cliente:* ${clientName}
+*No. Orden:* ${orderCode}
+*Concepto:* ${getConcepto(order.type)}
+
+${barcodeImageUrl}
 
 Gracias por su preferencia. ✨`;
 
