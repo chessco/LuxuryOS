@@ -92,8 +92,13 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         }
     };
 
+    const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
+    let atelierName = (atelierSettings.name || 'CARED').toUpperCase();
+    if (!atelierName || atelierName.includes('LUXURY')) atelierName = 'CARED';
+    const labelCodeType = atelierSettings.labelCodeType || localStorage.getItem('label_code_type') || 'BARCODE';
+
     useEffect(() => {
-        if (isOpen && order && !order.queueTicket && barcodeRef.current) {
+        if (isOpen && order && barcodeRef.current && labelCodeType === 'BARCODE') {
             try {
                 const codeValue = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
                 JsBarcode(barcodeRef.current, codeValue, {
@@ -110,7 +115,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 console.error("Failed to generate barcode", err);
             }
         }
-    }, [isOpen, order]);
+    }, [isOpen, order, labelCodeType]);
 
     if (!isOpen || !order) return null;
 
@@ -120,11 +125,6 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
     const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-MX', {
         day: '2-digit', month: '2-digit', year: 'numeric'
     }) : new Date().toLocaleDateString('es-MX');
-
-    const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
-    let atelierName = (atelierSettings.name || 'CARED').toUpperCase();
-    if (!atelierName || atelierName.includes('LUXURY')) atelierName = 'CARED';
-    const atelierAddress = (atelierSettings.address || 'Plaza Tutuli').toUpperCase();
 
     // Extract piece info
     const pieceInfo = order.specifications?.items?.[0] || {
@@ -219,19 +219,19 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
 
                             {/* Barcode or QR Code Container */}
                             <div className="my-3 flex flex-col items-center justify-center w-full">
-                                {isTurnOrder ? (
-                                    <div className="flex flex-col items-center gap-1.5">
+                                {labelCodeType === 'QR' ? (
+                                    <div className="flex flex-col items-center gap-1">
                                         <div className="p-1 bg-white border border-black rounded">
                                             <QRCodeSVG 
-                                                value={order.queueTicket.qrToken || order.queueTicket.code} 
+                                                value={isTurnOrder ? (order.queueTicket?.qrToken || order.queueTicket?.code) : orderCode} 
                                                 size={80} 
                                                 bgColor="#ffffff" 
                                                 fgColor="#000000" 
                                                 level="H" 
                                             />
                                         </div>
-                                        <span className="text-[9px] font-black tracking-widest uppercase border border-black px-2 py-0.5 rounded bg-black text-white leading-none">
-                                            TURNO: {order.queueTicket.code.toUpperCase()}
+                                        <span className="text-[7.5px] font-black tracking-widest uppercase mt-0.5 leading-none">
+                                            {isTurnOrder ? `TURNO: ${order.queueTicket?.code?.toUpperCase()}` : orderCode}
                                         </span>
                                     </div>
                                 ) : (

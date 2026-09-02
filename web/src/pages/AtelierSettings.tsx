@@ -11,6 +11,7 @@ interface AtelierSettingsData {
     email: string;
     taxId: string;
     currency: string;
+    labelCodeType: 'BARCODE' | 'QR';
 }
 
 const DEFAULT_SETTINGS: AtelierSettingsData = {
@@ -19,7 +20,8 @@ const DEFAULT_SETTINGS: AtelierSettingsData = {
     phone: '+52 55 1234 5678',
     email: 'contacto@luxuryatelier.com',
     taxId: 'LUX123456789',
-    currency: 'MXN'
+    currency: 'MXN',
+    labelCodeType: 'BARCODE'
 };
 
 const AtelierSettings: React.FC = () => {
@@ -31,6 +33,8 @@ const AtelierSettings: React.FC = () => {
         const loadSettings = async () => {
             const stored = localStorage.getItem('atelier_settings');
             let current = stored ? JSON.parse(stored) : DEFAULT_SETTINGS;
+            const storedCodeType = localStorage.getItem('label_code_type');
+            if (storedCodeType) current.labelCodeType = storedCodeType;
             try {
                 const { data: apiSettings } = await api.get('/settings');
                 if (apiSettings) {
@@ -40,6 +44,7 @@ const AtelierSettings: React.FC = () => {
                     if (apiSettings.atelier_email) current.email = apiSettings.atelier_email;
                     if (apiSettings.atelier_tax_id) current.taxId = apiSettings.atelier_tax_id;
                     if (apiSettings.atelier_currency) current.currency = apiSettings.atelier_currency;
+                    if (apiSettings.label_code_type) current.labelCodeType = apiSettings.label_code_type;
                 }
             } catch (e) {
                 console.error("Failed to load settings from API", e);
@@ -56,6 +61,7 @@ const AtelierSettings: React.FC = () => {
 
     const handleSave = async () => {
         localStorage.setItem('atelier_settings', JSON.stringify(settings));
+        localStorage.setItem('label_code_type', settings.labelCodeType);
         try {
             await api.post('/settings', {
                 atelier_name: settings.name,
@@ -64,6 +70,7 @@ const AtelierSettings: React.FC = () => {
                 atelier_email: settings.email,
                 atelier_tax_id: settings.taxId,
                 atelier_currency: settings.currency,
+                label_code_type: settings.labelCodeType,
             });
         } catch (e) {
             console.error("Failed to save settings to API", e);
@@ -176,6 +183,71 @@ const AtelierSettings: React.FC = () => {
                                 <option value="EUR">Euros (EUR)</option>
                             </select>
                         </div>
+                    </div>
+                </section>
+
+                {/* Label Code Type Section */}
+                <section className="bg-card border border-border rounded-3xl p-8 shadow-sm">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="size-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                            <span className="material-symbols-outlined">qr_code_scanner</span>
+                        </div>
+                        <div>
+                            <h3 className="text-foreground text-lg font-bold">Formato de Código en Etiquetas</h3>
+                            <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest mt-1">Selecciona el tipo de código a imprimir en las etiquetas de pedido</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button
+                            type="button"
+                            onClick={() => handleChange('labelCodeType', 'BARCODE')}
+                            className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left ${
+                                settings.labelCodeType === 'BARCODE'
+                                    ? 'border-indigo-600 bg-indigo-500/10 shadow-md'
+                                    : 'border-border bg-muted/20 hover:border-border/80'
+                            }`}
+                        >
+                            <div className={`size-12 rounded-xl flex items-center justify-center ${
+                                settings.labelCodeType === 'BARCODE' ? 'bg-indigo-600 text-white' : 'bg-muted text-muted-foreground'
+                            }`}>
+                                <span className="material-symbols-outlined text-2xl">barcode</span>
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-black uppercase tracking-wider text-foreground">Código de Barras</h4>
+                                    {settings.labelCodeType === 'BARCODE' && (
+                                        <span className="material-symbols-outlined text-indigo-500 text-sm">check_circle</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">Estándar lineal Code 128</p>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleChange('labelCodeType', 'QR')}
+                            className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left ${
+                                settings.labelCodeType === 'QR'
+                                    ? 'border-indigo-600 bg-indigo-500/10 shadow-md'
+                                    : 'border-border bg-muted/20 hover:border-border/80'
+                            }`}
+                        >
+                            <div className={`size-12 rounded-xl flex items-center justify-center ${
+                                settings.labelCodeType === 'QR' ? 'bg-indigo-600 text-white' : 'bg-muted text-muted-foreground'
+                            }`}>
+                                <span className="material-symbols-outlined text-2xl">qr_code_2</span>
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-black uppercase tracking-wider text-foreground">Código QR</h4>
+                                    {settings.labelCodeType === 'QR' && (
+                                        <span className="material-symbols-outlined text-indigo-500 text-sm">check_circle</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">Matriz bidimensional 2D</p>
+                            </div>
+                        </button>
                     </div>
                 </section>
             </div>
