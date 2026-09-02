@@ -59,25 +59,31 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         setSending(true);
         try {
             const token = localStorage.getItem('token');
+            const { data: settings } = await axios.get(
+                `${import.meta.env.VITE_API_URL}/settings`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            const provider: string = settings?.whatsapp_provider || 'PITAYACORE';
 
-            // 1. Open wa.me link directly for instant WhatsApp Web sending (as in previous versions)
-            const waData = buildWhatsAppData();
-            if (waData) {
+            if (provider === 'LINKS') {
+                const waData = buildWhatsAppData();
+                if (!waData) {
+                    alert('El cliente no tiene número de teléfono registrado.');
+                    return;
+                }
                 window.open(`https://wa.me/${waData.cleanPhone}?text=${waData.encodedMessage}`, '_blank');
             } else {
-                alert('El cliente no tiene número de teléfono registrado.');
-                setSending(false);
-                return;
+                const result = await axios.post(
+                    `${import.meta.env.VITE_API_URL}/kanban/orders/${order.id}/send-whatsapp`,
+                    {},
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                if (result.data?.success) {
+                    alert('✅ Etiqueta enviada por WhatsApp.');
+                } else {
+                    alert('No se pudo enviar el mensaje por WhatsApp. Verifique que el servicio PitayaCore esté activo.');
+                }
             }
-
-            // 2. Also send & record via API so it logs into WhatsApp Chat Center (/messages)
-            await axios.post(
-                `${import.meta.env.VITE_API_URL}/kanban/orders/${order.id}/send-whatsapp`,
-                {},
-                { headers: { Authorization: `Bearer ${token}` } }
-            ).catch(e => console.warn('Backend WA log warning:', e));
-
-            alert('✅ Etiqueta enviada por WhatsApp.');
         } catch (err: any) {
             console.error(err);
             alert(err?.response?.data?.message || 'Error al enviar por WhatsApp.');

@@ -115,30 +115,45 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
             content = `Aviso de Turno: ${options.template}`;
         }
 
+        // Clean & Format recipient phone number: ensure country code (e.g. 526441732208)
+        let recipient = (options.recipient || '').replace(/\D/g, '');
+        if (recipient.length === 10) {
+            recipient = `52${recipient}`;
+        }
+
+        // Normalize API URL (handle with or without /api suffix)
+        let baseUrl = (this.apiUrl || 'https://pitayacore-api.pitayacode.io/api').replace(/\/+$/, '');
+        let targetUrl = baseUrl.endsWith('/api') ? `${baseUrl}/whatsapp/send` : `${baseUrl}/api/whatsapp/send`;
+
+        console.log(`[PitayaCore WA] Requesting ${targetUrl} for ${recipient}`);
+
         try {
-            const response = await fetch(`${this.apiUrl}/whatsapp/send`, {
+            const response = await fetch(targetUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': this.apiKey,
-                    'x-tenant-id': this.tenantId
+                    'x-api-key': this.apiKey || 'pitaya_internal_secret_2026',
+                    'x-tenant-id': this.tenantId || '87e0dd95-fd29-4e63-a219-18478c58e4c8'
                 },
                 body: JSON.stringify({
-                    to: options.recipient,
+                    to: recipient,
                     content: content
                 })
             });
 
+            const text = await response.text();
+            console.log(`[PitayaCore WA] Response status ${response.status}:`, text);
+
             if (!response.ok) {
-                const errText = await response.text();
-                console.error('[PitayaCore WhatsApp] Error response:', errText);
+                console.error(`[PitayaCore WA] API error status ${response.status}: ${text}`);
                 return null;
             }
 
-            const data = await response.json();
-            return data.id || data.providerId || 'SUCCESS';
+            let data: any = {};
+            try { data = JSON.parse(text); } catch(e){}
+            return data.id || data.providerId || data.messageId || 'SUCCESS';
         } catch (error) {
-            console.error('[PitayaCore WhatsApp] Exception:', error);
+            console.error('[PitayaCore WA] Exception:', error);
             return null;
         }
     }
