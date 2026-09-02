@@ -115,13 +115,14 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
             content = `Aviso de Turno: ${options.template}`;
         }
 
-        // Clean & Format recipient phone number: ensure country code (e.g. 526441732208)
-        let recipient = (options.recipient || '').replace(/\D/g, '');
-        if (recipient.length === 10) {
-            recipient = `52${recipient}`;
+        let rawDigits = (options.recipient || '').replace(/\D/g, '');
+        let recipient = rawDigits;
+        if (rawDigits.length === 10) {
+            recipient = `521${rawDigits}`;
+        } else if (rawDigits.length === 12 && rawDigits.startsWith('52') && !rawDigits.startsWith('521')) {
+            recipient = `521${rawDigits.substring(2)}`;
         }
 
-        // Normalize API URL (handle with or without /api suffix)
         let baseUrl = (this.apiUrl || 'https://pitayacore-api.pitayacode.io/api').replace(/\/+$/, '');
         let targetUrl = baseUrl.endsWith('/api') ? `${baseUrl}/whatsapp/send` : `${baseUrl}/api/whatsapp/send`;
 
@@ -144,13 +145,39 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
             const text = await response.text();
             console.log(`[PitayaCore WA] Response status ${response.status}:`, text);
 
-            if (!response.ok) {
-                console.error(`[PitayaCore WA] API error status ${response.status}: ${text}`);
-                return null;
-            }
-
             let data: any = {};
             try { data = JSON.parse(text); } catch(e){}
+
+            // Retry with 52 if 521 fails, or vice versa
+            if (!response.ok || data.success === false) {
+                const altRecipient = recipient.startsWith('521')
+                    ? `52${recipient.substring(3)}`
+                    : `521${recipient.replace(/^52/, '')}`;
+
+                console.log(`[PitayaCore WA Retry] Primary failed (${data.error || 'error'}), retrying with ${altRecipient}...`);
+
+                const retryResponse = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': this.apiKey || 'pitaya_internal_secret_2026',
+                        'x-tenant-id': this.tenantId || '87e0dd95-fd29-4e63-a219-18478c58e4c8'
+                    },
+                    body: JSON.stringify({
+                        to: altRecipient,
+                        content: content
+                    })
+                });
+
+                const retryText = await retryResponse.text();
+                console.log(`[PitayaCore WA Retry] Response status ${retryResponse.status}:`, retryText);
+                try { data = JSON.parse(retryText); } catch(e){}
+
+                if (!retryResponse.ok || data.success === false) {
+                    return null;
+                }
+            }
+
             return data.id || data.providerId || data.messageId || 'SUCCESS';
         } catch (error) {
             console.error('[PitayaCore WA] Exception:', error);
