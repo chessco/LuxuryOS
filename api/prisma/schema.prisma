@@ -296,17 +296,17 @@ model QueueEvent {
 }
 
 model NotificationLog {
-  id                String      @id @default(uuid())
+  id                String       @id @default(uuid())
   tenantId          String
-  tenant            Tenant      @relation(fields: [tenantId], references: [id])
-  ticketId          String
-  ticket            QueueTicket @relation(fields: [ticketId], references: [id])
+  tenant            Tenant       @relation(fields: [tenantId], references: [id])
+  ticketId          String?
+  ticket            QueueTicket? @relation(fields: [ticketId], references: [id])
   channel           String // e.g., "WHATSAPP", "EMAIL"
   templateKey       String // e.g., "YOUR_TURN"
   to                String?
-  dedupeKey         String?     @unique // e.g., "ticketId:templateKey"
+  dedupeKey         String?      @unique // e.g., "ticketId:templateKey"
   providerMessageId String?
   status            String // e.g., "SENT", "FAILED"
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }
