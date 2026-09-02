@@ -192,16 +192,16 @@ export class NotificationService {
 
         // Always log message to NotificationLog table for chat history
         const dedupeKey = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-        const shortProviderId = (messageId || content || '').substring(0, 180);
         await this.prisma.notificationLog.create({
             data: {
                 tenantId,
                 ticketId: null as any,
                 channel: 'WHATSAPP',
                 templateKey: 'CUSTOM_TEXT',
+                messageContent: content,
                 to: recipient,
                 dedupeKey,
-                providerMessageId: shortProviderId,
+                providerMessageId: (messageId || 'SENT').substring(0, 180),
                 status: messageId ? 'SENT' : 'LOGGED',
             }
         }).catch(err => console.error("Failed to log notification", err));

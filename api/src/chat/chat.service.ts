@@ -133,14 +133,18 @@ export class ChatService {
                     ? `+52 ${key.substring(2, 5)} ${key.substring(5, 8)} ${key.substring(8)}`
                     : `+${key}`;
 
+                const previewMsg = (log as any).messageContent
+                    || (log.providerMessageId && log.providerMessageId !== 'SUCCESS' && log.providerMessageId !== 'SENT' ? log.providerMessageId : null)
+                    || (log.dedupeKey?.startsWith('ticket:')
+                        ? `Aviso de turno (${log.templateKey})`
+                        : (log.templateKey === 'CUSTOM_TEXT' ? 'Mensaje enviado' : log.templateKey || 'Mensaje de WhatsApp'));
+
                 convMap.set(key, {
                     id: key,
                     cleanPhone: key,
                     formattedPhone: formattedPhone,
                     clientName: clientName.toUpperCase(),
-                    lastMessage: log.providerMessageId || (log.dedupeKey?.startsWith('ticket:')
-                        ? `Aviso de turno (${log.templateKey})`
-                        : (log.templateKey || 'Mensaje de WhatsApp')),
+                    lastMessage: previewMsg,
                     updatedAt: log.createdAt,
                     unread: 0
                 });
@@ -192,15 +196,19 @@ export class ChatService {
             return rawPhone.endsWith(cleanDigits) || searchKey.endsWith(rawPhone);
         });
 
-        return filtered.map(log => ({
-            id: log.id,
-            content: log.templateKey === 'CUSTOM_TEXT' || !log.templateKey.includes('_')
-                ? log.providerMessageId || log.templateKey
-                : `Notificación de WhatsApp enviada: ${log.templateKey}`,
-            direction: 'OUTBOUND',
-            status: log.status,
-            createdAt: log.createdAt
-        }));
+        return filtered.map(log => {
+            const rawContent = (log as any).messageContent
+                || (log.providerMessageId && log.providerMessageId !== 'SUCCESS' && log.providerMessageId !== 'SENT' ? log.providerMessageId : null)
+                || (log.templateKey === 'CUSTOM_TEXT' ? 'Mensaje enviado' : `Notificación de WhatsApp: ${log.templateKey}`);
+
+            return {
+                id: log.id,
+                content: rawContent,
+                direction: log.templateKey === 'INBOUND_REPLY' || log.status === 'RECEIVED' ? 'INBOUND' : 'OUTBOUND',
+                status: log.status,
+                createdAt: log.createdAt
+            };
+        });
     }
 
     async sendWhatsAppMessage(tenantId: string, phone: string, content: string, clientName?: string) {

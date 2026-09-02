@@ -303,6 +303,7 @@ model NotificationLog {
   ticket            QueueTicket? @relation(fields: [ticketId], references: [id])
   channel           String // e.g., "WHATSAPP", "EMAIL"
   templateKey       String // e.g., "YOUR_TURN"
+  messageContent    String?      @db.Text
   to                String?
   dedupeKey         String?      @unique // e.g., "ticketId:templateKey"
   providerMessageId String?
