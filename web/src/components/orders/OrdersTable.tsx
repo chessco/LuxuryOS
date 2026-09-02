@@ -149,14 +149,31 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted
                                 <td className="px-8 py-6">
                                     <span className="text-zinc-900 dark:text-white font-black tracking-tight transition-colors">{order.value}</span>
                                 </td>
-                                <td className="px-8 py-6 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        <span className={`size-1.5 rounded-full transition-colors ${order.priority === 'ALTA' ? 'bg-red-500' :
-                                            order.priority === 'MEDIA' ? 'bg-amber-500' :
-                                                'bg-zinc-200 dark:bg-zinc-500'
-                                            }`}></span>
-                                        <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black uppercase tracking-widest transition-colors">{order.priority}</span>
-                                    </div>
+                                <td className="px-8 py-6 text-right" onClick={(e) => e.stopPropagation()}>
+                                    <select
+                                        value={(order.priority || 'MEDIA').toUpperCase()}
+                                        onChange={async (e) => {
+                                            const newPriority = e.target.value;
+                                            try {
+                                                await OrdersService.updateOrder(order.id, { priority: newPriority });
+                                                if (onRefresh) onRefresh();
+                                            } catch (err) {
+                                                console.error("Error updating priority:", err);
+                                            }
+                                        }}
+                                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest cursor-pointer outline-none border transition-all shadow-sm ${
+                                            (order.priority || '').toUpperCase() === 'ALTA'
+                                                ? 'bg-amber-400 text-black border-amber-500 font-black'
+                                                : (order.priority || '').toUpperCase() === 'MEDIA'
+                                                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-bold'
+                                                : 'bg-muted text-muted-foreground border-border font-medium'
+                                        }`}
+                                        title="Cambiar prioridad"
+                                    >
+                                        <option value="BAJA" className="bg-background text-foreground">! BAJA</option>
+                                        <option value="MEDIA" className="bg-background text-foreground">! MEDIA</option>
+                                        <option value="ALTA" className="bg-background font-bold text-amber-500">! ALTA ⚡</option>
+                                    </select>
                                 </td>
                                 {isSystemAdmin && (
                                     <td className="px-8 py-6 text-center">

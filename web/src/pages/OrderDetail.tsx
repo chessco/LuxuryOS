@@ -419,19 +419,24 @@ const OrderDetail: React.FC = () => {
                                 <span>Recibido: {order.date}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[18px] text-indigo-500">priority_high</span>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Prioridad:</span>
                                 <select
                                     value={(order.priority || 'MEDIA').toUpperCase()}
                                     onChange={async (e) => {
                                         const newPriority = e.target.value;
                                         await handleSaveDetails({ priority: newPriority });
                                     }}
-                                    className="bg-card border border-border rounded-lg px-2.5 py-1 text-xs font-black uppercase text-foreground focus:border-indigo-500 outline-none cursor-pointer shadow-sm hover:border-indigo-500/50 transition-all"
+                                    className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest cursor-pointer outline-none border transition-all shadow-sm ${
+                                        (order.priority || '').toUpperCase() === 'ALTA'
+                                            ? 'bg-amber-400 text-black border-amber-500 font-black shadow-md'
+                                            : (order.priority || '').toUpperCase() === 'MEDIA'
+                                            ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-bold'
+                                            : 'bg-muted text-muted-foreground border-border font-medium'
+                                    }`}
+                                    title="Haz clic para modificar la prioridad del pedido"
                                 >
-                                    <option value="BAJA" className="bg-background">Baja</option>
-                                    <option value="MEDIA" className="bg-background">Media</option>
-                                    <option value="ALTA" className="bg-background font-bold text-red-500">Alta ⚡</option>
+                                    <option value="BAJA" className="bg-background text-foreground">! BAJA</option>
+                                    <option value="MEDIA" className="bg-background text-foreground">! MEDIA</option>
+                                    <option value="ALTA" className="bg-background font-bold text-amber-500">! ALTA ⚡</option>
                                 </select>
                             </div>
                         </div>
