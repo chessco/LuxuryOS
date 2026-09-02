@@ -138,9 +138,9 @@ export class ChatService {
                     cleanPhone: key,
                     formattedPhone: formattedPhone,
                     clientName: clientName.toUpperCase(),
-                    lastMessage: log.dedupeKey?.startsWith('ticket:')
+                    lastMessage: log.providerMessageId || (log.dedupeKey?.startsWith('ticket:')
                         ? `Aviso de turno (${log.templateKey})`
-                        : (log.templateKey || 'Mensaje de WhatsApp'),
+                        : (log.templateKey || 'Mensaje de WhatsApp')),
                     updatedAt: log.createdAt,
                     unread: 0
                 });

@@ -136,16 +136,15 @@ export class NotificationService {
     async sendCustomMessage(tenantId: string, recipient: string, content: string): Promise<boolean> {
         recipient = this.formatPhoneNumber(recipient);
 
-        // Dynamic Provider Check
-        const providerType = await this.settingsService.getSetting(tenantId, 'whatsapp_provider', 'FLOW');
+        // Dynamic Provider Check — default to PITAYACORE
+        const providerType = await this.settingsService.getSetting(tenantId, 'whatsapp_provider', 'PITAYACORE');
 
         let provider: IWhatsAppProvider | null = null;
 
         if (providerType === 'LINKS') {
-            // Links provider: sending is handled entirely client-side via wa.me links
             console.log(`[WhatsApp Links] Backend skipped — frontend handles sending via wa.me for tenant ${tenantId}`);
             return true;
-        } else if (providerType === 'PITAYACORE') {
+        } else if (providerType === 'PITAYACORE' || !providerType) {
             const pitayaUrl = await this.settingsService.getSetting(tenantId, 'pitayacore_api_url', 'https://pitayacore-api.pitayacode.io/api');
             const pitayaKey = await this.settingsService.getSetting(tenantId, 'pitayacore_api_key', 'pitaya_internal_secret_2026');
             const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id', '87e0dd95-fd29-4e63-a219-18478c58e4c8');
@@ -164,22 +163,34 @@ export class NotificationService {
             provider = this.whatsappProvider;
         }
 
-        if (!provider) {
-            console.log(`[WhatsApp Mock Custom] Sending to ${recipient}: ${content}`);
-            return true;
+        let messageId: string | null = null;
+        if (provider) {
+            messageId = await provider.sendMessage({
+                recipient,
+                template: 'free_text',
+                components: [
+                    {
+                        type: 'body',
+                        parameters: [{ type: 'text', text: content }],
+                    },
+                ],
+            });
         }
 
-        const messageId = await provider.sendMessage({
-            recipient,
-            template: 'free_text',
-            components: [
-                {
-                    type: 'body',
-                    parameters: [{ type: 'text', text: content }],
-                },
-            ],
-        });
+        // Always log message to NotificationLog table for chat history
+        const dedupeKey = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        await this.prisma.notificationLog.create({
+            data: {
+                tenantId,
+                channel: 'WHATSAPP',
+                templateKey: 'CUSTOM_TEXT',
+                to: recipient,
+                dedupeKey,
+                providerMessageId: content,
+                status: messageId ? 'SENT' : 'LOGGED',
+            }
+        }).catch(err => console.error("Failed to log notification", err));
 
-        return !!messageId;
+        return true;
     }
 }
