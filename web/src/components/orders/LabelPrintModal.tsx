@@ -59,31 +59,25 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         setSending(true);
         try {
             const token = localStorage.getItem('token');
-            // Fetch the current provider setting
-            const { data: settings } = await axios.get(
-                `${import.meta.env.VITE_API_URL}/settings`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            const provider: string = settings?.whatsapp_provider || 'PITAYACORE';
 
-            if (provider === 'LINKS') {
-                // Client-side: open wa.me link directly
-                const data = buildWhatsAppData();
-                if (!data) { alert('El cliente no tiene número de teléfono registrado.'); return; }
-                window.open(`https://wa.me/${data.cleanPhone}?text=${data.encodedMessage}`, '_blank');
+            // 1. Open wa.me link directly for instant WhatsApp Web sending (as in previous versions)
+            const waData = buildWhatsAppData();
+            if (waData) {
+                window.open(`https://wa.me/${waData.cleanPhone}?text=${waData.encodedMessage}`, '_blank');
             } else {
-                // API-side: backend handles PITAYACORE or FLOW
-                const result = await axios.post(
-                    `${import.meta.env.VITE_API_URL}/kanban/orders/${order.id}/send-whatsapp`,
-                    {},
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-                if (result.data?.success) {
-                    alert('✅ Etiqueta enviada por WhatsApp.');
-                } else {
-                    alert('No se pudo enviar el mensaje.');
-                }
+                alert('El cliente no tiene número de teléfono registrado.');
+                setSending(false);
+                return;
             }
+
+            // 2. Also send & record via API so it logs into WhatsApp Chat Center (/messages)
+            await axios.post(
+                `${import.meta.env.VITE_API_URL}/kanban/orders/${order.id}/send-whatsapp`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            ).catch(e => console.warn('Backend WA log warning:', e));
+
+            alert('✅ Etiqueta enviada por WhatsApp.');
         } catch (err: any) {
             console.error(err);
             alert(err?.response?.data?.message || 'Error al enviar por WhatsApp.');
