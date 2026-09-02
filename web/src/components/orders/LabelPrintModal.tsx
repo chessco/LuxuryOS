@@ -24,41 +24,29 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             ? new Date(order.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
             : new Date().toLocaleDateString('es-MX');
 
-        const spec = order.specifications as any;
-        const pieceInfo = spec?.items?.[0] || {
-            item: order.pieceType || 'PIEZA',
-            metal: order.metal || '-',
-            color: order.color || '-',
-            karats: order.karats || '-',
-            weight: order.weight || '-',
-            size: order.size || '-',
+        const getConcepto = (type: string) => {
+            const t = (type || '').toUpperCase();
+            if (t === 'REPAIR') return 'REPARACIÓN';
+            if (t === 'MANUFACTURE') return 'FABRICACIÓN';
+            if (t === 'LAYAWAY') return 'APARTADO';
+            return 'VENTA';
         };
 
-        const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
-        let atelierName = (atelierSettings.name || 'CARED').toUpperCase();
-        if (!atelierName || atelierName.includes('LUXURY')) {
-            atelierName = 'CARED';
-        }
-        const atelierAddress = atelierSettings.address || 'Plaza Tutuli';
+        const barcodeImageUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
         const message = [
-            `🔔 *${atelierName} - PEDIDO* 🔔`,
-            `*Dirección:* ${atelierAddress}`,
+            `🔔 *CARED* 🔔`,
             ``,
-            `*Código:* ${orderCode}`,
-            `*Cliente:* ${clientName}`,
-            `*Pieza:* ${String(pieceInfo.item).toUpperCase()}`,
-            `*Metal:* ${String(pieceInfo.metal).toUpperCase()}`,
-            `*Color:* ${String(pieceInfo.color).toUpperCase()}`,
-            `*Quilates:* ${String(pieceInfo.karats).toUpperCase()}`,
-            `*Peso:* ${String(pieceInfo.weight).toUpperCase()}`,
-            `*Medida:* ${String(pieceInfo.size).toUpperCase()}`,
             `*Fecha:* ${dateStr}`,
+            `*Cliente:* ${clientName}`,
+            `*No. Orden:* ${orderCode}`,
+            `*Concepto:* ${getConcepto(order.type)}`,
+            ``,
+            barcodeImageUrl,
             ``,
             `Gracias por su preferencia. ✨`,
         ].join('\n');
 
-        // Normalise phone: strip non-digits, prepend Mexico +52 for 10-digit local numbers
         let cleanPhone = phone.replace(/\D/g, '');
         if (cleanPhone.length === 10) cleanPhone = `52${cleanPhone}`;
 

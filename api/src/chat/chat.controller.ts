@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -20,5 +20,22 @@ export class ChatController {
     @Post('conversations/find-or-create')
     async findOrCreate(@Req() req, @Body() data: { userId: string }) {
         return this.chatService.findOrCreateConversation(req.user.id, data.userId, req.user.tenantId);
+    }
+
+    // --- WhatsApp Endpoints ---
+
+    @Get('whatsapp/conversations')
+    async getWhatsAppConversations(@Req() req) {
+        return this.chatService.getWhatsAppConversations(req.user.tenantId);
+    }
+
+    @Get('whatsapp/messages')
+    async getWhatsAppMessages(@Req() req, @Query('phone') phone: string) {
+        return this.chatService.getWhatsAppMessages(req.user.tenantId, phone);
+    }
+
+    @Post('whatsapp/send')
+    async sendWhatsAppMessage(@Req() req, @Body() data: { phone: string; content: string; clientName?: string }) {
+        return this.chatService.sendWhatsAppMessage(req.user.tenantId, data.phone, data.content, data.clientName);
     }
 }
