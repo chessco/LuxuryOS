@@ -288,7 +288,7 @@ export class OrdersService {
 
         const spec = order.specifications as any;
         const pieceInfo = spec?.items?.[0] || {
-            item: order.pieceType || 'PIEZA',
+            item: order.pieceType || order.item || 'PIEZA',
             metal: order.metal || '-',
             color: order.color || '-',
             karats: order.karats || '-',
