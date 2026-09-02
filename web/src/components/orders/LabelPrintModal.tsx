@@ -3,6 +3,14 @@ import { QRCodeSVG } from 'qrcode.react';
 import JsBarcode from 'jsbarcode';
 import axios from 'axios';
 
+const getConcepto = (type: string) => {
+    const t = (type || '').toUpperCase();
+    if (t === 'REPAIR') return 'REPARACIÓN';
+    if (t === 'MANUFACTURE') return 'FABRICACIÓN';
+    if (t === 'LAYAWAY') return 'APARTADO';
+    return 'VENTA';
+};
+
 interface LabelPrintModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -23,14 +31,6 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         const dateStr = order.createdAt
             ? new Date(order.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
             : new Date().toLocaleDateString('es-MX');
-
-        const getConcepto = (type: string) => {
-            const t = (type || '').toUpperCase();
-            if (t === 'REPAIR') return 'REPARACIÓN';
-            if (t === 'MANUFACTURE') return 'FABRICACIÓN';
-            if (t === 'LAYAWAY') return 'APARTADO';
-            return 'VENTA';
-        };
 
         const barcodeImageUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
@@ -180,22 +180,20 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
 
                             {/* Ticket Details */}
                             <div className="w-full text-left space-y-1.5 text-[8.5px] font-bold leading-normal uppercase">
-                                <div className="flex justify-between items-center border-b border-zinc-100 pb-1">
-                                    <div className="truncate max-w-[125px]">
-                                        <span className="text-zinc-500">CLIENTE: </span>
-                                        <span className="font-black text-black">{clientName}</span>
-                                    </div>
-                                    <div className="text-right shrink-0">
-                                        <span className="text-zinc-500">FECHA: </span>
-                                        <span className="font-black text-black">{dateStr}</span>
-                                    </div>
+                                <div className="text-right border-b border-zinc-100 pb-0.5">
+                                    <span className="text-zinc-500">FECHA: </span>
+                                    <span className="font-black text-black">{dateStr}</span>
                                 </div>
-                                <div className="flex justify-between border-b border-zinc-100 pb-1">
-                                    <span className="text-zinc-500">NO. ORDEN:</span>
+                                <div className="border-b border-zinc-100 pb-0.5">
+                                    <span className="text-zinc-500">CLIENTE: </span>
+                                    <span className="font-black text-black">{clientName}</span>
+                                </div>
+                                <div className="border-b border-zinc-100 pb-0.5">
+                                    <span className="text-zinc-500">NO. ORDEN: </span>
                                     <span className="font-black text-black">{orderCode}</span>
                                 </div>
-                                <div className="flex justify-between border-b border-zinc-100 pb-1">
-                                    <span className="text-zinc-500">CONCEPTO:</span>
+                                <div className="border-b border-zinc-100 pb-0.5">
+                                    <span className="text-zinc-500">CONCEPTO: </span>
                                     <span className="font-black text-black">{getConcepto(order.type)}</span>
                                 </div>
                             </div>
