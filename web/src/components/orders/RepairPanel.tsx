@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Order, OrderStatus } from '../../types';
-import { motion, AnimatePresence } from 'framer-motion';
+import { OrderStatus } from '../../types';
 
 interface RepairPanelProps {
-    order: any; // Using any for UI flexibility
+    order: any;
     onUpdateStatus: (data: any) => Promise<void>;
 }
 
@@ -14,6 +13,13 @@ const REPAIR_STEPS = [
     { status: OrderStatus.DELIVERED, label: 'Entregado', icon: 'local_shipping' }
 ];
 
+const AVAILABLE_ICONS = [
+    'package_2', 'handyman', 'verified', 'local_shipping', 'brush', 'diamond',
+    'bolt', 'settings_suggest', 'fact_check', 'precision_manufacturing',
+    'auto_awesome', 'cut', 'palette', 'shield', 'workspace_premium', 'construction',
+    'hardware', 'architecture', 'photo_camera', 'inventory_2'
+];
+
 export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus }) => {
     const currentStatus = order.status || order.orderStatus || OrderStatus.RECEIVED;
     const currentIndex = REPAIR_STEPS.findIndex(s => s.status === currentStatus);
@@ -21,6 +27,9 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
     const [diagnosis, setDiagnosis] = useState(order.specifications?.diagnosis || '');
     const [partsNeeded, setPartsNeeded] = useState(order.specifications?.partsNeeded || '');
     const [isSaving, setIsSaving] = useState(false);
+    const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
+
+    const customStepIcons: Record<number, string> = order.specifications?.customStepIcons || {};
 
     const handleSaveSpecs = async () => {
         setIsSaving(true);
@@ -56,8 +65,24 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
         }
     };
 
+    const handleSelectIcon = async (icon: string) => {
+        if (editingStepIndex === null) return;
+        const updatedIcons = { ...customStepIcons, [editingStepIndex]: icon };
+        setEditingStepIndex(null);
+        try {
+            await onUpdateStatus({
+                specifications: {
+                    ...order.specifications,
+                    customStepIcons: updatedIcons
+                }
+            });
+        } catch (error) {
+            console.error("Failed to update step icon", error);
+        }
+    };
+
     return (
-        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
+        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors relative">
             <header className="flex items-center justify-between mb-10">
                 <div className="flex items-center gap-3">
                     <div className="size-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
@@ -84,19 +109,34 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                 {REPAIR_STEPS.map((step, idx) => {
                     const isActive = idx <= currentIndex;
                     const isCurrent = idx === currentIndex;
+                    const iconName = customStepIcons[idx] || step.icon;
 
                     return (
                         <div 
                             key={step.status} 
-                            onClick={() => handleStepClick(step.status)}
-                            className={`relative z-10 flex flex-col items-center gap-2 group ${isAuthorized ? 'cursor-pointer' : ''}`}
+                            className="relative z-10 flex flex-col items-center gap-2 group"
                         >
-                            <div className={`size-10 rounded-full flex items-center justify-center transition-all duration-500 border-2 ${
-                                isCurrent ? 'bg-amber-500 border-amber-400 text-black scale-110 shadow-[0_0_20px_rgba(245,158,11,0.4)]' :
-                                isActive ? 'bg-background border-amber-500 text-amber-500 hover:border-amber-400' :
-                                    'bg-background border-border text-muted-foreground/30 hover:border-zinc-500/50'
-                                }`}>
-                                <span className="material-symbols-outlined text-[18px]">{step.icon}</span>
+                            {/* Edit icon button */}
+                            {isAuthorized && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setEditingStepIndex(editingStepIndex === idx ? null : idx); }}
+                                    className="absolute -top-3 -right-2 size-5 rounded-full bg-card border border-border text-muted-foreground hover:text-amber-500 hover:border-amber-500/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md z-20"
+                                    title="Editar icono de este paso"
+                                >
+                                    <span className="material-symbols-outlined text-[12px]">edit</span>
+                                </button>
+                            )}
+
+                            <div 
+                                onClick={() => handleStepClick(step.status)}
+                                className={`size-10 rounded-full flex items-center justify-center transition-all duration-500 border-2 ${
+                                    isCurrent ? 'bg-amber-500 border-amber-400 text-black scale-110 shadow-[0_0_20px_rgba(245,158,11,0.4)] cursor-pointer' :
+                                    isActive ? 'bg-background border-amber-500 text-amber-500 hover:border-amber-400 cursor-pointer' :
+                                        'bg-background border-border text-muted-foreground/30 hover:border-zinc-500/50 cursor-pointer'
+                                }`}
+                            >
+                                <span className="material-symbols-outlined text-[18px]">{iconName}</span>
                             </div>
                             <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${
                                 isActive ? 'text-foreground font-black' : 'text-muted-foreground'
@@ -105,6 +145,32 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                     );
                 })}
             </div>
+
+            {/* Icon Picker Popover */}
+            {editingStepIndex !== null && (
+                <div className="mb-8 p-4 bg-muted/60 border border-border rounded-2xl animate-in fade-in zoom-in-95">
+                    <div className="flex justify-between items-center mb-3">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-foreground">
+                            Seleccionar icono para "{REPAIR_STEPS[editingStepIndex].label}":
+                        </span>
+                        <button onClick={() => setEditingStepIndex(null)} className="text-muted-foreground hover:text-foreground">
+                            <span className="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {AVAILABLE_ICONS.map(icon => (
+                            <button
+                                key={icon}
+                                type="button"
+                                onClick={() => handleSelectIcon(icon)}
+                                className="size-9 rounded-xl bg-card border border-border flex items-center justify-center hover:bg-amber-500 hover:text-black transition-all text-foreground shadow-sm"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">{icon}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Technical Diagnosis */}
