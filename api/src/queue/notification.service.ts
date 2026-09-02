@@ -135,36 +135,32 @@ export class NotificationService {
 
     async sendCustomMessage(tenantId: string, recipient: string, content: string): Promise<boolean> {
         recipient = this.formatPhoneNumber(recipient);
+        if (!recipient) return false;
 
         // Dynamic Provider Check — default to PITAYACORE
         const providerType = await this.settingsService.getSetting(tenantId, 'whatsapp_provider', 'PITAYACORE');
 
         let provider: IWhatsAppProvider | null = null;
 
-        if (providerType === 'LINKS') {
-            console.log(`[WhatsApp Links] Backend skipped — frontend handles sending via wa.me for tenant ${tenantId}`);
-            return true;
-        } else if (providerType === 'PITAYACORE' || !providerType) {
+        if (providerType === 'PITAYACORE') {
             const pitayaUrl = await this.settingsService.getSetting(tenantId, 'pitayacore_api_url', 'https://pitayacore-api.pitayacode.io/api');
             const pitayaKey = await this.settingsService.getSetting(tenantId, 'pitayacore_api_key', 'pitaya_internal_secret_2026');
             const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id', '87e0dd95-fd29-4e63-a219-18478c58e4c8');
 
             provider = new PitayaCoreWhatsAppProvider(pitayaUrl, pitayaKey, pitayaTenant);
         } else {
-            const flowUrl = await this.settingsService.getSetting(tenantId, 'flow_api_url');
-            const flowKey = await this.settingsService.getSetting(tenantId, 'flow_internal_key');
+            const flowUrl = await this.settingsService.getSetting(tenantId, 'flow_api_url', 'https://flow-api.pitayacode.io');
+            const flowKey = await this.settingsService.getSetting(tenantId, 'flow_internal_key', 'pitaya_internal_secret_2026');
 
-            if (flowUrl && flowKey) {
-                provider = new FlowWhatsAppProvider(flowUrl, flowKey);
-            }
+            provider = new FlowWhatsAppProvider(flowUrl, flowKey);
         }
 
         if (!provider) {
-            provider = this.whatsappProvider;
+            provider = new FlowWhatsAppProvider('https://flow-api.pitayacode.io', 'pitaya_internal_secret_2026');
         }
 
         let messageId: string | null = null;
-        if (provider) {
+        try {
             messageId = await provider.sendMessage({
                 recipient,
                 template: 'free_text',
@@ -175,6 +171,23 @@ export class NotificationService {
                     },
                 ],
             });
+        } catch (err) {
+            console.error('[WhatsApp Send Error]', err);
+        }
+
+        // Fallback to Flow provider if primary returned null
+        if (!messageId) {
+            console.log('[WhatsApp Fallback] Primary provider returned null, sending via Flow provider...');
+            try {
+                const flowProvider = new FlowWhatsAppProvider('https://flow-api.pitayacode.io', 'pitaya_internal_secret_2026');
+                messageId = await flowProvider.sendMessage({
+                    recipient,
+                    template: 'free_text',
+                    components: [{ type: 'body', parameters: [{ type: 'text', text: content }] }]
+                });
+            } catch (err) {
+                console.error('[WhatsApp Fallback Error]', err);
+            }
         }
 
         // Always log message to NotificationLog table for chat history
