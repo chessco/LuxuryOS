@@ -137,6 +137,16 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         thickness: order.thickness || '-'
     };
 
+    const getStatusLabel = (status: string) => {
+        const s = (status || '').toUpperCase();
+        if (s === 'RECEIVED' || s === 'PENDING' || s === 'NUEVO') return 'RECIBIDO';
+        if (s === 'IN_PROGRESS' || s === 'IN_WORKSHOP' || s === 'TALLER' || s === 'PRODUCTION' || s === 'EN_PROCESO') return 'EN TALLER';
+        if (s === 'READY' || s === 'COMPLETED' || s === 'TERMINADO') return 'LISTO';
+        if (s === 'DELIVERED' || s === 'ENTREGADO') return 'ENTREGADO';
+        if (s === 'CANCELLED' || s === 'CANCELADO') return 'CANCELADO';
+        return s || 'RECIBIDO';
+    };
+
     const handlePrint = () => {
         window.print();
     };
@@ -174,27 +184,36 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             }}
                         >
                             {/* Brand Header */}
-                            <div className="w-full border-b border-black pb-1.5 mb-2 text-center">
+                            <div className="w-full border-b border-black pb-1 mb-1 text-center">
                                 <h4 className="text-sm font-black tracking-widest leading-none m-0">{atelierName || 'CARED'}</h4>
                             </div>
 
                             {/* Ticket Details */}
-                            <div className="w-full text-left space-y-1.5 text-[8.5px] font-bold leading-normal uppercase">
-                                <div className="text-right border-b border-zinc-100 pb-0.5">
+                            <div className="w-full text-left text-[8.5px] font-bold leading-normal uppercase">
+                                {/* Fecha subida arriba */}
+                                <div className="text-right pb-0.5 mb-3">
                                     <span className="text-zinc-500">FECHA: </span>
                                     <span className="font-black text-black">{dateStr}</span>
                                 </div>
-                                <div className="border-b border-zinc-100 pb-0.5">
-                                    <span className="text-zinc-500">CLIENTE: </span>
-                                    <span className="font-black text-black">{clientName}</span>
-                                </div>
-                                <div className="border-b border-zinc-100 pb-0.5">
-                                    <span className="text-zinc-500">NO. ORDEN: </span>
-                                    <span className="font-black text-black">{orderCode}</span>
-                                </div>
-                                <div className="border-b border-zinc-100 pb-0.5">
-                                    <span className="text-zinc-500">CONCEPTO: </span>
-                                    <span className="font-black text-black">{getConcepto(order.type)}</span>
+
+                                {/* 2 renglones de espacio antes de los datos */}
+                                <div className="space-y-1.5">
+                                    <div className="border-b border-zinc-100 pb-0.5">
+                                        <span className="text-zinc-500">CLIENTE: </span>
+                                        <span className="font-black text-black">{clientName}</span>
+                                    </div>
+                                    <div className="border-b border-zinc-100 pb-0.5">
+                                        <span className="text-zinc-500">NO. ORDEN: </span>
+                                        <span className="font-black text-black">{orderCode}</span>
+                                    </div>
+                                    <div className="border-b border-zinc-100 pb-0.5">
+                                        <span className="text-zinc-500">CONCEPTO: </span>
+                                        <span className="font-black text-black">{getConcepto(order.type)}</span>
+                                    </div>
+                                    <div className="border-b border-zinc-100 pb-0.5">
+                                        <span className="text-zinc-500">STATUS: </span>
+                                        <span className="font-black text-black">{getStatusLabel(order.status)}</span>
+                                    </div>
                                 </div>
                             </div>
 
