@@ -707,41 +707,7 @@ const OrderDetail: React.FC = () => {
                         <RepairPanel order={order} onUpdateStatus={handleSaveDetails} />
                     )}
                     {order.type === OrderType.MANUFACTURE && (
-                        <ManufacturePanel order={order} onUpdateStatus={() => { }} />
-                    )}
-
-                    {/* Production Flow (Legacy or Manufacture) */}
-                    {order.type === OrderType.MANUFACTURE && (
-                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
-                            <div className="flex items-center justify-between mb-12">
-                                <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest font-display transition-colors">Flujo de Producción</h3>
-                                <span className="text-muted-foreground text-[9px] font-bold uppercase tracking-widest transition-colors">Actualizado: Hace 2 horas</span>
-                            </div>
-                            <div className="relative flex justify-between items-center px-4">
-                                <div className="absolute left-0 right-0 h-px bg-border top-1/2 -translate-y-1/2 z-0">
-                                    <div
-                                        className="h-full bg-indigo-500/20 transition-all duration-500"
-                                        style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-                                    ></div>
-                                </div>
-                                {STEPS.map((step, index) => {
-                                    let status: 'completed' | 'current' | 'upcoming' = 'upcoming';
-                                    if (index < currentStep) status = 'completed';
-                                    if (index === currentStep) status = 'current';
-
-                                    return (
-                                        <FlowStep
-                                            key={step.name}
-                                            name={step.name}
-                                            icon={step.icon}
-                                            status={status}
-                                            onClick={() => handleStepChange(index)}
-                                            isAuthorized={isAuthorized}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </section>
+                        <ManufacturePanel order={order} onUpdateStatus={handleSaveDetails} />
                     )}
 
                     {/* Envelope / Reference Photos Section */}
