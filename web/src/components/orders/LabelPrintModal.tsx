@@ -174,34 +174,29 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             }}
                         >
                             {/* Brand Header */}
-                            <div className="w-full border-b border-black pb-1.5 mb-1.5 text-center">
-                                <h4 className="text-sm font-black tracking-widest leading-none m-0">{atelierName}</h4>
-                                <span className="text-[7px] font-bold tracking-wider text-zinc-600 block mt-0.5 leading-tight">{atelierAddress}</span>
+                            <div className="w-full border-b border-black pb-1.5 mb-2 text-center">
+                                <h4 className="text-sm font-black tracking-widest leading-none m-0">{atelierName || 'CARED'}</h4>
                             </div>
 
                             {/* Ticket Details */}
-                            <div className="w-full text-left space-y-1 text-[8px] font-bold leading-normal uppercase">
-                                <div className="flex justify-between border-b border-zinc-100 pb-0.5">
-                                    <span className="text-zinc-500">CÓDIGO:</span>
+                            <div className="w-full text-left space-y-1.5 text-[8.5px] font-bold leading-normal uppercase">
+                                <div className="flex justify-between items-center border-b border-zinc-100 pb-1">
+                                    <div className="truncate max-w-[125px]">
+                                        <span className="text-zinc-500">CLIENTE: </span>
+                                        <span className="font-black text-black">{clientName}</span>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <span className="text-zinc-500">FECHA: </span>
+                                        <span className="font-black text-black">{dateStr}</span>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between border-b border-zinc-100 pb-1">
+                                    <span className="text-zinc-500">NO. ORDEN:</span>
                                     <span className="font-black text-black">{orderCode}</span>
                                 </div>
-                                <div className="flex justify-between border-b border-zinc-100 pb-0.5">
-                                    <span className="text-zinc-500">CLIENTE:</span>
-                                    <span className="font-black text-black truncate max-w-[120px]">{clientName}</span>
-                                </div>
-                                <div className="flex justify-between border-b border-zinc-100 pb-0.5">
-                                    <span className="text-zinc-500">PIEZA:</span>
-                                    <span className="font-black text-black truncate max-w-[120px]">{pieceInfo.item.toUpperCase()}</span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-1 text-[7px] border-b border-zinc-100 pb-0.5">
-                                    <div><span className="text-zinc-500">METAL:</span> {pieceInfo.metal.toUpperCase()}</div>
-                                    <div><span className="text-zinc-500">COLOR:</span> {pieceInfo.color.toUpperCase()}</div>
-                                    <div><span className="text-zinc-500">QUILATES:</span> {pieceInfo.karats.toUpperCase()}</div>
-                                    <div><span className="text-zinc-500">PESO:</span> {pieceInfo.weight.toUpperCase()}</div>
-                                </div>
-                                <div className="flex justify-between text-[7px]">
-                                    <span>MEDIDA: {pieceInfo.size.toUpperCase()}</span>
-                                    <span>FECHA: {dateStr}</span>
+                                <div className="flex justify-between border-b border-zinc-100 pb-1">
+                                    <span className="text-zinc-500">CONCEPTO:</span>
+                                    <span className="font-black text-black">{getConcepto(order.type)}</span>
                                 </div>
                             </div>
 
