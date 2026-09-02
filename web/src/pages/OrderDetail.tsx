@@ -459,15 +459,13 @@ const OrderDetail: React.FC = () => {
                             <span className="material-symbols-outlined text-[20px]">print</span>
                             <span>Imprimir Etiqueta</span>
                         </button>
-                        {order.type === OrderType.REPAIR && (
-                            <button
-                                onClick={() => setIsPrintViewOpen(true)}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
-                            >
-                                <span className="material-symbols-outlined text-[20px]">print</span>
-                                <span>Visualizar Sobre</span>
-                            </button>
-                        )}
+                        <button
+                            onClick={() => setIsPrintViewOpen(true)}
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">print</span>
+                            <span>Visualizar Sobre</span>
+                        </button>
                         {order.type === OrderType.REPAIR && order.status !== 'REPAIR_COMPLETED' && order.status !== 'DELIVERED' && (
                             <button
                                 onClick={() => handleSaveDetails({ status: 'REPAIR_COMPLETED' })}
