@@ -6,31 +6,26 @@ interface ManufacturePanelProps {
 }
 
 const DEFAULT_MANUFACTURE_STEPS = [
-    { stage: 'SPEC_PENDING', label: 'Diseño', icon: 'brush' },
-    { stage: 'MATERIALS_PENDING', label: 'Gemas', icon: 'diamond' },
-    { stage: 'IN_PRODUCTION', label: 'Fundición', icon: 'bolt' },
-    { stage: 'IN_PRODUCTION_ENGASTE', label: 'Engaste', icon: 'settings_suggest' },
-    { stage: 'QUALITY_CHECK', label: 'Control', icon: 'fact_check' },
-    { stage: 'DELIVERED', label: 'Entrega', icon: 'local_shipping' }
+    { status: 'RECEIVED', label: 'Recibido', icon: 'package_2' },
+    { status: 'IN_PRODUCTION', label: 'En Taller', icon: 'handyman' },
+    { status: 'READY_FOR_PICKUP', label: 'Listo', icon: 'verified' },
+    { status: 'DELIVERED', label: 'Entregado', icon: 'local_shipping' }
 ];
 
 const AVAILABLE_ICONS = [
-    'brush', 'diamond', 'bolt', 'settings_suggest', 'fact_check', 'local_shipping',
-    'package_2', 'handyman', 'precision_manufacturing', 'auto_awesome', 'verified',
-    'cut', 'palette', 'shield', 'workspace_premium', 'construction', 'hardware',
-    'architecture', 'photo_camera', 'inventory_2'
+    'package_2', 'handyman', 'verified', 'local_shipping', 'brush', 'diamond',
+    'bolt', 'settings_suggest', 'fact_check', 'precision_manufacturing',
+    'auto_awesome', 'cut', 'palette', 'shield', 'workspace_premium', 'construction',
+    'hardware', 'architecture', 'photo_camera', 'inventory_2'
 ];
 
 export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpdateStatus }) => {
-    const currentStage = order.stage || order.status || 'SPEC_PENDING';
+    const currentStatus = (order.status || order.orderStatus || order.stage || 'RECEIVED').toUpperCase();
 
     const getActiveIndex = () => {
-        const stageUpper = (currentStage || '').toUpperCase();
-        if (stageUpper === 'DELIVERED') return 5;
-        if (stageUpper === 'QUALITY_CHECK') return 4;
-        if (stageUpper === 'IN_PRODUCTION_ENGASTE') return 3;
-        if (stageUpper === 'IN_PRODUCTION') return 2;
-        if (stageUpper === 'MATERIALS_PENDING') return 1;
+        if (currentStatus === 'DELIVERED') return 3;
+        if (currentStatus === 'READY_FOR_PICKUP' || currentStatus === 'REPAIR_COMPLETED' || currentStatus === 'READY') return 2;
+        if (currentStatus === 'IN_PRODUCTION' || currentStatus === 'IN_REPAIR' || currentStatus === 'QUALITY_CHECK' || currentStatus === 'IN_PRODUCTION_ENGASTE') return 1;
         return 0;
     };
 
@@ -61,12 +56,12 @@ export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpd
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
 
-    const handleStepClick = async (step: typeof DEFAULT_MANUFACTURE_STEPS[0]) => {
+    const handleStepClick = async (status: string) => {
         if (!isAuthorized) return;
         try {
             await onUpdateStatus({
-                stage: step.stage,
-                status: step.stage === 'DELIVERED' ? 'DELIVERED' : (step.stage === 'READY_FOR_PICKUP' ? 'READY_FOR_PICKUP' : 'IN_PRODUCTION')
+                status: status,
+                stage: status === 'IN_PRODUCTION' ? 'IN_PRODUCTION' : status
             });
         } catch (error) {
             console.error("Failed to update manufacture stage", error);
@@ -92,7 +87,7 @@ export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpd
     const handleNextStatus = async () => {
         if (currentIndex < DEFAULT_MANUFACTURE_STEPS.length - 1) {
             const nextStep = DEFAULT_MANUFACTURE_STEPS[currentIndex + 1];
-            await handleStepClick(nextStep);
+            await handleStepClick(nextStep.status);
         }
     };
 
@@ -141,7 +136,7 @@ export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpd
                             )}
 
                             <div 
-                                onClick={() => handleStepClick(step)}
+                                onClick={() => handleStepClick(step.status)}
                                 className={`size-10 rounded-full flex items-center justify-center transition-all duration-500 border-2 ${
                                     isCurrent ? 'bg-indigo-600 border-indigo-400 text-white scale-110 shadow-[0_0_20px_rgba(99,102,241,0.4)] cursor-pointer' :
                                     isActive ? 'bg-background border-indigo-500 text-indigo-500 hover:border-indigo-400 cursor-pointer' :
@@ -226,7 +221,7 @@ export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpd
 
                     {currentIndex < DEFAULT_MANUFACTURE_STEPS.length - 1 && (
                         <button
-                            onClick={() => handleStepClick(DEFAULT_MANUFACTURE_STEPS[DEFAULT_MANUFACTURE_STEPS.length - 2])}
+                            onClick={() => handleStepClick('READY_FOR_PICKUP')}
                             className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
                         >
                             Marcar como Listo
