@@ -54,8 +54,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
         }
     ];
 
+    const isVentaOrJoyero = ['VENDEDOR', 'VENTAS', 'JOYERO', 'TALLER', 'TENANT_USER'].includes(user.role);
+
     const filteredNavigation = navigation.filter(section => {
-        if (user.role === 'VENDEDOR') {
+        if (user.role === 'VENDEDOR' || user.role === 'VENTAS' || user.role === 'JOYERO' || user.role === 'TALLER') {
             return section.title === 'Operaciones' || section.title === 'Fila y Turnos';
         }
         return true;
@@ -64,6 +66,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
         
         if (user.role !== 'SYSTEM_ADMIN') {
             items = items.filter(item => item.path !== '/finance' && item.path !== '/inventory');
+        }
+
+        if (isVentaOrJoyero) {
+            items = items.filter(item => !item.path.includes('type=LAYAWAY') && item.name !== 'Apartados');
         }
 
         return {
