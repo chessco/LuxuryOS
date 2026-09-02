@@ -99,7 +99,7 @@ const Kiosk: React.FC = () => {
                 Regresar
             </button>
             <div className="bg-card p-8 rounded-2xl border border-border shadow-2xl w-full max-w-md">
-                <h1 className="text-3xl font-bold text-foreground mb-8 text-center tracking-tight">Bienvenido a LuxuryOS</h1>
+                <h1 className="text-3xl font-bold text-foreground mb-8 text-center tracking-tight">Bienvenido a {(() => { const s = JSON.parse(localStorage.getItem('atelier_settings') || '{}'); return (s.name || 'CARED').toUpperCase(); })()}</h1>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-muted-foreground mb-2">Nombre</label>

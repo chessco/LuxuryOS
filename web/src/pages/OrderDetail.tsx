@@ -418,9 +418,21 @@ const OrderDetail: React.FC = () => {
                                 <span className="material-symbols-outlined text-[18px]">history</span>
                                 <span>Recibido: {order.date}</span>
                             </div>
-                            <div className={`flex items-center gap-2 transition-colors ${order.statusType === 'urgent' ? 'text-red-600' : 'text-indigo-600'}`}>
-                                <span className="material-symbols-outlined text-[18px]">{order.statusType === 'urgent' ? 'priority_high' : 'info'}</span>
-                                <span>{order.priority}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px] text-indigo-500">priority_high</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Prioridad:</span>
+                                <select
+                                    value={(order.priority || 'MEDIA').toUpperCase()}
+                                    onChange={async (e) => {
+                                        const newPriority = e.target.value;
+                                        await handleSaveDetails({ priority: newPriority });
+                                    }}
+                                    className="bg-card border border-border rounded-lg px-2.5 py-1 text-xs font-black uppercase text-foreground focus:border-indigo-500 outline-none cursor-pointer shadow-sm hover:border-indigo-500/50 transition-all"
+                                >
+                                    <option value="BAJA" className="bg-background">Baja</option>
+                                    <option value="MEDIA" className="bg-background">Media</option>
+                                    <option value="ALTA" className="bg-background font-bold text-red-500">Alta ⚡</option>
+                                </select>
                             </div>
                         </div>
                     </div>

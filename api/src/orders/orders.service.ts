@@ -297,8 +297,14 @@ export class OrdersService {
             thickness: order.thickness || '-'
         };
 
-        const atelierName = await this.settingsService.getSetting(tenantId, 'atelier_name', 'CARED');
-        const atelierAddress = await this.settingsService.getSetting(tenantId, 'atelier_address', 'Plaza Tutuli');
+        let atelierName = await this.settingsService.getSetting(tenantId, 'atelier_name', 'CARED');
+        if (!atelierName || atelierName.toUpperCase().includes('LUXURY')) {
+            atelierName = 'CARED';
+        }
+        let atelierAddress = await this.settingsService.getSetting(tenantId, 'atelier_address', 'Plaza Tutuli');
+        if (!atelierAddress) {
+            atelierAddress = 'Plaza Tutuli';
+        }
 
         const message = `🔔 *${atelierName.toUpperCase()} - PEDIDO* 🔔
 *Dirección:* ${atelierAddress}

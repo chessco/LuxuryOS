@@ -17,7 +17,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         cost: order.cost,
         laborCost: order.laborCost || 0,
         materialCost: order.materialCost || 0,
-        priority: order.priority,
+        priority: (order.priority || 'MEDIA').toUpperCase(),
         location: order.location || '',
         notes: order.notes || '',
         dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split('T')[0] : '',
@@ -178,15 +178,15 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Prioridad</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Prioridad del Joyero / Pedido</label>
                                 <select
-                                    value={formData.priority}
-                                    onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 outline-none appearance-none cursor-pointer transition-colors shadow-inner [color-scheme:light] dark:[color-scheme:dark]"
+                                    value={(formData.priority || 'MEDIA').toUpperCase()}
+                                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm font-bold text-foreground focus:border-indigo-500/50 outline-none appearance-none cursor-pointer transition-colors shadow-inner [color-scheme:light] dark:[color-scheme:dark]"
                                 >
-                                    <option value="BAJA" className="bg-background">Baja</option>
-                                    <option value="MEDIA" className="bg-background">Media</option>
-                                    <option value="ALTA" className="bg-background">Alta</option>
+                                    <option value="BAJA" className="bg-background font-medium">Baja</option>
+                                    <option value="MEDIA" className="bg-background font-medium">Media</option>
+                                    <option value="ALTA" className="bg-background font-bold text-red-500">Alta ⚡</option>
                                 </select>
                             </div>
                             <div className="space-y-2">
