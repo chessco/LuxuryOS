@@ -35,7 +35,10 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         };
 
         const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
-        const atelierName = (atelierSettings.name || 'CARED').toUpperCase();
+        let atelierName = (atelierSettings.name || 'CARED').toUpperCase();
+        if (!atelierName || atelierName.includes('LUXURY')) {
+            atelierName = 'CARED';
+        }
         const atelierAddress = atelierSettings.address || 'Plaza Tutuli';
 
         const message = [
@@ -130,8 +133,8 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         day: '2-digit', month: '2-digit', year: 'numeric'
     }) : new Date().toLocaleDateString('es-MX');
 
-    const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
-    const atelierName = (atelierSettings.name || 'CARED').toUpperCase();
+    let atelierName = (atelierSettings.name || 'CARED').toUpperCase();
+    if (!atelierName || atelierName.includes('LUXURY')) atelierName = 'CARED';
     const atelierAddress = (atelierSettings.address || 'Plaza Tutuli').toUpperCase();
 
     // Extract piece info

@@ -46,7 +46,7 @@ const PublicScreen: React.FC = () => {
     return (
         <div className="min-h-screen bg-background text-foreground p-12 overflow-hidden flex flex-col transition-colors">
             <header className="flex justify-between items-center mb-12">
-                <h1 className="text-5xl font-black tracking-tighter text-primary">LUXURY OS</h1>
+                <h1 className="text-5xl font-black tracking-tighter text-primary">CARED</h1>
                 <div className="text-3xl text-muted-foreground font-mono">{new Date().toLocaleTimeString()}</div>
             </header>
 
