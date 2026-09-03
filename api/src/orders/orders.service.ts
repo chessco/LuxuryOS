@@ -319,13 +319,37 @@ export class OrdersService {
         };
 
         const getStatusLabel = (status: string) => {
-            const s = (status || '').toUpperCase();
-            if (s === 'RECEIVED' || s === 'PENDING' || s === 'NUEVO') return 'RECIBIDO';
-            if (s === 'IN_PROGRESS' || s === 'IN_WORKSHOP' || s === 'TALLER' || s === 'PRODUCTION' || s === 'EN_PROCESO') return 'EN TALLER';
-            if (s === 'READY' || s === 'COMPLETED' || s === 'TERMINADO' || s === 'LISTO') return 'LISTO';
-            if (s === 'DELIVERED' || s === 'ENTREGADO') return 'ENTREGADO';
-            if (s === 'CANCELLED' || s === 'CANCELADO') return 'CANCELADO';
-            return s || 'RECIBIDO';
+            const s = (status || '').toUpperCase().trim();
+            // Recibido
+            if (['RECEIVED', 'DRAFT', 'NUEVO', 'PENDING', 'INTERES_LEAD', 'RECIBIDO'].includes(s)) return 'RECIBIDO';
+            
+            // En Taller / En Proceso
+            if ([
+                'IN_REPAIR', 'IN_PRODUCTION', 'IN_PROGRESS', 'IN_WORKSHOP', 
+                'TALLER', 'PRODUCTION', 'EN_PROCESO', 'EN_PRODUCCION', 
+                'CONTROL_CALIDAD', 'QUALITY_CHECK', 'DIAGNOSIS_PENDING', 
+                'WAITING_PARTS', 'SPEC_PENDING', 'MATERIALS_PENDING', 'EN TALLER'
+            ].includes(s)) return 'EN TALLER';
+            
+            // Listo / Terminado
+            if ([
+                'REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'READY', 'COMPLETED', 
+                'TERMINADO', 'LISTO', 'LISTO_ENTREGA'
+            ].includes(s)) return 'LISTO';
+            
+            // Entregado
+            if (['DELIVERED', 'ENTREGADO', 'ENTREGADO_POSTVENTA'].includes(s)) return 'ENTREGADO';
+            
+            // Cancelado
+            if (['CANCELLED', 'CANCELADO'].includes(s)) return 'CANCELADO';
+
+            // Cotizaciones / Aprobaciones
+            if (['QUOTE_SENT', 'COTIZACION_ENVIADA'].includes(s)) return 'COTIZACIÓN';
+            if (['APPROVED', 'APROBADO_ANTICIPO'].includes(s)) return 'APROBADO';
+            if (['LAYAWAY_OPEN'].includes(s)) return 'APARTADO';
+            if (['LAYAWAY_EXPIRED'].includes(s)) return 'VENCIDO';
+
+            return s.replace(/_/g, ' ');
         };
 
         const statusLabel = getStatusLabel(order.status);
