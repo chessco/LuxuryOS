@@ -52,6 +52,11 @@ export class QueueService {
         return response.data;
     }
 
+    static async confirmOrderDelivery(orderId: string) {
+        const response = await api.post(`/queue/orders/${orderId}/confirm-delivery`);
+        return response.data;
+    }
+
     static async getRecommendations(kind: string) {
         const response = await api.get(`/queue/recommendations/${kind}`);
         return response.data;

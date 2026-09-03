@@ -330,28 +330,109 @@ export class QueueService {
         return ticket;
     }
 
-    async searchPickups(tenantId: string, name?: string, phone?: string) {
-        const conditions: any[] = [];
-        if (name) conditions.push({ customerName: { contains: name } });
-        
-        if (phone) {
-            const digits = phone.replace(/\D/g, '');
-            const searchPhone = digits.length >= 10 ? digits.slice(-10) : digits;
-            if (searchPhone) {
-                conditions.push({ customerPhone: { contains: searchPhone } });
-            }
+    async searchPickups(tenantId: string, nameOrOrder?: string, phone?: string) {
+        const query = (nameOrOrder || '').trim();
+        const cleanQuery = query.replace(/^ORD-/i, '').replace(/^#/i, '').trim();
+        const cleanPhone = (phone || '').replace(/\D/g, '');
+        const searchPhone = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+
+        // 1. Search Queue Tickets
+        const ticketConditions: any[] = [];
+        if (query) {
+            ticketConditions.push({ customerName: { contains: query } });
+            ticketConditions.push({ code: { contains: query } });
+        }
+        if (searchPhone) {
+            ticketConditions.push({ customerPhone: { contains: searchPhone } });
         }
 
-        return this.prisma.queueTicket.findMany({
+        const tickets = await this.prisma.queueTicket.findMany({
             where: {
                 tenantId,
-                kind: QueueTicketKind.PICKUP,
                 status: {
                     in: [QueueTicketStatus.WAITING, QueueTicketStatus.CALLING, QueueTicketStatus.IN_SERVICE]
                 },
-                ...(conditions.length > 0 ? { OR: conditions } : {})
+                ...(ticketConditions.length > 0 ? { OR: ticketConditions } : {})
             },
-            include: { order: true },
+            include: { order: { include: { client: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        });
+
+        // 2. Search Orders
+        const orderConditions: any[] = [];
+        if (cleanQuery) {
+            orderConditions.push({ id: { contains: cleanQuery } });
+            orderConditions.push({ client: { name: { contains: query } } });
+        }
+        if (searchPhone) {
+            orderConditions.push({ client: { phone: { contains: searchPhone } } });
+        }
+
+        let orderWhere: any = {
+            tenantId,
+        };
+
+        if (orderConditions.length > 0) {
+            orderWhere.OR = orderConditions;
+        } else {
+            // Default when no search term: show orders ready for delivery or in process
+            orderWhere.status = {
+                in: [
+                    OrderStatus.READY_FOR_PICKUP,
+                    OrderStatus.REPAIR_COMPLETED,
+                    OrderStatus.READY,
+                    OrderStatus.IN_PRODUCTION,
+                    OrderStatus.IN_REPAIR
+                ]
+            };
+        }
+
+        const orders = await this.prisma.order.findMany({
+            where: orderWhere,
+            include: { client: true, queueTicket: true },
+            orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+            take: 30
+        });
+
+        return {
+            tickets,
+            orders: orders.map(o => ({
+                ...o,
+                code: `ORD-${o.id.substring(0, 8).toUpperCase()}`,
+                clientName: o.client?.name || 'Cliente',
+                clientPhone: o.client?.phone || '',
+                isReady: o.status === 'READY_FOR_PICKUP' || o.status === 'REPAIR_COMPLETED' || o.status === 'READY',
+                isDelivered: o.status === 'DELIVERED',
+            }))
+        };
+    }
+
+    async confirmOrderDelivery(tenantId: string, orderId: string, userId: string) {
+        return this.prisma.$transaction(async (tx) => {
+            const order = await tx.order.findUnique({
+                where: { id: orderId, tenantId },
+                include: { queueTicket: true }
+            });
+            if (!order) throw new NotFoundException('Orden no encontrada');
+
+            const now = new Date();
+            const updated = await tx.order.update({
+                where: { id: orderId },
+                data: {
+                    status: OrderStatus.DELIVERED,
+                    deliveredAt: now
+                }
+            });
+
+            if (order.queueTicket) {
+                await tx.queueTicket.update({
+                    where: { id: order.queueTicket.id },
+                    data: { status: QueueTicketStatus.DONE }
+                });
+            }
+
+            return updated;
         });
     }
 

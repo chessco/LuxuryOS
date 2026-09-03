@@ -125,4 +125,15 @@ export class QueueController {
         this.queueGateway.notifyUpdate(req.user.tenantId);
         return ticket;
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('orders/:id/confirm-delivery')
+    async confirmOrderDelivery(
+        @Param('id') id: string,
+        @Req() req: any
+    ) {
+        const result = await this.queueService.confirmOrderDelivery(req.user.tenantId, id, req.user.id);
+        this.queueGateway.notifyUpdate(req.user.tenantId);
+        return result;
+    }
 }
