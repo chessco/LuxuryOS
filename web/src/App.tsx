@@ -39,8 +39,13 @@ function App() {
         <ThemeProvider>
             <Router>
                 <Routes>
+                    {/* Public Routes */}
                     <Route path="/login" element={<Login />} />
+                    <Route path="/track/:id" element={<PublicOrderTrack />} />
+                    <Route path="/kiosk" element={<Kiosk />} />
+                    <Route path="/screen" element={<PublicScreen />} />
 
+                    {/* Authenticated Dashboard / Atelier App */}
                     <Route element={<AppLayout />}>
                         <Route path="/dashboard" element={
                             <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN', 'TENANT_USER']} redirectTo="/orders">
@@ -95,7 +100,6 @@ function App() {
                                 <Messages />
                             </RoleRedirect>
                         } />
-                        <Route path="/screen" element={<PublicScreen />} />
                         <Route path="/staff/queue" element={
                             <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN', 'TENANT_USER', 'VENDEDOR']} redirectTo="/orders">
                                 <StaffQueue />
@@ -104,8 +108,9 @@ function App() {
                         <Route path="/pickup" element={<Pickup />} />
                         <Route path="/" element={<Navigate to={token ? defaultRoute : "/login"} replace />} />
                     </Route>
-                    <Route path="/track/:id" element={<PublicOrderTrack />} />
-                    <Route path="/kiosk" element={<Kiosk />} />
+
+                    {/* Catch all fallback */}
+                    <Route path="*" element={<Navigate to={token ? defaultRoute : "/login"} replace />} />
                 </Routes>
             </Router>
         </ThemeProvider>
