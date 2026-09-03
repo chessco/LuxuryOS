@@ -40,6 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 { name: 'Pedidos', icon: 'receipt_long', path: '/orders' },
                 { name: 'Inventario', icon: 'precision_manufacturing', path: '/inventory' },
                 { name: 'Clientes', icon: 'person_search', path: '/clients' },
+                { name: 'Reportes', icon: 'analytics', path: '/reports' },
                 { name: 'Finanzas', icon: 'account_balance_wallet', path: '/finance' },
             ]
         },
