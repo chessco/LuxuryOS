@@ -64,6 +64,10 @@ export class OrdersService {
             updateData.stage = toStage;
         }
 
+        if (toStage === 'DELIVERED' || toStage === 'ENTREGADO' || toStage === 'ENTREGADO_POSTVENTA') {
+            updateData.deliveredAt = new Date();
+        }
+
         const updated = await this.prisma.order.update({
             where: { id },
             data: updateData,
@@ -148,7 +152,10 @@ export class OrdersService {
             if (nextStage) {
                 const updated = await this.prisma.order.update({
                     where: { id },
-                    data: { stage: nextStage }
+                    data: { 
+                        stage: nextStage,
+                        ...(nextStage === 'ENTREGADO_POSTVENTA' ? { deliveredAt: new Date() } : {})
+                    }
                 });
                 await this.notifyOrderWorkflowStatus(tenantId, id);
                 return updated;
@@ -158,7 +165,10 @@ export class OrdersService {
             if (nextStatus) {
                 const updated = await this.prisma.order.update({
                     where: { id },
-                    data: { status: nextStatus }
+                    data: { 
+                        status: nextStatus,
+                        ...(nextStatus === 'DELIVERED' ? { deliveredAt: new Date() } : {})
+                    }
                 });
                 await this.notifyOrderWorkflowStatus(tenantId, id);
                 return updated;
@@ -353,10 +363,11 @@ export class OrdersService {
         };
 
         const statusLabel = getStatusLabel(order.status);
-        const isFullDataStatus = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
+        const isFullDataWithImage = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
+        const isDelivered = statusLabel === 'ENTREGADO';
 
         let message = '';
-        if (isFullDataStatus) {
+        if (isFullDataWithImage) {
             const settings = await this.prisma.setting.findMany({ where: { tenantId } });
             const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
             const codeType = map['label_code_type'] || 'BARCODE';
@@ -374,6 +385,22 @@ export class OrdersService {
 *Status:* ${statusLabel}
 
 ${codeImageUrl}
+
+Gracias por su preferencia. ✨`;
+        } else if (isDelivered) {
+            const deliveryDate = order.deliveredAt ? new Date(order.deliveredAt) : new Date();
+            const deliveryDateStr = deliveryDate.toLocaleDateString('es-MX', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+
+            message = `🔔 *CARED* 🔔
+
+*Fecha:* ${dateStr}
+*Cliente:* ${clientName}
+*No. Orden:* ${orderCode}
+*Concepto:* ${getConcepto(order.type)}
+*Status:* ${statusLabel}
+*Fecha Entrega:* ${deliveryDateStr}
 
 Gracias por su preferencia. ✨`;
         } else {
