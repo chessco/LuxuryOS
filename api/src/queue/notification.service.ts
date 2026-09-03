@@ -32,113 +32,70 @@ export class NotificationService {
         return cleaned;
     }
 
-    async notifyNearTurn(tenantId: string, ticketId: string, phone: string, name: string) {
-        const template = this.configService.get<string>('WA_TEMPLATE_NEAR_TURN', 'queue_near_turn');
-        const dedupeKey = `ticket:${ticketId}:near`;
+    async notifyTicketCreated(tenantId: string, ticketId: string, phone: string, name: string, code: string, qrToken: string) {
+        const atelierName = await this.settingsService.getSetting(tenantId, 'business_name', 'CARED');
+        const trackingUrl = `https://luxuryos.pitayacode.io/q/${qrToken}`;
+        const message = `👋 ¡Hola ${name}!
 
-        return this.sendWhatsApp(tenantId, ticketId, phone, template, dedupeKey, [
-            {
-                type: 'body',
-                parameters: [{ type: 'text', text: name }],
-            },
-        ]);
+Tu turno en *${atelierName}* es: *${code}*
+
+🌐 Puedes seguir el avance de tu turno en tiempo real aquí:
+${trackingUrl}
+
+Te notificaremos cuando sea tu momento de pasar. ✨`;
+
+        return this.sendCustomMessage(tenantId, phone, message);
+    }
+
+    async notifyNearTurn(tenantId: string, ticketId: string, phone: string, name: string) {
+        const atelierName = await this.settingsService.getSetting(tenantId, 'business_name', 'CARED');
+        const message = `👋 ¡Hola ${name}!
+
+Tu turno en *${atelierName}* está muy cerca de ser llamado. Por favor acércate al mostrador. ✨`;
+
+        return this.sendCustomMessage(tenantId, phone, message);
     }
 
     async notifyNowTurn(tenantId: string, ticketId: string, phone: string, name: string, code: string) {
-        const template = this.configService.get<string>('WA_TEMPLATE_NOW_TURN', 'queue_now_turn');
-        const dedupeKey = `ticket:${ticketId}:now`;
+        const atelierName = await this.settingsService.getSetting(tenantId, 'business_name', 'CARED');
+        const message = `🔔 ¡Es tu turno, ${name}!
 
-        return this.sendWhatsApp(tenantId, ticketId, phone, template, dedupeKey, [
-            {
-                type: 'body',
-                parameters: [
-                    { type: 'text', text: name },
-                    { type: 'text', text: code },
-                ],
-            },
-        ]);
+Turno: *${code}*
+
+Por favor pasa al módulo de atención en *${atelierName}*. ✨`;
+
+        return this.sendCustomMessage(tenantId, phone, message);
     }
 
-    private async sendWhatsApp(
-        tenantId: string,
-        ticketId: string,
-        recipient: string,
-        template: string,
-        dedupeKey: string,
-        components: any[]
-    ) {
+    async sendCustomMessage(tenantId: string, recipient: string, content: string): Promise<{ success: boolean; url?: string }> {
         recipient = this.formatPhoneNumber(recipient);
-        
-        // Dynamic Provider Check
-        const providerType = await this.settingsService.getSetting(tenantId, 'whatsapp_provider', 'FLOW');
-
-        let provider: IWhatsAppProvider | null = null;
-
-        if (providerType === 'LINKS') {
-            // Links provider: sending is handled entirely client-side via wa.me links
-            console.log(`[WhatsApp Links] Backend skipped — frontend handles sending via wa.me for tenant ${tenantId}`);
-            return;
-        } else if (providerType === 'PITAYACORE') {
-            const pitayaUrl = await this.settingsService.getSetting(tenantId, 'pitayacore_api_url', 'https://pitayacore-api.pitayacode.io/api');
-            const pitayaKey = await this.settingsService.getSetting(tenantId, 'pitayacore_api_key', 'pitaya_internal_secret_2026');
-            const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id', '87e0dd95-fd29-4e63-a219-18478c58e4c8');
-
-            provider = new PitayaCoreWhatsAppProvider(pitayaUrl, pitayaKey, pitayaTenant);
-        } else {
-            const flowUrl = await this.settingsService.getSetting(tenantId, 'flow_api_url');
-            const flowKey = await this.settingsService.getSetting(tenantId, 'flow_internal_key');
-
-            if (flowUrl && flowKey) {
-                provider = new FlowWhatsAppProvider(flowUrl, flowKey);
-            }
-        }
-
-        if (!provider) {
-            provider = this.whatsappProvider;
-        }
-
-        if (!provider) {
-            console.log(`[WhatsApp Mock] Sending ${template} to ${recipient}`, { components, dedupeKey });
-            return;
-        }
-
-        // Deduplication check
-        const existing = await this.prisma.notificationLog.findUnique({
-            where: { dedupeKey }
-        });
-        if (existing && existing.status === 'SENT') return;
-
-        const messageId = await provider.sendMessage({
-            recipient,
-            template,
-            components,
-        });
-
-        await this.prisma.notificationLog.upsert({
-            where: { dedupeKey },
-            create: {
-                tenantId,
-                ticketId,
-                channel: 'WHATSAPP',
-                templateKey: template,
-                to: recipient,
-                dedupeKey,
-                providerMessageId: messageId,
-                status: messageId ? 'SENT' : 'FAILED',
-            },
-            update: {
-                status: messageId ? 'SENT' : 'FAILED',
-                providerMessageId: messageId,
-            },
-        });
-    }
-
-    async sendCustomMessage(tenantId: string, recipient: string, content: string): Promise<boolean> {
-        recipient = this.formatPhoneNumber(recipient);
-        if (!recipient) return false;
+        if (!recipient) return { success: false };
 
         // Dynamic Provider Check — default to PITAYACORE
         const providerType = await this.settingsService.getSetting(tenantId, 'whatsapp_provider', 'PITAYACORE');
+
+        if (providerType === 'LINKS') {
+            const encodedText = encodeURIComponent(content);
+            const whatsappUrl = `https://wa.me/${recipient}?text=${encodedText}`;
+            console.log(`[WhatsApp Links Provider] Generated WA Link for ${recipient}: ${whatsappUrl}`);
+
+            const dedupeKey = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+            await this.prisma.notificationLog.create({
+                data: {
+                    tenantId,
+                    ticketId: null as any,
+                    channel: 'WHATSAPP',
+                    templateKey: 'CUSTOM_TEXT',
+                    messageContent: content,
+                    to: recipient,
+                    dedupeKey,
+                    providerMessageId: 'WA_LINK',
+                    status: 'SENT',
+                }
+            }).catch(err => console.error("Failed to log notification", err));
+
+            return { success: true, url: whatsappUrl };
+        }
 
         let provider: IWhatsAppProvider | null = null;
 
@@ -148,7 +105,7 @@ export class NotificationService {
             const pitayaTenant = await this.settingsService.getSetting(tenantId, 'pitayacore_tenant_id', '87e0dd95-fd29-4e63-a219-18478c58e4c8');
 
             provider = new PitayaCoreWhatsAppProvider(pitayaUrl, pitayaKey, pitayaTenant);
-        } else {
+        } else if (providerType === 'FLOW') {
             const flowUrl = await this.settingsService.getSetting(tenantId, 'flow_api_url', 'https://flow-api.pitayacode.io');
             const flowKey = await this.settingsService.getSetting(tenantId, 'flow_internal_key', 'pitaya_internal_secret_2026');
 
@@ -176,7 +133,7 @@ export class NotificationService {
         }
 
         // Fallback to Flow provider if primary returned null
-        if (!messageId) {
+        if (!messageId && providerType !== 'FLOW') {
             console.log('[WhatsApp Fallback] Primary provider returned null, sending via Flow provider...');
             try {
                 const flowProvider = new FlowWhatsAppProvider('https://flow-api.pitayacode.io', 'pitaya_internal_secret_2026');
@@ -206,6 +163,6 @@ export class NotificationService {
             }
         }).catch(err => console.error("Failed to log notification", err));
 
-        return true;
+        return { success: !!messageId };
     }
 }

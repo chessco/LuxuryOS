@@ -100,6 +100,17 @@ export class QueueService {
                     },
                 });
 
+                if (ticket.customerPhone) {
+                    this.notificationService.notifyTicketCreated(
+                        tenantId,
+                        ticket.id,
+                        ticket.customerPhone,
+                        ticket.customerName,
+                        ticket.code,
+                        ticket.qrToken
+                    ).catch(err => console.error('[Queue Ticket Created Notification Error]', err));
+                }
+
                 return ticket;
             });
         } catch (error: any) {
