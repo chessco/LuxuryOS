@@ -379,11 +379,11 @@ export class QueueService {
             // Default when no search term: show orders ready for delivery or in process
             orderWhere.status = {
                 in: [
-                    OrderStatus.READY_FOR_PICKUP,
-                    OrderStatus.REPAIR_COMPLETED,
-                    OrderStatus.READY,
+                    OrderStatus.APPROVED,
+                    OrderStatus.QUALITY_CHECK,
                     OrderStatus.IN_PRODUCTION,
-                    OrderStatus.IN_REPAIR
+                    OrderStatus.IN_REPAIR,
+                    OrderStatus.RECEIVED
                 ]
             };
         }
@@ -402,8 +402,8 @@ export class QueueService {
                 code: `ORD-${o.id.substring(0, 8).toUpperCase()}`,
                 clientName: o.client?.name || 'Cliente',
                 clientPhone: o.client?.phone || '',
-                isReady: o.status === 'READY_FOR_PICKUP' || o.status === 'REPAIR_COMPLETED' || o.status === 'READY',
-                isDelivered: o.status === 'DELIVERED',
+                isReady: (o.stage === OrderStage.LISTO_ENTREGA || o.status === OrderStatus.APPROVED || o.status === OrderStatus.QUALITY_CHECK) && o.status !== OrderStatus.DELIVERED,
+                isDelivered: o.status === OrderStatus.DELIVERED || o.stage === OrderStage.ENTREGADO_POSTVENTA,
             }))
         };
     }
