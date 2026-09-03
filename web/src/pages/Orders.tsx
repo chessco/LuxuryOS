@@ -101,6 +101,7 @@ export const getStatusLabel = (stage: string) => {
 const DELIVERED_COLUMN: Column = { id: 'DELIVERED', name: 'Entregado', color: 'bg-emerald-600' };
 
 const Orders: React.FC = () => {
+    const navigate = useNavigate();
     const { variant } = useTheme();
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
