@@ -64,10 +64,14 @@ export class OrdersService {
             updateData.stage = toStage;
         }
 
-        return this.prisma.order.update({
+        const updated = await this.prisma.order.update({
             where: { id },
             data: updateData,
         });
+
+        // Trigger automatic WhatsApp notification on status transition
+        await this.notifyOrderWorkflowStatus(tenantId, id);
+        return updated;
     }
 
     async createOrder(tenantId: string, data: CreateOrderDto) {
@@ -85,7 +89,7 @@ export class OrdersService {
             }
         }
 
-        return this.prisma.order.create({
+        const created = await this.prisma.order.create({
             data: {
                 ...data,
                 tenantId,
@@ -100,13 +104,15 @@ export class OrdersService {
                 queueTicket: true,
             }
         });
+
+        return created;
     }
 
     async getOrders(tenantId: string) {
         const orders = await this.prisma.order.findMany({
             where: { tenantId },
             include: { 
-                client: true,
+                client: true, 
                 queueTicket: true
             },
         });
@@ -140,18 +146,22 @@ export class OrdersService {
         if (order.type === 'STANDARD') {
             const nextStage = (strategy as any).getNextStage(order.stage);
             if (nextStage) {
-                return this.prisma.order.update({
+                const updated = await this.prisma.order.update({
                     where: { id },
                     data: { stage: nextStage }
                 });
+                await this.notifyOrderWorkflowStatus(tenantId, id);
+                return updated;
             }
         } else {
             const nextStatus = strategy.getNextStatus(order.status);
             if (nextStatus) {
-                return this.prisma.order.update({
+                const updated = await this.prisma.order.update({
                     where: { id },
                     data: { status: nextStatus }
                 });
+                await this.notifyOrderWorkflowStatus(tenantId, id);
+                return updated;
             }
         }
         return order; // No transition possible
@@ -195,7 +205,7 @@ export class OrdersService {
         const paidAmount = order.paidAmount ? new Prisma.Decimal(order.paidAmount) : new Prisma.Decimal(0);
         const balance = totalAmount.sub(paidAmount);
 
-        return this.prisma.order.update({
+        const updated = await this.prisma.order.update({
             where: { id },
             data: {
                 pieceType,
@@ -221,6 +231,12 @@ export class OrdersService {
                 imageUrl
             }
         });
+
+        if (status && status !== order.status) {
+            await this.notifyOrderWorkflowStatus(tenantId, id);
+        }
+
+        return updated;
     }
 
     async generateAIImage(tenantId: string, id: string) {
@@ -265,6 +281,14 @@ export class OrdersService {
         });
     }
 
+    async notifyOrderWorkflowStatus(tenantId: string, id: string) {
+        try {
+            await this.sendOrderWhatsApp(tenantId, id);
+        } catch (error) {
+            console.error('[Workflow WhatsApp Notification]', error);
+        }
+    }
+
     async sendOrderWhatsApp(tenantId: string, id: string) {
         const order = await this.prisma.order.findUnique({
             where: { id, tenantId },
@@ -277,7 +301,7 @@ export class OrdersService {
 
         const phone = order.client?.phone;
         if (!phone) {
-            throw new NotFoundException('El cliente no tiene teléfono configurado');
+            return { success: false, reason: 'El cliente no tiene teléfono configurado' };
         }
 
         const orderCode = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
@@ -286,7 +310,6 @@ export class OrdersService {
             day: '2-digit', month: '2-digit', year: 'numeric'
         }) : new Date().toLocaleDateString('es-MX');
 
-        const spec = order.specifications as any;
         const getConcepto = (type: string) => {
             const t = (type || '').toUpperCase();
             if (t === 'REPAIR') return 'REPARACIÓN';
@@ -299,31 +322,44 @@ export class OrdersService {
             const s = (status || '').toUpperCase();
             if (s === 'RECEIVED' || s === 'PENDING' || s === 'NUEVO') return 'RECIBIDO';
             if (s === 'IN_PROGRESS' || s === 'IN_WORKSHOP' || s === 'TALLER' || s === 'PRODUCTION' || s === 'EN_PROCESO') return 'EN TALLER';
-            if (s === 'READY' || s === 'COMPLETED' || s === 'TERMINADO') return 'LISTO';
+            if (s === 'READY' || s === 'COMPLETED' || s === 'TERMINADO' || s === 'LISTO') return 'LISTO';
             if (s === 'DELIVERED' || s === 'ENTREGADO') return 'ENTREGADO';
             if (s === 'CANCELLED' || s === 'CANCELADO') return 'CANCELADO';
             return s || 'RECIBIDO';
         };
 
-        const settings = await this.prisma.setting.findMany({ where: { tenantId } });
-        const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
-        const codeType = map['label_code_type'] || 'BARCODE';
+        const statusLabel = getStatusLabel(order.status);
+        const isFullDataStatus = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
 
-        const codeImageUrl = codeType === 'QR'
-            ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
-            : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
+        let message = '';
+        if (isFullDataStatus) {
+            const settings = await this.prisma.setting.findMany({ where: { tenantId } });
+            const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
+            const codeType = map['label_code_type'] || 'BARCODE';
 
-        const message = `🔔 *CARED* 🔔
+            const codeImageUrl = codeType === 'QR'
+                ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
+                : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
+
+            message = `🔔 *CARED* 🔔
 
 *Fecha:* ${dateStr}
 *Cliente:* ${clientName}
 *No. Orden:* ${orderCode}
 *Concepto:* ${getConcepto(order.type)}
-*Status:* ${getStatusLabel(order.status)}
+*Status:* ${statusLabel}
 
 ${codeImageUrl}
 
 Gracias por su preferencia. ✨`;
+        } else {
+            // Intermediate/Other statuses: remove Barcode/QR image, remove Fecha, Cliente and Gracias por su preferencia
+            message = `🔔 *CARED* 🔔
+
+*No. Orden:* ${orderCode}
+*Concepto:* ${getConcepto(order.type)}
+*Status:* ${statusLabel}`;
+        }
 
         const success = await this.notificationService.sendCustomMessage(tenantId, phone, message);
         return { success };
