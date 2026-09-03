@@ -35,10 +35,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
             title: 'Operaciones',
             items: [
                 { name: 'Reparaciones', icon: 'handyman', path: '/orders?type=REPAIR' },
-                { name: 'Fabricación', icon: 'precision_manufacturing', path: '/orders?type=MANUFACTURE' },
+                { name: 'Fabricación', icon: 'diamond', path: '/orders?type=MANUFACTURE' },
                 { name: 'Apartados', icon: 'loyalty', path: '/orders?type=LAYAWAY' },
                 { name: 'Pedidos', icon: 'receipt_long', path: '/orders' },
-                { name: 'Inventario', icon: 'diamond', path: '/inventory' },
+                { name: 'Inventario', icon: 'precision_manufacturing', path: '/inventory' },
                 { name: 'Clientes', icon: 'person_search', path: '/clients' },
                 { name: 'Finanzas', icon: 'account_balance_wallet', path: '/finance' },
             ]
