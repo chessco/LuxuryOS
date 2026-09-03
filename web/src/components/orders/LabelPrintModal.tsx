@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import JsBarcode from 'jsbarcode';
 import axios from 'axios';
+import { getTrackToken } from '../../utils/tracking';
 
 const getConcepto = (type: string) => {
     const t = (type || '').toUpperCase();
@@ -63,16 +64,18 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         const dateStr = formatDate(order.createdAt);
 
         const statusLabel = getStatusLabel(order.status);
-        const isFullDataWithImage = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
+        const isReceived = statusLabel === 'RECIBIDO';
+        const isReady = statusLabel === 'LISTO';
         const isDelivered = statusLabel === 'ENTREGADO';
-        const trackingUrl = `https://luxuryos.pitayacode.io/track/${orderCode}`;
+        const trackToken = getTrackToken(order.id);
+        const trackingUrl = `https://luxuryos.pitayacode.io/track/${trackToken}`;
 
         const codeImageUrl = labelCodeType === 'QR'
             ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
             : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
         let message = '';
-        if (isFullDataWithImage) {
+        if (isReceived) {
             message = [
                 `🔔 *CARED* 🔔`,
                 ``,
@@ -84,6 +87,20 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 ``,
                 `🌐 *Ver seguimiento en línea:*`,
                 `${trackingUrl}`,
+                ``,
+                codeImageUrl,
+                ``,
+                `Gracias por su preferencia. ✨`,
+            ].join('\n');
+        } else if (isReady) {
+            message = [
+                `🔔 *CARED* 🔔`,
+                ``,
+                `*Fecha:* ${dateStr}`,
+                `*Cliente:* ${clientName}`,
+                `*No. Orden:* ${orderCode}`,
+                `*Concepto:* ${getConcepto(order.type)}`,
+                `*Status:* ${statusLabel}`,
                 ``,
                 codeImageUrl,
                 ``,
@@ -102,9 +119,6 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*Status:* ${statusLabel}`,
                 `*Fecha Entrega:* ${deliveryDateStr}`,
                 ``,
-                `🌐 *Ver seguimiento en línea:*`,
-                `${trackingUrl}`,
-                ``,
                 `Gracias por su preferencia. ✨`,
             ].join('\n');
         } else {
@@ -114,9 +128,6 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
                 `*Status:* ${statusLabel}`,
-                ``,
-                `🌐 *Ver seguimiento en línea:*`,
-                `${trackingUrl}`,
             ].join('\n');
         }
 
