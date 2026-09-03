@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
+import { PublicOrdersController } from './public-orders.controller';
 
 import { OrderStrategyFactory } from './strategies/order-strategy.factory';
 import { RepairStrategy } from './strategies/repair.strategy';
@@ -22,6 +23,6 @@ import { SettingsService } from '../settings/settings.service';
         NotificationService,
         SettingsService,
     ],
-    controllers: [OrdersController],
+    controllers: [OrdersController, PublicOrdersController],
 })
 export class OrdersModule { }

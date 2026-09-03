@@ -19,6 +19,7 @@ import StaffQueue from './pages/StaffQueue';
 import Pickup from './pages/Pickup';
 import Integrations from './pages/Integrations';
 import Sidebar from './components/Sidebar';
+import PublicOrderTrack from './pages/PublicOrderTrack';
 import { ThemeProvider } from './context/ThemeContext';
 
 const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.ReactNode, allowedRoles: string[], redirectTo: string }) => {
@@ -103,6 +104,7 @@ function App() {
                         <Route path="/pickup" element={<Pickup />} />
                         <Route path="/" element={<Navigate to={token ? defaultRoute : "/login"} replace />} />
                     </Route>
+                    <Route path="/track/:id" element={<PublicOrderTrack />} />
                     <Route path="/kiosk" element={<Kiosk />} />
                 </Routes>
             </Router>
