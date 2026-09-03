@@ -636,35 +636,19 @@ const NewOrderDrawer: React.FC<{
 
     useEffect(() => {
         if (initialClientName || initialClientPhone) {
-            const cleanPhone = (initialClientPhone || '').replace(/\D/g, '');
-            const found = clients.find(c => {
-                if (cleanPhone && c.phone) {
-                    const cClean = c.phone.replace(/\D/g, '');
-                    if (cClean.length >= 10 && cleanPhone.length >= 10 && (cClean.endsWith(cleanPhone.slice(-10)) || cleanPhone.endsWith(cClean.slice(-10)))) {
-                        return true;
-                    }
-                }
-                if (initialClientName && c.name) {
-                    return c.name.toLowerCase().trim() === initialClientName.toLowerCase().trim();
-                }
-                return false;
-            });
-
-            if (found) {
-                setFormData((prev: any) => ({ ...prev, client: found.name }));
-                setSelectedClientInfo(found);
-                setShowQuickAddClient(false);
-            } else {
-                setFormData((prev: any) => ({ ...prev, client: initialClientName || '' }));
-                setNewClientData({
-                    name: initialClientName || '',
-                    phone: initialClientPhone || '',
-                    email: ''
-                });
-                setShowQuickAddClient(true);
+            setFormData((prev: any) => ({ ...prev, client: initialClientName || '' }));
+            if (initialClientPhone) {
+                setPhoneSearchValue(initialClientPhone);
             }
+            setSelectedClientInfo(null);
+            setShowQuickAddClient(false);
+            setNewClientData({
+                name: initialClientName || '',
+                phone: initialClientPhone || '',
+                email: ''
+            });
         }
-    }, [initialClientName, initialClientPhone, clients]);
+    }, [initialClientName, initialClientPhone]);
 
     const [items, setItems] = useState<any[]>([
         { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '' }
@@ -979,20 +963,48 @@ const NewOrderDrawer: React.FC<{
 
                                 {/* Name Search Results - matching clients with select button */}
                                 {searchMode === 'name' && formData.client && !selectedClientInfo && (() => {
-                                    const matchingClients = clients.filter(c =>
-                                        c.name && c.name.toLowerCase().includes(formData.client.toLowerCase())
-                                    ).slice(0, 5);
+                                    const cleanPhone = (initialClientPhone || phoneSearchValue || '').replace(/\D/g, '');
+                                    const matchingClients = clients.filter(c => {
+                                        const nameMatch = c.name && c.name.toLowerCase().includes(formData.client.toLowerCase());
+                                        let phoneMatch = false;
+                                        if (cleanPhone && c.phone) {
+                                            const cClean = c.phone.replace(/\D/g, '');
+                                            if (cClean.length >= 7 && cleanPhone.length >= 7 && (cClean.includes(cleanPhone) || cleanPhone.includes(cClean))) {
+                                                phoneMatch = true;
+                                            }
+                                        }
+                                        return nameMatch || phoneMatch;
+                                    }).slice(0, 5);
 
-                                    if (matchingClients.length === 0) return null;
-
-                                    // If there is an exact name match already selected, don't show the suggestions
-                                    const exactMatch = matchingClients.find(c => c.name.toLowerCase().trim() === formData.client.toLowerCase().trim());
-                                    if (exactMatch && selectedClientInfo?.id === exactMatch.id) return null;
+                                    if (matchingClients.length === 0) {
+                                        return (
+                                            <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-2 animate-in fade-in duration-200">
+                                                <p className="text-xs text-muted-foreground font-medium">
+                                                    No se encontró ningún cliente registrado con el nombre <strong className="text-foreground">{formData.client}</strong>.
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setNewClientData({
+                                                            name: formData.client || initialClientName || '',
+                                                            phone: initialClientPhone || phoneSearchValue || '',
+                                                            email: ''
+                                                        });
+                                                        setShowQuickAddClient(true);
+                                                    }}
+                                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition active:scale-95 shadow-sm"
+                                                >
+                                                    <span className="material-symbols-outlined text-[14px]">person_add</span>
+                                                    Dar de Alta como Nuevo Cliente
+                                                </button>
+                                            </div>
+                                        );
+                                    }
 
                                     return (
                                         <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
                                             <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest px-1">
-                                                {matchingClients.length} cliente{matchingClients.length > 1 ? 's' : ''} encontrado{matchingClients.length > 1 ? 's' : ''}
+                                                {matchingClients.length} cliente{matchingClients.length > 1 ? 's' : ''} sugerido{matchingClients.length > 1 ? 's' : ''} encontrado{matchingClients.length > 1 ? 's' : ''}
                                             </p>
                                             {matchingClients.map(client => (
                                                 <div
@@ -1017,7 +1029,7 @@ const NewOrderDrawer: React.FC<{
                                                             setFormData(prev => ({ ...prev, client: client.name }));
                                                             setSelectedClientInfo(client);
                                                         }}
-                                                        className="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black uppercase tracking-wider px-3 py-2 rounded-lg transition-all active:scale-95 flex items-center gap-1.5"
+                                                        className="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black uppercase tracking-wider px-3.5 py-2 rounded-lg transition-all active:scale-95 flex items-center gap-1.5 shadow-sm"
                                                     >
                                                         <span className="material-symbols-outlined text-[14px]">check_circle</span>
                                                         Seleccionar
