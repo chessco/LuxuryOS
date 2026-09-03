@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { QueueService } from '../services/queue.service';
 import { io } from 'socket.io-client';
 
 const PublicScreen: React.FC = () => {
+    const navigate = useNavigate();
     const [data, setData] = useState<{ current: any, waiting: any[] }>({ current: null, waiting: [] });
     const tenantId = 'default-tenant'; // In production, get from subdomain
 
@@ -46,7 +48,16 @@ const PublicScreen: React.FC = () => {
     return (
         <div className="min-h-screen bg-background text-foreground p-12 overflow-hidden flex flex-col transition-colors">
             <header className="flex justify-between items-center mb-12">
-                <h1 className="text-5xl font-black tracking-tighter text-primary">CARED</h1>
+                <div className="flex items-center gap-6">
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-300 font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95 group"
+                    >
+                        <span className="material-symbols-outlined text-[18px] group-hover:-translate-x-1 transition-transform">arrow_back</span>
+                        Regresar
+                    </button>
+                    <h1 className="text-5xl font-black tracking-tighter text-primary font-display">CARED</h1>
+                </div>
                 <div className="text-3xl text-muted-foreground font-mono">{new Date().toLocaleTimeString()}</div>
             </header>
 
