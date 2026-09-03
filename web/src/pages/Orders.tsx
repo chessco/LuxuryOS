@@ -471,14 +471,36 @@ const Orders: React.FC = () => {
         return filteredOrders.filter(o => o.status === columnId);
     };
 
+    const boardTitle = orderType === 'REPAIR'
+        ? 'Tablero de Reparaciones'
+        : orderType === 'MANUFACTURE'
+        ? 'Tablero de Fabricación'
+        : orderType === 'LAYAWAY'
+        ? 'Tablero de Apartados'
+        : 'Tablero de Pedidos';
+
+    const boardSubtitle = orderType === 'REPAIR'
+        ? 'Gestión visual del flujo de reparación y servicio'
+        : orderType === 'MANUFACTURE'
+        ? 'Gestión visual del flujo de fabricación personalizada'
+        : orderType === 'LAYAWAY'
+        ? 'Gestión visual del flujo de apartados y liquidación'
+        : 'Gestión visual del flujo de producción y ventas';
+
+    const newButtonLabel = orderType === 'REPAIR'
+        ? 'Nueva Reparación'
+        : orderType === 'MANUFACTURE'
+        ? 'Nueva Fabricación'
+        : 'Nuevo Pedido';
+
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden">
             <header className="shrink-0 z-10 mb-8 px-2">
                 <div className="flex flex-col gap-6">
                     <div className="flex flex-wrap justify-between items-center gap-4">
                         <div className="flex flex-col gap-1">
-                            <h2 className="text-foreground text-3xl font-black tracking-tight font-display transition-colors">Tablero de Pedidos (MXN)</h2>
-                            <p className="text-muted-foreground text-sm transition-colors">Gestión visual del flujo de producción y ventas</p>
+                            <h2 className="text-foreground text-3xl font-black tracking-tight font-display transition-colors">{boardTitle}</h2>
+                            <p className="text-muted-foreground text-sm transition-colors">{boardSubtitle}</p>
                         </div>
                         <div className="flex items-center gap-4">
                             <div className="flex bg-muted p-1 rounded-2xl border border-border transition-colors">
@@ -502,7 +524,7 @@ const Orders: React.FC = () => {
                                 className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
                             >
                                 <span className="material-symbols-outlined text-[20px]">add</span>
-                                <span>Nuevo Pedido</span>
+                                <span>{newButtonLabel}</span>
                             </button>
                         </div>
                     </div>
