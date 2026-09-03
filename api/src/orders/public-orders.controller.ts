@@ -1,34 +1,76 @@
 import { Controller, Get, Post, Param, Body, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { generateTrackToken } from './tracking.util';
 
 @Controller('public/orders')
 export class PublicOrdersController {
     constructor(private prisma: PrismaService) { }
 
-    private cleanOrderIdentifier(idOrCode: string): string {
-        let cleanId = idOrCode.trim();
-        if (cleanId.toUpperCase().startsWith('ORD-')) {
-            cleanId = cleanId.substring(4).trim();
+    private async findOrderByIdOrToken(idOrToken: string) {
+        let clean = idOrToken.trim();
+        if (clean.toUpperCase().startsWith('ORD-')) {
+            clean = clean.substring(4).trim();
         }
-        return cleanId;
+
+        // 1. Check direct match by ID or prefix
+        let order = await this.prisma.order.findFirst({
+            where: {
+                OR: [
+                    { id: clean },
+                    { id: { startsWith: clean.toLowerCase() } },
+                    { id: { startsWith: clean.toUpperCase() } },
+                ]
+            },
+            include: { client: true }
+        });
+
+        if (order) return order;
+
+        // 2. Check if clean matches an HMAC token
+        const recentOrders = await this.prisma.order.findMany({
+            take: 2000,
+            orderBy: { createdAt: 'desc' },
+            include: { client: true }
+        });
+
+        for (const o of recentOrders) {
+            if (generateTrackToken(o.id).toLowerCase() === clean.toLowerCase()) {
+                return o;
+            }
+        }
+
+        return null;
+    }
+
+    private async checkExpiration(order: any) {
+        const isDelivered = (order.status === 'DELIVERED' || order.stage === 'ENTREGADO_POSTVENTA') && order.deliveredAt;
+        if (!isDelivered) return;
+
+        // Fetch expiration setting
+        const settings = await this.prisma.setting.findMany({
+            where: { tenantId: order.tenantId }
+        });
+        const settingMap = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
+        const expirationDays = parseInt(settingMap['tracking_expiration_days'] || '15', 10);
+
+        const deliveredTime = new Date(order.deliveredAt).getTime();
+        const now = Date.now();
+        const elapsedDays = (now - deliveredTime) / (1000 * 60 * 60 * 24);
+
+        if (elapsedDays > expirationDays) {
+            throw new BadRequestException(`Este enlace de seguimiento ha expirado (vigencia máxima de ${expirationDays} días posteriores a la entrega).`);
+        }
     }
 
     @Get('track/:id/check')
-    async checkOrder(@Param('id') idOrCode: string) {
-        const cleanId = this.cleanOrderIdentifier(idOrCode);
-        const order = await this.prisma.order.findFirst({
-            where: {
-                OR: [
-                    { id: cleanId },
-                    { id: { startsWith: cleanId.toLowerCase() } },
-                    { id: { startsWith: cleanId.toUpperCase() } },
-                ]
-            }
-        });
-
+    async checkOrder(@Param('id') idOrToken: string) {
+        const order = await this.findOrderByIdOrToken(idOrToken);
         if (!order) {
             throw new NotFoundException('Pedido no encontrado');
         }
+
+        // Check if expired
+        await this.checkExpiration(order);
 
         return {
             exists: true,
@@ -38,28 +80,20 @@ export class PublicOrdersController {
 
     @Post('track/:id/verify')
     async verifyAndTrackOrder(
-        @Param('id') idOrCode: string,
+        @Param('id') idOrToken: string,
         @Body('phoneDigits') phoneDigits: string
     ) {
         if (!phoneDigits || phoneDigits.trim().length < 4) {
             throw new BadRequestException('Por favor ingrese los últimos 4 dígitos de su teléfono.');
         }
 
-        const cleanId = this.cleanOrderIdentifier(idOrCode);
-        const order = await this.prisma.order.findFirst({
-            where: {
-                OR: [
-                    { id: cleanId },
-                    { id: { startsWith: cleanId.toLowerCase() } },
-                    { id: { startsWith: cleanId.toUpperCase() } },
-                ]
-            },
-            include: { client: true }
-        });
-
+        const order = await this.findOrderByIdOrToken(idOrToken);
         if (!order) {
             throw new NotFoundException('Pedido no encontrado');
         }
+
+        // Check expiration
+        await this.checkExpiration(order);
 
         // Clean registered phone number
         const clientPhone = (order.client?.phone || (order as any).clientPhone || '').replace(/\D/g, '');

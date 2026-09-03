@@ -117,19 +117,15 @@ export const PublicOrderTrack: React.FC = () => {
                 ) : !order ? (
                     /* Security Gate Verification Card */
                     <div className="bg-zinc-900/70 border border-zinc-800 rounded-3xl p-8 sm:p-10 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
-                        <div className="size-14 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center mx-auto mb-4 text-amber-400">
+                        <div className="size-14 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center mx-auto mb-4 text-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.15)]">
                             <span className="material-symbols-outlined text-3xl">lock</span>
                         </div>
-
-                        <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black tracking-widest bg-zinc-800 border border-zinc-700 text-amber-400 inline-block mb-3">
-                            {orderCode || id}
-                        </span>
 
                         <h2 className="text-base font-black uppercase tracking-wider text-white mb-2">
                             Verificación de Seguridad
                         </h2>
                         <p className="text-xs text-zinc-400 leading-relaxed max-w-xs mx-auto mb-6">
-                            Para proteger su privacidad, ingrese los <strong className="text-white">últimos 4 dígitos</strong> de su número de teléfono registrado.
+                            Para consultar el seguimiento en línea, ingrese los <strong className="text-white">últimos 4 dígitos</strong> de su número de teléfono registrado.
                         </p>
 
                         <form onSubmit={handleVerify} className="space-y-6">

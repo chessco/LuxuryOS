@@ -12,6 +12,7 @@ interface AtelierSettingsData {
     taxId: string;
     currency: string;
     labelCodeType: 'BARCODE' | 'QR';
+    trackingExpirationDays: number;
 }
 
 const DEFAULT_SETTINGS: AtelierSettingsData = {
@@ -21,7 +22,8 @@ const DEFAULT_SETTINGS: AtelierSettingsData = {
     email: 'contacto@luxuryatelier.com',
     taxId: 'LUX123456789',
     currency: 'MXN',
-    labelCodeType: 'BARCODE'
+    labelCodeType: 'BARCODE',
+    trackingExpirationDays: 15
 };
 
 const AtelierSettings: React.FC = () => {
@@ -45,6 +47,7 @@ const AtelierSettings: React.FC = () => {
                     if (apiSettings.atelier_tax_id) current.taxId = apiSettings.atelier_tax_id;
                     if (apiSettings.atelier_currency) current.currency = apiSettings.atelier_currency;
                     if (apiSettings.label_code_type) current.labelCodeType = apiSettings.label_code_type;
+                    if (apiSettings.tracking_expiration_days) current.trackingExpirationDays = parseInt(apiSettings.tracking_expiration_days, 10);
                 }
             } catch (e) {
                 console.error("Failed to load settings from API", e);
@@ -71,6 +74,7 @@ const AtelierSettings: React.FC = () => {
                 atelier_tax_id: settings.taxId,
                 atelier_currency: settings.currency,
                 label_code_type: settings.labelCodeType,
+                tracking_expiration_days: String(settings.trackingExpirationDays || 15),
             });
         } catch (e) {
             console.error("Failed to save settings to API", e);
@@ -248,6 +252,41 @@ const AtelierSettings: React.FC = () => {
                                 <p className="text-xs text-muted-foreground mt-0.5">Matriz bidimensional 2D</p>
                             </div>
                         </button>
+                    </div>
+                </section>
+
+                {/* Tracking Security & Expiration Settings */}
+                <section className="bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
+                    <div className="flex items-center gap-3 pb-4 border-b border-border">
+                        <div className="size-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-xl">share_location</span>
+                        </div>
+                        <div>
+                            <h3 className="text-base font-black uppercase tracking-wider text-foreground">Seguimiento Público de Pedidos</h3>
+                            <p className="text-xs text-muted-foreground font-medium">Control de vigencia y seguridad de enlaces compartidos</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-muted/20 border border-border">
+                            <div className="space-y-1">
+                                <h4 className="text-sm font-black uppercase tracking-wider text-foreground">Vigencia tras Entrega (Días)</h4>
+                                <p className="text-xs text-muted-foreground max-w-md">
+                                    Días durante los cuales el cliente podrá consultar el enlace de seguimiento una vez que el pedido esté en estado <strong>ENTREGADO</strong>. Tras este periodo, el enlace se desactivará automáticamente.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="365"
+                                    value={settings.trackingExpirationDays || 15}
+                                    onChange={(e) => handleChange('trackingExpirationDays', e.target.value as any)}
+                                    className="w-24 px-4 py-2.5 rounded-xl border border-border bg-background text-foreground font-bold text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                />
+                                <span className="text-xs font-bold text-muted-foreground">días</span>
+                            </div>
+                        </div>
                     </div>
                 </section>
             </div>

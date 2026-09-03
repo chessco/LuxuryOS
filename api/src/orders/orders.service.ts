@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStage, OrderStatus, Prisma } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { generateTrackToken } from './tracking.util';
 
 import { OrderStrategyFactory } from './strategies/order-strategy.factory';
 import { NotificationService } from '../queue/notification.service';
@@ -373,13 +374,15 @@ export class OrdersService {
         };
 
         const statusLabel = getStatusLabel(order.status);
-        const isFullDataWithImage = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
+        const isReceived = statusLabel === 'RECIBIDO';
+        const isReady = statusLabel === 'LISTO';
         const isDelivered = statusLabel === 'ENTREGADO';
 
-        const trackingUrl = `https://luxuryos.pitayacode.io/track/${orderCode}`;
+        const trackToken = generateTrackToken(order.id);
+        const trackingUrl = `https://luxuryos.pitayacode.io/track/${trackToken}`;
 
         let message = '';
-        if (isFullDataWithImage) {
+        if (isReceived) {
             const settings = await this.prisma.setting.findMany({ where: { tenantId } });
             const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
             const codeType = map['label_code_type'] || 'BARCODE';
@@ -402,6 +405,26 @@ ${trackingUrl}
 ${codeImageUrl}
 
 Gracias por su preferencia. ✨`;
+        } else if (isReady) {
+            const settings = await this.prisma.setting.findMany({ where: { tenantId } });
+            const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
+            const codeType = map['label_code_type'] || 'BARCODE';
+
+            const codeImageUrl = codeType === 'QR'
+                ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
+                : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
+
+            message = `🔔 *CARED* 🔔
+
+*Fecha:* ${dateStr}
+*Cliente:* ${clientName}
+*No. Orden:* ${orderCode}
+*Concepto:* ${getConcepto(order.type)}
+*Status:* ${statusLabel}
+
+${codeImageUrl}
+
+Gracias por su preferencia. ✨`;
         } else if (isDelivered) {
             const deliveryDateStr = formatDate(order.deliveredAt);
 
@@ -414,9 +437,6 @@ Gracias por su preferencia. ✨`;
 *Status:* ${statusLabel}
 *Fecha Entrega:* ${deliveryDateStr}
 
-🌐 *Ver seguimiento en línea:*
-${trackingUrl}
-
 Gracias por su preferencia. ✨`;
         } else {
             // Intermediate/Other statuses (e.g. EN TALLER)
@@ -424,10 +444,7 @@ Gracias por su preferencia. ✨`;
 
 *No. Orden:* ${orderCode}
 *Concepto:* ${getConcepto(order.type)}
-*Status:* ${statusLabel}
-
-🌐 *Ver seguimiento en línea:*
-${trackingUrl}`;
+*Status:* ${statusLabel}`;
         }
 
         const success = await this.notificationService.sendCustomMessage(tenantId, phone, message);
