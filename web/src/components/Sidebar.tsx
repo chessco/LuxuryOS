@@ -58,20 +58,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
     const isAdminOrSystem = user.role === 'TENANT_ADMIN' || user.role === 'SYSTEM_ADMIN';
     const isVentaOrJoyero = ['VENDEDOR', 'VENTAS', 'JOYERO', 'TALLER', 'TENANT_USER'].includes(user.role);
 
-    const filteredNavigation = navigation.filter(section => {
-        if (user.role === 'VENDEDOR' || user.role === 'VENTAS' || user.role === 'JOYERO' || user.role === 'TALLER') {
-            return section.title === 'Operaciones' || section.title === 'Fila y Turnos';
-        }
-        return true;
-    }).map(section => {
+    const filteredNavigation = navigation.map(section => {
         let items = section.items;
-        
-        if (user.role !== 'SYSTEM_ADMIN') {
-            items = items.filter(item => item.path !== '/finance' && item.path !== '/inventory');
-        }
 
         if (isVentaOrJoyero) {
+            // En Principal, mantener Mensajes para ventas/taller y ocultar Panel/AI
+            if (section.title === 'Principal') {
+                items = items.filter(item => item.path === '/messages');
+            }
             items = items.filter(item => !item.path.includes('type=LAYAWAY') && item.name !== 'Apartados');
+        }
+
+        if (user.role !== 'SYSTEM_ADMIN') {
+            items = items.filter(item => item.path !== '/finance' && item.path !== '/inventory');
         }
 
         // Ocultar Pedidos para usuarios que no sean Admin o System
@@ -83,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
             ...section,
             items
         };
-    });
+    }).filter(section => section.items.length > 0);
 
     return (
         <>

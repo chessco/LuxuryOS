@@ -100,7 +100,7 @@ function App() {
                             </RoleRedirect>
                         } />
                         <Route path="/messages" element={
-                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN', 'TENANT_USER']} redirectTo="/orders">
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN', 'TENANT_USER', 'VENDEDOR', 'VENTAS', 'JOYERO', 'TALLER']} redirectTo="/orders">
                                 <Messages />
                             </RoleRedirect>
                         } />
