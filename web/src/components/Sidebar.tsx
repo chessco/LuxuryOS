@@ -54,6 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
         }
     ];
 
+    const isAdminOrSystem = user.role === 'TENANT_ADMIN' || user.role === 'SYSTEM_ADMIN';
     const isVentaOrJoyero = ['VENDEDOR', 'VENTAS', 'JOYERO', 'TALLER', 'TENANT_USER'].includes(user.role);
 
     const filteredNavigation = navigation.filter(section => {
@@ -70,6 +71,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
 
         if (isVentaOrJoyero) {
             items = items.filter(item => !item.path.includes('type=LAYAWAY') && item.name !== 'Apartados');
+        }
+
+        // Ocultar Pedidos para usuarios que no sean Admin o System
+        if (!isAdminOrSystem) {
+            items = items.filter(item => item.path !== '/orders');
         }
 
         return {
