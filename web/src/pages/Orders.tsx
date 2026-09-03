@@ -159,8 +159,8 @@ const Orders: React.FC = () => {
                         statusType: stage === 'INTERES_LEAD' ? 'new' :
                             stage === 'EN_PRODUCCION' ? 'urgent' :
                                 stage === 'APROBADO_ANTICIPO' ? 'success' : 'normal',
-                        receivedDate: o.createdAt ? new Date(o.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
-                        receivedTime: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : ''
+                        receivedDate: o.createdAt ? new Date(o.createdAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
+                        receivedTime: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('es-MX', { timeZone: 'America/Hermosillo', hour: '2-digit', minute: '2-digit' }) : ''
                     });
                 });
             });
@@ -348,54 +348,25 @@ const Orders: React.FC = () => {
         // Active filter
         if (activeFilter) {
             if (activeFilter === 'Recibido') {
-                result = result.filter(o =>
-                    o.status === 'RECEIVED' ||
-                    o.status === 'INTERES_LEAD' ||
-                    o.status === 'SPEC_PENDING' ||
-                    o.status === 'DRAFT' ||
-                    o.status === 'QUOTE_SENT' ||
-                    o.stage === 'RECEIVED' ||
-                    o.stage === 'INTERES_LEAD' ||
-                    o.stage === 'SPEC_PENDING' ||
-                    o.stage === 'DRAFT' ||
-                    o.statusLabel === 'RECIBIDO' ||
-                    o.statusLabel === 'INTERÉS / LEAD'
-                );
+                result = result.filter(o => {
+                    const label = (o.statusLabel || '').toUpperCase();
+                    return label === 'RECIBIDO';
+                });
             } else if (activeFilter === 'En Taller') {
-                result = result.filter(o =>
-                    o.status === 'IN_REPAIR' ||
-                    o.status === 'IN_PRODUCTION' ||
-                    o.status === 'QUALITY_CHECK' ||
-                    o.status === 'APROBADO_ANTICIPO' ||
-                    o.status === 'EN_PRODUCCION' ||
-                    o.status === 'CONTROL_CALIDAD' ||
-                    o.status === 'DIAGNOSIS_PENDING' ||
-                    o.status === 'WAITING_PARTS' ||
-                    o.status === 'MATERIALS_PENDING' ||
-                    o.stage === 'IN_REPAIR' ||
-                    o.stage === 'IN_PRODUCTION' ||
-                    o.stage === 'QUALITY_CHECK' ||
-                    o.stage === 'APROBADO_ANTICIPO' ||
-                    o.stage === 'EN_PRODUCCION' ||
-                    o.stage === 'CONTROL_CALIDAD' ||
-                    o.statusLabel === 'EN TALLER' ||
-                    o.statusLabel === 'PRODUCCIÓN' ||
-                    o.statusLabel === 'CONTROL CALIDAD'
-                );
+                result = result.filter(o => {
+                    const label = (o.statusLabel || '').toUpperCase();
+                    return label === 'EN TALLER' || label === 'PRODUCCIÓN' || label === 'CONTROL CALIDAD';
+                });
             } else if (activeFilter === 'Para Entrega') {
-                result = result.filter(o =>
-                    o.status === 'READY_FOR_PICKUP' ||
-                    o.status === 'REPAIR_COMPLETED' ||
-                    o.status === 'READY' ||
-                    o.stage === 'READY_FOR_PICKUP' ||
-                    o.stage === 'REPAIR_COMPLETED' ||
-                    o.stage === 'READY' ||
-                    o.statusLabel === 'PARA ENTREGA'
-                );
+                result = result.filter(o => {
+                    const label = (o.statusLabel || '').toUpperCase();
+                    return label === 'PARA ENTREGA' || label === 'LISTO';
+                });
             } else if (activeFilter === 'Entregados') {
-                result = result.filter(o =>
-                    o.status === 'DELIVERED' || o.stage === 'DELIVERED' || o.statusLabel === 'ENTREGADO'
-                );
+                result = result.filter(o => {
+                    const label = (o.statusLabel || '').toUpperCase();
+                    return label === 'ENTREGADO';
+                });
             } else if (activeFilter === 'Esta Semana') {
                 const now = new Date();
                 const startOfWeek = new Date(now);
