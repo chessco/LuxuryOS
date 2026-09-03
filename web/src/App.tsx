@@ -20,6 +20,7 @@ import Pickup from './pages/Pickup';
 import Integrations from './pages/Integrations';
 import Sidebar from './components/Sidebar';
 import PublicOrderTrack from './pages/PublicOrderTrack';
+import PublicQueueTrack from './pages/PublicQueueTrack';
 import { ThemeProvider } from './context/ThemeContext';
 
 const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.ReactNode, allowedRoles: string[], redirectTo: string }) => {
@@ -42,6 +43,7 @@ function App() {
                     {/* Public Routes */}
                     <Route path="/login" element={<Login />} />
                     <Route path="/track/:id" element={<PublicOrderTrack />} />
+                    <Route path="/q/:token" element={<PublicQueueTrack />} />
                     <Route path="/kiosk" element={<Kiosk />} />
                     <Route path="/screen" element={<PublicScreen />} />
 
