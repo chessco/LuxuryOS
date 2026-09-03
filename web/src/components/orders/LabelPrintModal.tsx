@@ -32,20 +32,37 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             ? new Date(order.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
             : new Date().toLocaleDateString('es-MX');
 
-        const barcodeImageUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
+        const statusLabel = getStatusLabel(order.status);
+        const isFullDataStatus = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
 
-        const message = [
-            `🔔 *CARED* 🔔`,
-            ``,
-            `*Fecha:* ${dateStr}`,
-            `*Cliente:* ${clientName}`,
-            `*No. Orden:* ${orderCode}`,
-            `*Concepto:* ${getConcepto(order.type)}`,
-            ``,
-            barcodeImageUrl,
-            ``,
-            `Gracias por su preferencia. ✨`,
-        ].join('\n');
+        const codeImageUrl = labelCodeType === 'QR'
+            ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
+            : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
+
+        let message = '';
+        if (isFullDataStatus) {
+            message = [
+                `🔔 *CARED* 🔔`,
+                ``,
+                `*Fecha:* ${dateStr}`,
+                `*Cliente:* ${clientName}`,
+                `*No. Orden:* ${orderCode}`,
+                `*Concepto:* ${getConcepto(order.type)}`,
+                `*Status:* ${statusLabel}`,
+                ``,
+                codeImageUrl,
+                ``,
+                `Gracias por su preferencia. ✨`,
+            ].join('\n');
+        } else {
+            message = [
+                `🔔 *CARED* 🔔`,
+                ``,
+                `*No. Orden:* ${orderCode}`,
+                `*Concepto:* ${getConcepto(order.type)}`,
+                `*Status:* ${statusLabel}`,
+            ].join('\n');
+        }
 
         let cleanPhone = phone.replace(/\D/g, '');
         if (cleanPhone.length === 10) cleanPhone = `52${cleanPhone}`;
