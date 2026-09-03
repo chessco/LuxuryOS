@@ -48,11 +48,19 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         const phone = order?.client?.phone || (order as any)?.clientPhone || '';
         if (!phone) return null;
 
+        const formatDate = (date?: Date | string | null) => {
+            const d = date ? new Date(date) : new Date();
+            return d.toLocaleDateString('es-MX', {
+                timeZone: 'America/Hermosillo',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        };
+
         const orderCode = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
         const clientName = (order.client?.name || (order as any).clientName || 'Cliente').toUpperCase();
-        const dateStr = order.createdAt
-            ? new Date(order.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })
-            : new Date().toLocaleDateString('es-MX');
+        const dateStr = formatDate(order.createdAt);
 
         const statusLabel = getStatusLabel(order.status);
         const isFullDataWithImage = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
@@ -78,10 +86,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `Gracias por su preferencia. ✨`,
             ].join('\n');
         } else if (isDelivered) {
-            const deliveryDate = order.deliveredAt ? new Date(order.deliveredAt) : new Date();
-            const deliveryDateStr = deliveryDate.toLocaleDateString('es-MX', {
-                day: '2-digit', month: '2-digit', year: 'numeric'
-            });
+            const deliveryDateStr = formatDate(order.deliveredAt);
 
             message = [
                 `🔔 *CARED* 🔔`,
@@ -180,9 +185,16 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
     const isTurnOrder = !!order.queueTicket;
     const clientName = (order.client?.name || order.clientName || 'CLIENTE').toUpperCase();
     const orderCode = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
-    const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-MX', {
-        day: '2-digit', month: '2-digit', year: 'numeric'
-    }) : new Date().toLocaleDateString('es-MX');
+    const formatDate = (date?: Date | string | null) => {
+        const d = date ? new Date(date) : new Date();
+        return d.toLocaleDateString('es-MX', {
+            timeZone: 'America/Hermosillo',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    };
+    const dateStr = formatDate(order.createdAt);
 
     // Extract piece info
     const pieceInfo = order.specifications?.items?.[0] || {
@@ -193,16 +205,6 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         weight: order.weight || '-',
         size: order.size || '-',
         thickness: order.thickness || '-'
-    };
-
-    const getStatusLabel = (status: string) => {
-        const s = (status || '').toUpperCase();
-        if (s === 'RECEIVED' || s === 'PENDING' || s === 'NUEVO') return 'RECIBIDO';
-        if (s === 'IN_PROGRESS' || s === 'IN_WORKSHOP' || s === 'TALLER' || s === 'PRODUCTION' || s === 'EN_PROCESO') return 'EN TALLER';
-        if (s === 'READY' || s === 'COMPLETED' || s === 'TERMINADO') return 'LISTO';
-        if (s === 'DELIVERED' || s === 'ENTREGADO') return 'ENTREGADO';
-        if (s === 'CANCELLED' || s === 'CANCELADO') return 'CANCELADO';
-        return s || 'RECIBIDO';
     };
 
     const handlePrint = () => {

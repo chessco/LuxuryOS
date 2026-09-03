@@ -316,9 +316,17 @@ export class OrdersService {
 
         const orderCode = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
         const clientName = (order.client?.name || 'Cliente').toUpperCase();
-        const dateStr = order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-MX', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        }) : new Date().toLocaleDateString('es-MX');
+        const formatDate = (date?: Date | string | null) => {
+            const d = date ? new Date(date) : new Date();
+            return d.toLocaleDateString('es-MX', {
+                timeZone: 'America/Hermosillo',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        };
+
+        const dateStr = formatDate(order.createdAt);
 
         const getConcepto = (type: string) => {
             const t = (type || '').toUpperCase();
@@ -388,10 +396,7 @@ ${codeImageUrl}
 
 Gracias por su preferencia. ✨`;
         } else if (isDelivered) {
-            const deliveryDate = order.deliveredAt ? new Date(order.deliveredAt) : new Date();
-            const deliveryDateStr = deliveryDate.toLocaleDateString('es-MX', {
-                day: '2-digit', month: '2-digit', year: 'numeric'
-            });
+            const deliveryDateStr = formatDate(order.deliveredAt);
 
             message = `🔔 *CARED* 🔔
 
