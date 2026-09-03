@@ -35,12 +35,16 @@ export class NotificationService {
     async notifyTicketCreated(tenantId: string, ticketId: string, phone: string, name: string, code: string, qrToken: string) {
         const atelierName = await this.settingsService.getSetting(tenantId, 'business_name', 'CARED');
         const trackingUrl = `https://luxuryos.pitayacode.io/q/${qrToken}`;
+        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`;
+
         const message = `👋 ¡Hola ${name}!
 
 Tu turno en *${atelierName}* es: *${code}*
 
-🌐 Puedes seguir el avance de tu turno en tiempo real aquí:
+🌐 *Ver seguimiento de tu turno en tiempo real:*
 ${trackingUrl}
+
+${qrImageUrl}
 
 Te notificaremos cuando sea tu momento de pasar. ✨`;
 
