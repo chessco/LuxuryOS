@@ -113,4 +113,16 @@ export class QueueController {
         this.queueGateway.notifyUpdate(req.user.tenantId);
         return ticket;
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('tickets/:id/link-order')
+    async linkOrder(
+        @Param('id') id: string,
+        @Body('orderId') orderId: string,
+        @Req() req: any
+    ) {
+        const ticket = await this.queueService.linkOrder(id, req.user.tenantId, orderId);
+        this.queueGateway.notifyUpdate(req.user.tenantId);
+        return ticket;
+    }
 }

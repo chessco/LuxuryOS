@@ -314,6 +314,13 @@ export class QueueService {
         }
     }
 
+    async linkOrder(ticketId: string, tenantId: string, orderId: string) {
+        return this.prisma.queueTicket.updateMany({
+            where: { id: ticketId, tenantId },
+            data: { orderId }
+        });
+    }
+
     async getByToken(qrToken: string) {
         const ticket = await this.prisma.queueTicket.findUnique({
             where: { qrToken },

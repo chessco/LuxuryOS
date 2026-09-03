@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { QueueService } from '../services/queue.service';
 
 const StaffQueue: React.FC = () => {
+    const navigate = useNavigate();
     const [tickets, setTickets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -38,6 +40,27 @@ const StaffQueue: React.FC = () => {
         } catch (error: any) {
             alert(error.response?.data?.message || 'Error al actualizar turno');
         }
+    };
+
+    const handleCreateOrderFromTicket = async (ticket: any) => {
+        try {
+            await QueueService.setInService(ticket.id, false);
+        } catch (e) {
+            console.error("Error setting ticket in service:", e);
+        }
+
+        const type = ticket.kind === 'REPAIR' ? 'REPAIR' : ticket.kind === 'SALE' ? 'STANDARD' : 'MANUFACTURE';
+        const params = new URLSearchParams();
+        if (ticket.kind === 'REPAIR' || ticket.kind === 'MANUFACTURE') {
+            params.set('type', ticket.kind);
+        }
+        params.set('newOrder', 'true');
+        if (ticket.customerName) params.set('clientName', ticket.customerName);
+        if (ticket.customerPhone) params.set('clientPhone', ticket.customerPhone);
+        if (ticket.id) params.set('ticketId', ticket.id);
+        if (ticket.code) params.set('ticketCode', ticket.code);
+
+        navigate(`/orders?${params.toString()}`);
     };
 
     const getStatusStyle = (status: string) => {
@@ -132,7 +155,7 @@ const StaffQueue: React.FC = () => {
                                                 </button>
                                                 {ticket.kind !== 'PICKUP' && (
                                                     <button
-                                                        onClick={() => handleAction(ticket.id, 'in-service', true)}
+                                                        onClick={() => handleCreateOrderFromTicket(ticket)}
                                                         className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 text-xs font-bold"
                                                     >
                                                         + Crear Orden
@@ -148,6 +171,14 @@ const StaffQueue: React.FC = () => {
                                                 >
                                                     {ticket.kind === 'PICKUP' ? 'Confirmar Entrega' : 'Terminar'}
                                                 </button>
+                                                {!ticket.orderId && ticket.kind !== 'PICKUP' && (
+                                                    <button
+                                                        onClick={() => handleCreateOrderFromTicket(ticket)}
+                                                        className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition active:scale-95"
+                                                    >
+                                                        + Crear Orden
+                                                    </button>
+                                                )}
                                                 {ticket.orderId && (
                                                     <a
                                                         href={`/orders/${ticket.orderId}`}
