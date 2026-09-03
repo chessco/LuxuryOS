@@ -56,4 +56,9 @@ export class QueueService {
         const response = await api.get(`/queue/recommendations/${kind}`);
         return response.data;
     }
+
+    static async linkOrder(ticketId: string, orderId: string) {
+        const response = await api.post(`/queue/tickets/${ticketId}/link-order`, { orderId });
+        return response.data;
+    }
 }

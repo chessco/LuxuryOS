@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { OrdersService } from '../services/orders.service';
 import { ClientsService } from '../services/clients.service';
+import { QueueService } from '../services/queue.service';
 import AutocompleteInput from '../components/AutocompleteInput';
 import { useTheme } from '../context/ThemeContext';
 
@@ -104,6 +105,11 @@ const Orders: React.FC = () => {
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
     const orderType = queryParams.get('type');
+    const autoOpenNew = queryParams.get('newOrder') === 'true';
+    const prefillClientName = queryParams.get('clientName') || '';
+    const prefillClientPhone = queryParams.get('clientPhone') || '';
+    const prefillTicketId = queryParams.get('ticketId') || '';
+    const prefillTicketCode = queryParams.get('ticketCode') || '';
 
     const [activeFilter, setActiveFilter] = useState<string | null>('Recibido');
 
@@ -118,7 +124,7 @@ const Orders: React.FC = () => {
         return base;
     }, [orderType, activeFilter]);
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(autoOpenNew);
     const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
     const [orders, setOrders] = useState<any[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -126,6 +132,12 @@ const Orders: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [labelPrintOrder, setLabelPrintOrder] = useState<any | null>(null);
     const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
+
+    useEffect(() => {
+        if (autoOpenNew) {
+            setIsModalOpen(true);
+        }
+    }, [autoOpenNew]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -253,8 +265,26 @@ const Orders: React.FC = () => {
             };
 
             const created = await OrdersService.create(payload);
+
+            if (prefillTicketId) {
+                try {
+                    await QueueService.linkOrder(prefillTicketId, created.id);
+                } catch (linkErr) {
+                    console.error("Error linking ticket to order:", linkErr);
+                }
+            }
+
             fetchBoard();
             setIsModalOpen(false);
+
+            // Clean up queue query params
+            const nextParams = new URLSearchParams(location.search);
+            nextParams.delete('newOrder');
+            nextParams.delete('clientName');
+            nextParams.delete('clientPhone');
+            nextParams.delete('ticketId');
+            nextParams.delete('ticketCode');
+            navigate({ pathname: location.pathname, search: nextParams.toString() ? `?${nextParams.toString()}` : '' }, { replace: true });
 
             if (newOrder.shouldPrintLabel) {
                 setLabelPrintOrder(created);
@@ -547,11 +577,23 @@ const Orders: React.FC = () => {
             <AnimatePresence>
                 {isModalOpen && (
                     <NewOrderDrawer
-                        onClose={() => setIsModalOpen(false)}
+                        onClose={() => {
+                            setIsModalOpen(false);
+                            const nextParams = new URLSearchParams(location.search);
+                            nextParams.delete('newOrder');
+                            nextParams.delete('clientName');
+                            nextParams.delete('clientPhone');
+                            nextParams.delete('ticketId');
+                            nextParams.delete('ticketCode');
+                            navigate({ pathname: location.pathname, search: nextParams.toString() ? `?${nextParams.toString()}` : '' }, { replace: true });
+                        }}
                         onSave={handleCreateOrder}
                         clients={clients}
                         clientOptions={clients.map(c => c.name)}
                         onClientCreated={fetchClients}
+                        initialClientName={prefillClientName}
+                        initialClientPhone={prefillClientPhone}
+                        ticketCode={prefillTicketCode}
                     />
                 )}
             </AnimatePresence>
@@ -574,7 +616,10 @@ const NewOrderDrawer: React.FC<{
     clients: any[];
     clientOptions: string[];
     onClientCreated?: () => Promise<void> | void;
-}> = ({ onClose, onSave, clients, clientOptions, onClientCreated }) => {
+    initialClientName?: string;
+    initialClientPhone?: string;
+    ticketCode?: string;
+}> = ({ onClose, onSave, clients, clientOptions, onClientCreated, initialClientName, initialClientPhone, ticketCode }) => {
     const [showQuickAddClient, setShowQuickAddClient] = useState(false);
     const [newClientData, setNewClientData] = useState({ name: '', phone: '', email: '' });
     const [searchMode, setSearchMode] = useState<'name' | 'phone'>('name');
@@ -588,6 +633,38 @@ const NewOrderDrawer: React.FC<{
         cost: '',
         priority: 'Media',
     });
+
+    useEffect(() => {
+        if (initialClientName || initialClientPhone) {
+            const cleanPhone = (initialClientPhone || '').replace(/\D/g, '');
+            const found = clients.find(c => {
+                if (cleanPhone && c.phone) {
+                    const cClean = c.phone.replace(/\D/g, '');
+                    if (cClean.length >= 10 && cleanPhone.length >= 10 && (cClean.endsWith(cleanPhone.slice(-10)) || cleanPhone.endsWith(cClean.slice(-10)))) {
+                        return true;
+                    }
+                }
+                if (initialClientName && c.name) {
+                    return c.name.toLowerCase().trim() === initialClientName.toLowerCase().trim();
+                }
+                return false;
+            });
+
+            if (found) {
+                setFormData((prev: any) => ({ ...prev, client: found.name }));
+                setSelectedClientInfo(found);
+                setShowQuickAddClient(false);
+            } else {
+                setFormData((prev: any) => ({ ...prev, client: initialClientName || '' }));
+                setNewClientData({
+                    name: initialClientName || '',
+                    phone: initialClientPhone || '',
+                    email: ''
+                });
+                setShowQuickAddClient(true);
+            }
+        }
+    }, [initialClientName, initialClientPhone, clients]);
 
     const [items, setItems] = useState<any[]>([
         { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '' }
@@ -753,7 +830,14 @@ const NewOrderDrawer: React.FC<{
                         </button>
                     </div>
                     <div>
-                        <h2 className="text-foreground text-xl font-black uppercase tracking-widest font-display">Nuevo Pedido</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-foreground text-xl font-black uppercase tracking-widest font-display">Nuevo Pedido</h2>
+                            {ticketCode && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                                    Turno {ticketCode}
+                                </span>
+                            )}
+                        </div>
                         <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1.5">Registro Técnico de Joyería</p>
                     </div>
                 </div>
