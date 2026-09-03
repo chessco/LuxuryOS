@@ -466,9 +466,9 @@ const OrderDetail: React.FC = () => {
                             <span className="material-symbols-outlined text-[20px]">print</span>
                             <span>Visualizar Sobre</span>
                         </button>
-                        {order.type === OrderType.REPAIR && order.status !== 'REPAIR_COMPLETED' && order.status !== 'DELIVERED' && (
+                        {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && order.status !== 'REPAIR_COMPLETED' && order.status !== 'READY_FOR_PICKUP' && order.status !== 'DELIVERED' && (
                             <button
-                                onClick={() => handleSaveDetails({ status: 'REPAIR_COMPLETED' })}
+                                onClick={() => handleSaveDetails({ status: (order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED' })}
                                 className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
                             >
                                 <span className="material-symbols-outlined text-[20px]">verified</span>

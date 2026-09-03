@@ -5,7 +5,7 @@ import { OrderStrategy } from './order-strategy.interface';
 @Injectable()
 export class ManufactureStrategy implements OrderStrategy {
     getInitialStatus(): OrderStatus {
-        return OrderStatus.SPEC_PENDING;
+        return OrderStatus.RECEIVED;
     }
 
     validateStatusTransition(currentStatus: OrderStatus, nextStatus: OrderStatus): void {
@@ -22,14 +22,15 @@ export class ManufactureStrategy implements OrderStrategy {
 
     private getAllowedTransitions(currentStatus: OrderStatus): OrderStatus[] {
         const allowedTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
-            [OrderStatus.SPEC_PENDING]: [OrderStatus.MATERIALS_PENDING, OrderStatus.CANCELLED],
+            [OrderStatus.RECEIVED]: [OrderStatus.IN_PRODUCTION, OrderStatus.SPEC_PENDING, OrderStatus.CANCELLED],
+            [OrderStatus.SPEC_PENDING]: [OrderStatus.MATERIALS_PENDING, OrderStatus.IN_PRODUCTION, OrderStatus.CANCELLED],
             [OrderStatus.MATERIALS_PENDING]: [OrderStatus.IN_PRODUCTION, OrderStatus.CANCELLED],
-            [OrderStatus.IN_PRODUCTION]: [OrderStatus.QUALITY_CHECK],
+            [OrderStatus.IN_PRODUCTION]: [OrderStatus.READY_FOR_PICKUP, OrderStatus.QUALITY_CHECK],
             [OrderStatus.QUALITY_CHECK]: [OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_PRODUCTION],
             [OrderStatus.READY_FOR_PICKUP]: [OrderStatus.DELIVERED],
             [OrderStatus.DELIVERED]: [],
             [OrderStatus.CANCELLED]: [],
-            [OrderStatus.DRAFT]: [OrderStatus.SPEC_PENDING],
+            [OrderStatus.DRAFT]: [OrderStatus.RECEIVED, OrderStatus.SPEC_PENDING],
         };
         return allowedTransitions[currentStatus] || [];
     }
