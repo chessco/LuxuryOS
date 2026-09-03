@@ -18,6 +18,7 @@ import PublicScreen from './pages/PublicScreen';
 import StaffQueue from './pages/StaffQueue';
 import Pickup from './pages/Pickup';
 import Integrations from './pages/Integrations';
+import Reports from './pages/Reports';
 import Sidebar from './components/Sidebar';
 import PublicOrderTrack from './pages/PublicOrderTrack';
 import PublicQueueTrack from './pages/PublicQueueTrack';
@@ -57,6 +58,7 @@ function App() {
                         <Route path="/orders" element={<Orders />} />
                         <Route path="/orders/:id" element={<OrderDetail />} />
                         <Route path="/clients" element={<Clients />} />
+                        <Route path="/reports" element={<Reports />} />
                         <Route path="/inventory" element={
                             <RoleRedirect allowedRoles={['SYSTEM_ADMIN']} redirectTo="/orders">
                                 <Inventory />
