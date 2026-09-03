@@ -376,6 +376,8 @@ export class OrdersService {
         const isFullDataWithImage = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
         const isDelivered = statusLabel === 'ENTREGADO';
 
+        const trackingUrl = `https://luxuryos.pitayacode.io/track/${orderCode}`;
+
         let message = '';
         if (isFullDataWithImage) {
             const settings = await this.prisma.setting.findMany({ where: { tenantId } });
@@ -394,6 +396,9 @@ export class OrdersService {
 *Concepto:* ${getConcepto(order.type)}
 *Status:* ${statusLabel}
 
+🌐 *Ver seguimiento en línea:*
+${trackingUrl}
+
 ${codeImageUrl}
 
 Gracias por su preferencia. ✨`;
@@ -409,14 +414,20 @@ Gracias por su preferencia. ✨`;
 *Status:* ${statusLabel}
 *Fecha Entrega:* ${deliveryDateStr}
 
+🌐 *Ver seguimiento en línea:*
+${trackingUrl}
+
 Gracias por su preferencia. ✨`;
         } else {
-            // Intermediate/Other statuses: remove Barcode/QR image, remove Fecha, Cliente and Gracias por su preferencia
+            // Intermediate/Other statuses (e.g. EN TALLER)
             message = `🔔 *CARED* 🔔
 
 *No. Orden:* ${orderCode}
 *Concepto:* ${getConcepto(order.type)}
-*Status:* ${statusLabel}`;
+*Status:* ${statusLabel}
+
+🌐 *Ver seguimiento en línea:*
+${trackingUrl}`;
         }
 
         const success = await this.notificationService.sendCustomMessage(tenantId, phone, message);

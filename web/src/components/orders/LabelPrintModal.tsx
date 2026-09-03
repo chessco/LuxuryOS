@@ -65,6 +65,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         const statusLabel = getStatusLabel(order.status);
         const isFullDataWithImage = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
         const isDelivered = statusLabel === 'ENTREGADO';
+        const trackingUrl = `https://luxuryos.pitayacode.io/track/${orderCode}`;
 
         const codeImageUrl = labelCodeType === 'QR'
             ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
@@ -80,6 +81,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
                 `*Status:* ${statusLabel}`,
+                ``,
+                `🌐 *Ver seguimiento en línea:*`,
+                `${trackingUrl}`,
                 ``,
                 codeImageUrl,
                 ``,
@@ -98,6 +102,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*Status:* ${statusLabel}`,
                 `*Fecha Entrega:* ${deliveryDateStr}`,
                 ``,
+                `🌐 *Ver seguimiento en línea:*`,
+                `${trackingUrl}`,
+                ``,
                 `Gracias por su preferencia. ✨`,
             ].join('\n');
         } else {
@@ -107,6 +114,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
                 `*Status:* ${statusLabel}`,
+                ``,
+                `🌐 *Ver seguimiento en línea:*`,
+                `${trackingUrl}`,
             ].join('\n');
         }
 
