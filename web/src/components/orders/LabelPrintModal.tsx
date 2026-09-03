@@ -11,6 +11,28 @@ const getConcepto = (type: string) => {
     return 'VENTA';
 };
 
+const getStatusLabel = (status: string) => {
+    const s = (status || '').toUpperCase().trim();
+    if (['RECEIVED', 'DRAFT', 'NUEVO', 'PENDING', 'INTERES_LEAD', 'RECIBIDO'].includes(s)) return 'RECIBIDO';
+    if ([
+        'IN_REPAIR', 'IN_PRODUCTION', 'IN_PROGRESS', 'IN_WORKSHOP', 
+        'TALLER', 'PRODUCTION', 'EN_PROCESO', 'EN_PRODUCCION', 
+        'CONTROL_CALIDAD', 'QUALITY_CHECK', 'DIAGNOSIS_PENDING', 
+        'WAITING_PARTS', 'SPEC_PENDING', 'MATERIALS_PENDING', 'EN TALLER'
+    ].includes(s)) return 'EN TALLER';
+    if ([
+        'REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'READY', 'COMPLETED', 
+        'TERMINADO', 'LISTO', 'LISTO_ENTREGA'
+    ].includes(s)) return 'LISTO';
+    if (['DELIVERED', 'ENTREGADO', 'ENTREGADO_POSTVENTA'].includes(s)) return 'ENTREGADO';
+    if (['CANCELLED', 'CANCELADO'].includes(s)) return 'CANCELADO';
+    if (['QUOTE_SENT', 'COTIZACION_ENVIADA'].includes(s)) return 'COTIZACIÓN';
+    if (['APPROVED', 'APROBADO_ANTICIPO'].includes(s)) return 'APROBADO';
+    if (['LAYAWAY_OPEN'].includes(s)) return 'APARTADO';
+    if (['LAYAWAY_EXPIRED'].includes(s)) return 'VENCIDO';
+    return s.replace(/_/g, ' ');
+};
+
 interface LabelPrintModalProps {
     isOpen: boolean;
     onClose: () => void;
