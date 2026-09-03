@@ -198,26 +198,52 @@ const Orders: React.FC = () => {
 
     const handleCreateOrder = async (newOrder: any) => {
         try {
-            // Find or create client using UPPERCASE
-            const clientNameUpper = newOrder.client.toUpperCase().trim();
-            let selectedClient = clients.find(c => c.name.toLowerCase().trim() === clientNameUpper.toLowerCase().trim());
+            let selectedClient: any = null;
 
+            // 1. If explicit clientId was passed from selection
+            if (newOrder.selectedClientId) {
+                selectedClient = clients.find(c => c.id === newOrder.selectedClientId);
+            }
+
+            // 2. If not, match by name (case-insensitive & trimmed)
+            const clientNameUpper = (newOrder.client || '').toUpperCase().trim();
+            if (!selectedClient && clientNameUpper) {
+                selectedClient = clients.find(c => c.name?.toLowerCase().trim() === clientNameUpper.toLowerCase());
+            }
+
+            // 3. If not, match by phone
+            const rawPhone = (newOrder.clientPhone || newOrder.newClientPhone || prefillClientPhone || '').replace(/\D/g, '');
+            if (!selectedClient && rawPhone.length >= 7) {
+                selectedClient = clients.find(c => {
+                    if (!c.phone) return false;
+                    const cClean = c.phone.replace(/\D/g, '');
+                    return cClean.length >= 7 && (cClean.includes(rawPhone) || rawPhone.includes(cClean));
+                });
+            }
+
+            // 4. If still not found, create new client
             if (!selectedClient) {
+                if (!clientNameUpper) {
+                    alert("Debes seleccionar o ingresar el nombre del cliente.");
+                    return;
+                }
                 try {
-                    // Create new client first with name in UPPERCASE
                     selectedClient = await ClientsService.create({
                         name: clientNameUpper,
-                        phone: newOrder.newClientPhone?.trim() || undefined,
+                        phone: newOrder.newClientPhone?.trim() || prefillClientPhone?.trim() || undefined,
                         email: newOrder.newClientEmail?.trim() || undefined
                     });
-                    
-                    // Refresh local clients list
                     await fetchClients();
                 } catch (clientError) {
                     console.error("Auto client creation failed", clientError);
                     alert("Error al registrar automáticamente el nuevo cliente.");
                     return;
                 }
+            }
+
+            if (!selectedClient?.id) {
+                alert("No se pudo identificar el cliente. Por favor selecciónalo de la lista.");
+                return;
             }
 
             const cleanNumber = (val: any) => {
@@ -776,6 +802,10 @@ const NewOrderDrawer: React.FC<{
         const mainItem = items[0] || {};
         const submissionData = {
             ...formData,
+            selectedClientId: selectedClientInfo?.id,
+            clientPhone: selectedClientInfo?.phone || initialClientPhone || newClientData.phone,
+            newClientPhone: newClientData.phone || initialClientPhone,
+            newClientEmail: newClientData.email,
             ...mainItem,
             pieceType: mainItem.item,
             notes: mainItem.notes || '', // Map first item notes to top-level order notes
