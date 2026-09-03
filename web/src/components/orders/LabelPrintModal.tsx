@@ -55,14 +55,15 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             : new Date().toLocaleDateString('es-MX');
 
         const statusLabel = getStatusLabel(order.status);
-        const isFullDataStatus = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
+        const isFullDataWithImage = statusLabel === 'RECIBIDO' || statusLabel === 'LISTO';
+        const isDelivered = statusLabel === 'ENTREGADO';
 
         const codeImageUrl = labelCodeType === 'QR'
             ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
             : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
         let message = '';
-        if (isFullDataStatus) {
+        if (isFullDataWithImage) {
             message = [
                 `🔔 *CARED* 🔔`,
                 ``,
@@ -73,6 +74,24 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*Status:* ${statusLabel}`,
                 ``,
                 codeImageUrl,
+                ``,
+                `Gracias por su preferencia. ✨`,
+            ].join('\n');
+        } else if (isDelivered) {
+            const deliveryDate = order.deliveredAt ? new Date(order.deliveredAt) : new Date();
+            const deliveryDateStr = deliveryDate.toLocaleDateString('es-MX', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+
+            message = [
+                `🔔 *CARED* 🔔`,
+                ``,
+                `*Fecha:* ${dateStr}`,
+                `*Cliente:* ${clientName}`,
+                `*No. Orden:* ${orderCode}`,
+                `*Concepto:* ${getConcepto(order.type)}`,
+                `*Status:* ${statusLabel}`,
+                `*Fecha Entrega:* ${deliveryDateStr}`,
                 ``,
                 `Gracias por su preferencia. ✨`,
             ].join('\n');
