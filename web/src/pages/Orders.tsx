@@ -284,7 +284,8 @@ const Orders: React.FC = () => {
             nextParams.delete('clientPhone');
             nextParams.delete('ticketId');
             nextParams.delete('ticketCode');
-            navigate({ pathname: location.pathname, search: nextParams.toString() ? `?${nextParams.toString()}` : '' }, { replace: true });
+            const searchStr = nextParams.toString() ? `?${nextParams.toString()}` : '';
+            navigate(`${location.pathname}${searchStr}`, { replace: true });
 
             if (newOrder.shouldPrintLabel) {
                 setLabelPrintOrder(created);
@@ -585,7 +586,8 @@ const Orders: React.FC = () => {
                             nextParams.delete('clientPhone');
                             nextParams.delete('ticketId');
                             nextParams.delete('ticketCode');
-                            navigate({ pathname: location.pathname, search: nextParams.toString() ? `?${nextParams.toString()}` : '' }, { replace: true });
+                            const searchStr = nextParams.toString() ? `?${nextParams.toString()}` : '';
+                            navigate(`${location.pathname}${searchStr}`, { replace: true });
                         }}
                         onSave={handleCreateOrder}
                         clients={clients}
