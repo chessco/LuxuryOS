@@ -126,9 +126,23 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
         let baseUrl = (this.apiUrl || 'https://pitayacore-api.pitayacode.io/api').replace(/\/+$/, '');
         let targetUrl = baseUrl.endsWith('/api') ? `${baseUrl}/whatsapp/send` : `${baseUrl}/api/whatsapp/send`;
 
-        console.log(`[PitayaCore WA] Requesting ${targetUrl} for ${recipient}`);
+        // Extract any image URL from content to send as rich media with caption
+        const imgMatch = content.match(/(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|webp)|https?:\/\/bwipjs-api[^\s]+|https?:\/\/api\.qrserver[^\s]+)/i);
+        const imageUrl = imgMatch ? imgMatch[0] : undefined;
+        const cleanContent = imageUrl ? content.replace(imageUrl, '').replace(/\n{3,}/g, '\n\n').trim() : content;
+
+        console.log(`[PitayaCore WA] Requesting ${targetUrl} for ${recipient}, media: ${!!imageUrl}`);
 
         try {
+            const payload: any = {
+                to: recipient,
+                content: cleanContent
+            };
+            if (imageUrl) {
+                payload.imageUrl = imageUrl;
+                payload.mediaUrl = imageUrl;
+            }
+
             const response = await fetch(targetUrl, {
                 method: 'POST',
                 headers: {
@@ -136,10 +150,7 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
                     'x-api-key': this.apiKey || 'pitaya_internal_secret_2026',
                     'x-tenant-id': this.tenantId || '87e0dd95-fd29-4e63-a219-18478c58e4c8'
                 },
-                body: JSON.stringify({
-                    to: recipient,
-                    content: content
-                })
+                body: JSON.stringify(payload)
             });
 
             const text = await response.text();
@@ -156,6 +167,15 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
 
                 console.log(`[PitayaCore WA Retry] Primary failed (${data.error || 'error'}), retrying with ${altRecipient}...`);
 
+                const retryPayload: any = {
+                    to: altRecipient,
+                    content: cleanContent
+                };
+                if (imageUrl) {
+                    retryPayload.imageUrl = imageUrl;
+                    retryPayload.mediaUrl = imageUrl;
+                }
+
                 const retryResponse = await fetch(targetUrl, {
                     method: 'POST',
                     headers: {
@@ -163,10 +183,7 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
                         'x-api-key': this.apiKey || 'pitaya_internal_secret_2026',
                         'x-tenant-id': this.tenantId || '87e0dd95-fd29-4e63-a219-18478c58e4c8'
                     },
-                    body: JSON.stringify({
-                        to: altRecipient,
-                        content: content
-                    })
+                    body: JSON.stringify(retryPayload)
                 });
 
                 const retryText = await retryResponse.text();

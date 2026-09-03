@@ -295,7 +295,23 @@ export class OrdersService {
             return 'VENTA';
         };
 
-        const barcodeImageUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
+        const getStatusLabel = (status: string) => {
+            const s = (status || '').toUpperCase();
+            if (s === 'RECEIVED' || s === 'PENDING' || s === 'NUEVO') return 'RECIBIDO';
+            if (s === 'IN_PROGRESS' || s === 'IN_WORKSHOP' || s === 'TALLER' || s === 'PRODUCTION' || s === 'EN_PROCESO') return 'EN TALLER';
+            if (s === 'READY' || s === 'COMPLETED' || s === 'TERMINADO') return 'LISTO';
+            if (s === 'DELIVERED' || s === 'ENTREGADO') return 'ENTREGADO';
+            if (s === 'CANCELLED' || s === 'CANCELADO') return 'CANCELADO';
+            return s || 'RECIBIDO';
+        };
+
+        const settings = await this.prisma.setting.findMany({ where: { tenantId } });
+        const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
+        const codeType = map['label_code_type'] || 'BARCODE';
+
+        const codeImageUrl = codeType === 'QR'
+            ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
+            : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
         const message = `🔔 *CARED* 🔔
 
@@ -303,8 +319,9 @@ export class OrdersService {
 *Cliente:* ${clientName}
 *No. Orden:* ${orderCode}
 *Concepto:* ${getConcepto(order.type)}
+*Status:* ${getStatusLabel(order.status)}
 
-${barcodeImageUrl}
+${codeImageUrl}
 
 Gracias por su preferencia. ✨`;
 
