@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStatusLabel } from '../../pages/Orders';
+import { OrdersService } from '../../services/orders.service';
 
 interface OrdersTableProps {
     orders: any[];
     onOrderDeleted?: () => void;
+    onRefresh?: () => void;
 }
 
 type SortConfig = {
@@ -12,12 +14,51 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted }) => {
+const getStatusOptions = (orderType: string) => {
+    const type = (orderType || 'STANDARD').toUpperCase();
+    if (type === 'REPAIR') {
+        return [
+            { value: 'RECEIVED', label: 'RECIBIDO' },
+            { value: 'IN_REPAIR', label: 'EN TALLER' },
+            { value: 'REPAIR_COMPLETED', label: 'LISTO' },
+            { value: 'DELIVERED', label: 'ENTREGADO' },
+            { value: 'CANCELLED', label: 'CANCELADO' }
+        ];
+    }
+    if (type === 'MANUFACTURE') {
+        return [
+            { value: 'RECEIVED', label: 'RECIBIDO' },
+            { value: 'IN_PRODUCTION', label: 'EN TALLER' },
+            { value: 'READY_FOR_PICKUP', label: 'LISTO' },
+            { value: 'DELIVERED', label: 'ENTREGADO' },
+            { value: 'CANCELLED', label: 'CANCELADO' }
+        ];
+    }
+    if (type === 'LAYAWAY') {
+        return [
+            { value: 'LAYAWAY_OPEN', label: 'APARTADO' },
+            { value: 'LAYAWAY_EXPIRED', label: 'VENCIDO' },
+            { value: 'DELIVERED', label: 'ENTREGADO' },
+            { value: 'CANCELLED', label: 'CANCELADO' }
+        ];
+    }
+    return [
+        { value: 'INTERES_LEAD', label: 'INTERÉS / LEAD' },
+        { value: 'COTIZACION_ENVIADA', label: 'COTIZACIÓN' },
+        { value: 'APROBADO_ANTICIPO', label: 'APROBADO / ANTICIPO' },
+        { value: 'EN_PRODUCCION', label: 'EN PRODUCCIÓN' },
+        { value: 'CONTROL_CALIDAD', label: 'CONTROL CALIDAD' },
+        { value: 'ENTREGADO_POSTVENTA', label: 'ENTREGADO' },
+        { value: 'CANCELLED', label: 'CANCELADO' }
+    ];
+};
+
+export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted, onRefresh }) => {
     const navigate = useNavigate();
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isSystemAdmin = user.role === 'SYSTEM_ADMIN';
+    const isSystemAdmin = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN' || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
 
     const sortedOrders = useMemo(() => {
         let sortableItems = [...orders];
@@ -26,7 +67,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted
                 let aValue: any = a[sortConfig.key];
                 let bValue: any = b[sortConfig.key];
 
-                // Special handling for nested or derived fields
                 if (sortConfig.key === 'client') {
                     aValue = a.client?.name || a.client || '';
                     bValue = b.client?.name || b.client || '';
@@ -73,7 +113,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted
             onClick={() => requestSort(sortKey)}
         >
             <div className={`flex items-center gap-2 ${align === 'right' ? 'justify-end' : ''}`}>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 group-hover/th:text-zinc-900 dark:group-hover/th:text-white transition-colors">{label}</span>
+                <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black uppercase tracking-widest">{label}</span>
                 {getSortIcon(sortKey)}
             </div>
         </th>
@@ -122,23 +162,57 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted
                                         <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-black uppercase tracking-widest transition-colors">{order.receivedTime}</span>
                                     </div>
                                 </td>
-                                <td className="px-8 py-6">
+                                <td className="px-8 py-6" onClick={(e) => e.stopPropagation()}>
                                     {(() => {
-                                        const displayLabel = getStatusLabel(order.statusLabel || order.status || '');
-                                        const isDelivered = displayLabel === 'ENTREGADO' || order.status === 'DELIVERED';
-                                        const isReady = displayLabel === 'PARA ENTREGA' || order.status === 'REPAIR_COMPLETED' || order.status === 'READY_FOR_PICKUP';
+                                        const rawStatus = (order.status || order.stage || 'RECEIVED').toUpperCase();
+                                        const displayLabel = getStatusLabel(order.statusLabel || rawStatus);
+                                        const isDelivered = displayLabel === 'ENTREGADO' || rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA';
+                                        const isReady = displayLabel === 'PARA ENTREGA' || displayLabel === 'LISTO' || rawStatus === 'REPAIR_COMPLETED' || rawStatus === 'READY_FOR_PICKUP' || rawStatus === 'READY';
+                                        const isInWorkshop = displayLabel === 'EN TALLER' || displayLabel === 'PRODUCCIÓN' || rawStatus === 'IN_REPAIR' || rawStatus === 'IN_PRODUCTION' || rawStatus === 'EN_PRODUCCION' || rawStatus === 'QUALITY_CHECK';
+
+                                        if (isSystemAdmin) {
+                                            const options = getStatusOptions(order.type);
+                                            return (
+                                                <select
+                                                    value={rawStatus}
+                                                    onChange={async (e) => {
+                                                        const newStatus = e.target.value;
+                                                        try {
+                                                            await OrdersService.moveOrder(order.id, newStatus);
+                                                            if (onRefresh) onRefresh();
+                                                        } catch (err) {
+                                                            console.error("Error updating status:", err);
+                                                            alert("Error al cambiar estado");
+                                                        }
+                                                    }}
+                                                    className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-widest cursor-pointer outline-none border transition-all shadow-sm ${
+                                                        isDelivered
+                                                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                                                            : isReady
+                                                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                                            : isInWorkshop
+                                                            ? 'bg-yellow-300 dark:bg-yellow-400 text-black border-yellow-500 font-black'
+                                                            : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 font-bold'
+                                                    }`}
+                                                    title="Modificar estado directamente"
+                                                >
+                                                    {options.map((opt) => (
+                                                        <option key={opt.value} value={opt.value} className="bg-background text-foreground font-bold">
+                                                            {opt.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            );
+                                        }
+
                                         return (
                                             <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border transition-colors ${
                                                 isDelivered
                                                     ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                                     : isReady
                                                     ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                                                    : order.statusType === 'urgent'
-                                                    ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                                                    : order.statusType === 'success'
-                                                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                                    : order.statusType === 'new'
-                                                    ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
+                                                    : isInWorkshop
+                                                    ? 'bg-yellow-300 dark:bg-yellow-400 text-black border-yellow-500 font-black'
                                                     : 'bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700'
                                             }`}>
                                                 {displayLabel}
@@ -182,7 +256,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted
                                                 e.stopPropagation();
                                                 if (window.confirm("¿Seguro que deseas eliminar permanentemente este pedido? Esta acción no se puede deshacer y borrará todos los pagos asociados.")) {
                                                     try {
-                                                        const { OrdersService } = await import('../../services/orders.service');
                                                         await OrdersService.deleteOrder(order.id);
                                                         alert("Pedido eliminado exitosamente.");
                                                         if (onOrderDeleted) onOrderDeleted();

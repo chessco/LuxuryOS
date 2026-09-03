@@ -540,7 +540,7 @@ const Orders: React.FC = () => {
                 </DndContext>
             ) : (
                 <main className="flex-1 overflow-y-auto pb-10 custom-scrollbar">
-                    <OrdersTable orders={filteredOrders} onOrderDeleted={fetchBoard} />
+                    <OrdersTable orders={filteredOrders} onOrderDeleted={fetchBoard} onRefresh={fetchBoard} />
                 </main>
             )}
 
