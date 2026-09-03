@@ -215,6 +215,7 @@ export class OrdersService {
         const paidAmount = order.paidAmount ? new Prisma.Decimal(order.paidAmount) : new Prisma.Decimal(0);
         const balance = totalAmount.sub(paidAmount);
 
+        const isDelivering = (status === 'DELIVERED' || status === 'ENTREGADO' || status === 'ENTREGADO_POSTVENTA');
         const updated = await this.prisma.order.update({
             where: { id },
             data: {
@@ -238,7 +239,8 @@ export class OrdersService {
                 specifications,
                 clientId,
                 status,
-                imageUrl
+                imageUrl,
+                ...(isDelivering ? { deliveredAt: new Date() } : {})
             }
         });
 

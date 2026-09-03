@@ -37,7 +37,12 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
         displayPieces.push({ _isFiller: true });
     }
 
-    const today = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const today = new Date().toLocaleDateString('es-MX', {
+        timeZone: 'America/Hermosillo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
 
     return (
         <AnimatePresence>

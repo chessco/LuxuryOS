@@ -51,10 +51,8 @@ const REPAIR_COLUMNS: Column[] = [
 ];
 
 const MANUFACTURE_COLUMNS: Column[] = [
-    { id: 'SPEC_PENDING', name: 'Specs/Diseño', color: 'bg-zinc-500' },
-    { id: 'MATERIALS_PENDING', name: 'Materiales', color: 'bg-amber-400' },
-    { id: 'IN_PRODUCTION', name: 'Producción', color: 'bg-white', focus: true },
-    { id: 'QUALITY_CHECK', name: 'Control Calidad', color: 'bg-purple-400' },
+    { id: 'RECEIVED', name: 'Recibido', color: 'bg-zinc-500' },
+    { id: 'IN_PRODUCTION', name: 'En Taller', color: 'bg-white', focus: true },
     { id: 'READY_FOR_PICKUP', name: 'Listo', color: 'bg-emerald-400' },
 ];
 
