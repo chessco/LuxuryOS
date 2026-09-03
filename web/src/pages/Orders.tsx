@@ -67,7 +67,7 @@ export const SPANISH_STATUS_MAP: Record<string, string> = {
     'IN_REPAIR': 'EN TALLER',
     'REPAIR_COMPLETED': 'PARA ENTREGA',
     'READY_FOR_PICKUP': 'PARA ENTREGA',
-    'SPEC_PENDING': 'EN TALLER',
+    'SPEC_PENDING': 'RECIBIDO',
     'MATERIALS_PENDING': 'EN TALLER',
     'IN_PRODUCTION': 'EN TALLER',
     'QUALITY_CHECK': 'EN TALLER',
@@ -353,7 +353,7 @@ const Orders: React.FC = () => {
             } else if (activeFilter === 'En Taller') {
                 result = result.filter(o => {
                     const label = (o.statusLabel || '').toUpperCase();
-                    return label === 'EN TALLER' || label === 'PRODUCCIÓN' || label === 'CONTROL CALIDAD';
+                    return label === 'EN TALLER';
                 });
             } else if (activeFilter === 'Para Entrega') {
                 result = result.filter(o => {
