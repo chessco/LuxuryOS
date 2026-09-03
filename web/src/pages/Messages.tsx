@@ -520,13 +520,12 @@ export const Messages: React.FC = () => {
                                                     </span>
                                                 </div>
 
-                                                {/* SUBTITULO: Celular usado para la transmisión */}
                                                 <p className={`text-[10px] font-bold tracking-wider mb-1 ${isSelected ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
                                                     📱 {conv.formattedPhone}
                                                 </p>
 
                                                 <p className={`text-[10px] truncate font-medium ${isSelected ? 'text-white/80' : 'opacity-60'}`}>
-                                                    {conv.lastMessage}
+                                                    {conv.lastMessage?.replace(/https?:\/\/[^\s]+/g, '📷 [Código]').trim()}
                                                 </p>
                                             </div>
                                         </button>
@@ -543,14 +542,12 @@ export const Messages: React.FC = () => {
                                 {/* Header */}
                                 <div className="px-8 py-5 border-b border-border flex items-center justify-between bg-emerald-950/10 border-l-4 border-l-emerald-500">
                                     <div className="flex items-center gap-4">
-                                        <div className="size-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shadow-lg shadow-emerald-600/20">
+                                        <div className="size-11 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black text-xs flex items-center justify-center border border-emerald-500/30">
                                             {selectedWaConv.clientName.substring(0, 2).toUpperCase()}
                                         </div>
                                         <div>
-                                            {/* Nombre del Cliente */}
                                             <h3 className="text-foreground font-black text-base uppercase tracking-tight">{selectedWaConv.clientName}</h3>
                                             
-                                            {/* Celular usado para la transmisión */}
                                             <div className="flex items-center gap-3 mt-0.5">
                                                 <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wider">
                                                     Transmisión WhatsApp: <span className="font-mono">{selectedWaConv.formattedPhone}</span>
@@ -576,6 +573,10 @@ export const Messages: React.FC = () => {
                                     ) : (
                                         waMessages.map((msg) => {
                                             const isOutbound = msg.direction === 'OUTBOUND';
+                                            const imgMatch = msg.content?.match(/(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|webp)|https?:\/\/bwipjs-api[^\s]+|https?:\/\/api\.qrserver[^\s]+)/i);
+                                            const mediaUrl = imgMatch ? imgMatch[0] : null;
+                                            const textBody = mediaUrl ? msg.content.replace(mediaUrl, '').replace(/\n{3,}/g, '\n\n').trim() : msg.content;
+
                                             return (
                                                 <div key={msg.id} className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
                                                     <div className="max-w-[75%] group relative">
@@ -584,7 +585,16 @@ export const Messages: React.FC = () => {
                                                                 ? 'bg-emerald-600 text-white rounded-tr-none'
                                                                 : 'bg-background text-foreground rounded-tl-none border border-border'
                                                         }`}>
-                                                            <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                                                            {mediaUrl && (
+                                                                <div className="mb-3 p-2 bg-white rounded-xl flex items-center justify-center max-w-[260px] shadow-sm border border-black/10">
+                                                                    <img 
+                                                                        src={mediaUrl} 
+                                                                        alt="Código de Orden" 
+                                                                        className="max-h-40 max-w-full object-contain rounded"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            <div className="whitespace-pre-wrap leading-relaxed">{textBody}</div>
                                                             <div className={`text-[8px] font-black uppercase tracking-tighter mt-1.5 flex items-center justify-end gap-1 ${
                                                                 isOutbound ? 'text-emerald-100' : 'text-muted-foreground'
                                                             }`}>
