@@ -56,9 +56,9 @@ const getStatusOptions = (orderType: string) => {
 
 export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, onOrderDeleted, onRefresh }) => {
     const navigate = useNavigate();
+    const isDeliveredFilter = activeFilter === 'Entregados' || activeFilter === 'Entregado';
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
-    const isDeliveredFilter = activeFilter === 'Entregados' || activeFilter === 'Entregado';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isSystemAdmin = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN' || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
 
@@ -91,9 +91,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                 }
                 return 0;
             });
+        } else if (isDeliveredFilter) {
+            // Orden por defecto en Entregados: De más nuevo a más viejo según fecha de entrega
+            sortableItems.sort((a, b) => {
+                const dateA = a.deliveredAt ? new Date(a.deliveredAt).getTime() : (a.updatedAt ? new Date(a.updatedAt).getTime() : new Date(a.createdAt).getTime());
+                const dateB = b.deliveredAt ? new Date(b.deliveredAt).getTime() : (b.updatedAt ? new Date(b.updatedAt).getTime() : new Date(b.createdAt).getTime());
+                return dateB - dateA; // Más nuevo primero
+            });
         }
         return sortableItems;
-    }, [orders, sortConfig]);
+    }, [orders, sortConfig, isDeliveredFilter]);
 
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -105,6 +112,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
 
     const getSortIcon = (key: string) => {
         if (!sortConfig || sortConfig.key !== key) {
+            if (isDeliveredFilter && key === 'deliveredDate' && sortConfig === null) {
+                return <span className="material-symbols-outlined text-[14px] text-emerald-500">arrow_downward</span>;
+            }
             return <span className="material-symbols-outlined text-[14px] opacity-20">swap_vert</span>;
         }
         return sortConfig.direction === 'asc'
@@ -133,10 +143,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                             <HeaderTh label="Pedido" sortKey="id" />
                             <HeaderTh label="Cliente" sortKey="client" />
                             <HeaderTh label="Item" sortKey="item" />
-                            <HeaderTh 
-                                label={isDeliveredFilter ? "Fecha Entrega" : "Recibido"} 
-                                sortKey={isDeliveredFilter ? "deliveredDate" : "receivedDate"} 
-                            />
+                            <HeaderTh label="Recibido" sortKey="receivedDate" />
+                            {isDeliveredFilter && (
+                                <HeaderTh label="Fecha Entrega" sortKey="deliveredDate" />
+                            )}
                             <HeaderTh label="Estado" sortKey="status" />
                             <HeaderTh label="Valor" sortKey="value" />
                             <HeaderTh label="Prioridad" sortKey="priority" align="right" />
@@ -164,37 +174,40 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                 <td className="px-8 py-6">
                                     <span className="text-zinc-500 dark:text-zinc-400 text-sm font-medium transition-colors">{order.item}</span>
                                 </td>
+                                
+                                {/* Fecha Recepción */}
                                 <td className="px-8 py-6">
-                                    {isDeliveredFilter ? (
-                                        <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="material-symbols-outlined text-[16px] text-emerald-500">local_shipping</span>
-                                                <span className="text-zinc-900 dark:text-white text-[11px] font-black transition-colors">
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-zinc-900 dark:text-white text-[11px] font-bold transition-colors">{order.receivedDate}</span>
+                                            <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-black uppercase tracking-widest transition-colors">{order.receivedTime}</span>
+                                        </div>
+                                        {!isDeliveredFilter && order.deliveredDate && (
+                                            <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 w-fit">
+                                                <span className="material-symbols-outlined text-[12px]">local_shipping</span>
+                                                <span className="text-[9px] font-bold tracking-tight">Entrega: {order.deliveredDate}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </td>
+
+                                {/* Fecha Entrega (Columna exclusiva para Entregados) */}
+                                {isDeliveredFilter && (
+                                    <td className="px-8 py-6">
+                                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 w-fit shadow-sm">
+                                            <span className="material-symbols-outlined text-[16px]">local_shipping</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] font-black leading-tight text-foreground">
                                                     {order.deliveredDate || order.receivedDate}
                                                 </span>
-                                                <span className="text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest transition-colors">
+                                                <span className="text-[9px] font-black uppercase tracking-widest opacity-80">
                                                     {order.deliveredTime || order.receivedTime}
                                                 </span>
                                             </div>
-                                            <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-medium tracking-wide">
-                                                Recibido: {order.receivedDate}
-                                            </span>
                                         </div>
-                                    ) : (
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-zinc-900 dark:text-white text-[11px] font-bold transition-colors">{order.receivedDate}</span>
-                                                <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-black uppercase tracking-widest transition-colors">{order.receivedTime}</span>
-                                            </div>
-                                            {order.deliveredDate && (
-                                                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 w-fit">
-                                                    <span className="material-symbols-outlined text-[12px]">local_shipping</span>
-                                                    <span className="text-[9px] font-bold tracking-tight">Entrega: {order.deliveredDate} {order.deliveredTime}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </td>
+                                    </td>
+                                )}
+
                                 <td className="px-8 py-6" onClick={(e) => e.stopPropagation()}>
                                     {(() => {
                                         const rawStatus = (order.status || order.stage || 'RECEIVED').toUpperCase();
