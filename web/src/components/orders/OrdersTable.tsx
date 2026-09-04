@@ -5,6 +5,7 @@ import { OrdersService } from '../../services/orders.service';
 
 interface OrdersTableProps {
     orders: any[];
+    activeFilter?: string | null;
     onOrderDeleted?: () => void;
     onRefresh?: () => void;
 }
@@ -53,10 +54,11 @@ const getStatusOptions = (orderType: string) => {
     ];
 };
 
-export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted, onRefresh }) => {
+export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, onOrderDeleted, onRefresh }) => {
     const navigate = useNavigate();
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
+    const isDeliveredFilter = activeFilter === 'Entregados' || activeFilter === 'Entregado';
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isSystemAdmin = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN' || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
 
@@ -76,6 +78,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted
                 } else if (sortConfig.key === 'receivedDate') {
                     aValue = new Date(a.createdAt).getTime();
                     bValue = new Date(b.createdAt).getTime();
+                } else if (sortConfig.key === 'deliveredDate') {
+                    aValue = a.deliveredAt ? new Date(a.deliveredAt).getTime() : (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
+                    bValue = b.deliveredAt ? new Date(b.deliveredAt).getTime() : (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
                 }
 
                 if (aValue < bValue) {
@@ -128,7 +133,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted
                             <HeaderTh label="Pedido" sortKey="id" />
                             <HeaderTh label="Cliente" sortKey="client" />
                             <HeaderTh label="Item" sortKey="item" />
-                            <HeaderTh label="Recibido" sortKey="receivedDate" />
+                            <HeaderTh 
+                                label={isDeliveredFilter ? "Fecha Entrega" : "Recibido"} 
+                                sortKey={isDeliveredFilter ? "deliveredDate" : "receivedDate"} 
+                            />
                             <HeaderTh label="Estado" sortKey="status" />
                             <HeaderTh label="Valor" sortKey="value" />
                             <HeaderTh label="Prioridad" sortKey="priority" align="right" />
@@ -157,10 +165,35 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOrderDeleted
                                     <span className="text-zinc-500 dark:text-zinc-400 text-sm font-medium transition-colors">{order.item}</span>
                                 </td>
                                 <td className="px-8 py-6">
-                                    <div className="flex flex-col">
-                                        <span className="text-zinc-900 dark:text-white text-[11px] font-bold transition-colors">{order.receivedDate}</span>
-                                        <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-black uppercase tracking-widest transition-colors">{order.receivedTime}</span>
-                                    </div>
+                                    {isDeliveredFilter ? (
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="material-symbols-outlined text-[16px] text-emerald-500">local_shipping</span>
+                                                <span className="text-zinc-900 dark:text-white text-[11px] font-black transition-colors">
+                                                    {order.deliveredDate || order.receivedDate}
+                                                </span>
+                                                <span className="text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest transition-colors">
+                                                    {order.deliveredTime || order.receivedTime}
+                                                </span>
+                                            </div>
+                                            <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-medium tracking-wide">
+                                                Recibido: {order.receivedDate}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-zinc-900 dark:text-white text-[11px] font-bold transition-colors">{order.receivedDate}</span>
+                                                <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-black uppercase tracking-widest transition-colors">{order.receivedTime}</span>
+                                            </div>
+                                            {order.deliveredDate && (
+                                                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 w-fit">
+                                                    <span className="material-symbols-outlined text-[12px]">local_shipping</span>
+                                                    <span className="text-[9px] font-bold tracking-tight">Entrega: {order.deliveredDate} {order.deliveredTime}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="px-8 py-6" onClick={(e) => e.stopPropagation()}>
                                     {(() => {

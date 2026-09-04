@@ -413,11 +413,17 @@ const OrderDetail: React.FC = () => {
                                     'text-indigo-600 border-indigo-500/20 bg-indigo-500/5'
                                 }`}>{order.statusLabel || order.status}</span>
                         </div>
-                        <div className="flex items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
+                        <div className="flex flex-wrap items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-[18px]">history</span>
                                 <span>Recibido: {order.date}</span>
                             </div>
+                            {(order.deliveredAt || order.status === 'DELIVERED' || order.status === 'ENTREGADO' || order.stage === 'ENTREGADO_POSTVENTA') && (
+                                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                                    <span className="material-symbols-outlined text-[16px]">local_shipping</span>
+                                    <span>Entregado: {order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (order.updatedAt ? new Date(order.updatedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Registrado')}</span>
+                                </div>
+                            )}
                             <div className="flex items-center gap-2">
                                 <select
                                     value={(order.priority || 'MEDIA').toUpperCase()}

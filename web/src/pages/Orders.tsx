@@ -171,7 +171,9 @@ const Orders: React.FC = () => {
                             stage === 'EN_PRODUCCION' ? 'urgent' :
                                 stage === 'APROBADO_ANTICIPO' ? 'success' : 'normal',
                         receivedDate: o.createdAt ? new Date(o.createdAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
-                        receivedTime: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('es-MX', { timeZone: 'America/Hermosillo', hour: '2-digit', minute: '2-digit' }) : ''
+                        receivedTime: o.createdAt ? new Date(o.createdAt).toLocaleTimeString('es-MX', { timeZone: 'America/Hermosillo', hour: '2-digit', minute: '2-digit' }) : '',
+                        deliveredDate: o.deliveredAt ? new Date(o.deliveredAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : ((stage === 'DELIVERED' || stage === 'ENTREGADO' || stage === 'ENTREGADO_POSTVENTA') && o.updatedAt ? new Date(o.updatedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''),
+                        deliveredTime: o.deliveredAt ? new Date(o.deliveredAt).toLocaleTimeString('es-MX', { timeZone: 'America/Hermosillo', hour: '2-digit', minute: '2-digit' }) : ((stage === 'DELIVERED' || stage === 'ENTREGADO' || stage === 'ENTREGADO_POSTVENTA') && o.updatedAt ? new Date(o.updatedAt).toLocaleTimeString('es-MX', { timeZone: 'America/Hermosillo', hour: '2-digit', minute: '2-digit' }) : '')
                     });
                 });
             });
@@ -620,7 +622,7 @@ const Orders: React.FC = () => {
                 </DndContext>
             ) : (
                 <main className="flex-1 overflow-y-auto pb-10 custom-scrollbar">
-                    <OrdersTable orders={filteredOrders} onOrderDeleted={fetchBoard} onRefresh={fetchBoard} />
+                    <OrdersTable orders={filteredOrders} activeFilter={activeFilter} onOrderDeleted={fetchBoard} onRefresh={fetchBoard} />
                 </main>
             )}
 

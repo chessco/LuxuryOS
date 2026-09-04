@@ -38,18 +38,20 @@ interface OrderItem {
 type DateFilterPreset = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 type OrderTypeFilter = 'ALL' | 'REPAIR' | 'MANUFACTURE' | 'LAYAWAY';
 
+// Helper to get local date in YYYY-MM-DD format (prevents UTC timezone shift bug)
+const getLocalDateString = (d: Date = new Date()): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export const Reports: React.FC = () => {
     const [orders, setOrders] = useState<OrderItem[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [datePreset, setDatePreset] = useState<DateFilterPreset>('today');
-    const [startDate, setStartDate] = useState<string>(() => {
-        const today = new Date();
-        return today.toISOString().split('T')[0];
-    });
-    const [endDate, setEndDate] = useState<string>(() => {
-        const today = new Date();
-        return today.toISOString().split('T')[0];
-    });
+    const [startDate, setStartDate] = useState<string>(() => getLocalDateString(new Date()));
+    const [endDate, setEndDate] = useState<string>(() => getLocalDateString(new Date()));
     const [typeFilter, setTypeFilter] = useState<OrderTypeFilter>('ALL');
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
@@ -74,8 +76,8 @@ export const Reports: React.FC = () => {
     const handlePresetChange = (preset: DateFilterPreset) => {
         setDatePreset(preset);
         const now = new Date();
-        let start = new Date();
-        let end = new Date();
+        let start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        let end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
         switch (preset) {
             case 'today':
@@ -101,24 +103,33 @@ export const Reports: React.FC = () => {
                 return;
         }
 
-        setStartDate(start.toISOString().split('T')[0]);
-        setEndDate(end.toISOString().split('T')[0]);
+        setStartDate(getLocalDateString(start));
+        setEndDate(getLocalDateString(end));
     };
 
     // Helper: Determine if order is delivered and get delivery date
     const getOrderDeliveryDate = (order: OrderItem): Date | null => {
+        const rawStatus = (order.status || '').toUpperCase();
+        const rawStage = (order.stage || '').toUpperCase();
         const isDelivered =
-            order.status === 'DELIVERED' ||
-            order.status === 'ENTREGADO' ||
-            order.stage === 'ENTREGADO_POSTVENTA';
+            rawStatus === 'DELIVERED' ||
+            rawStatus === 'ENTREGADO' ||
+            rawStage === 'ENTREGADO' ||
+            rawStage === 'ENTREGADO_POSTVENTA' ||
+            rawStage === 'DELIVERED';
 
         if (!isDelivered) return null;
 
         if (order.deliveredAt) {
-            return new Date(order.deliveredAt);
+            const parsed = new Date(order.deliveredAt);
+            if (!isNaN(parsed.getTime())) return parsed;
         }
         // Fallback to updatedAt if deliveredAt was not explicitly recorded
-        return order.updatedAt ? new Date(order.updatedAt) : new Date(order.createdAt);
+        if (order.updatedAt) {
+            const parsed = new Date(order.updatedAt);
+            if (!isNaN(parsed.getTime())) return parsed;
+        }
+        return order.createdAt ? new Date(order.createdAt) : new Date();
     };
 
     // Helper: Parse numerical amount safely
@@ -139,8 +150,9 @@ export const Reports: React.FC = () => {
             const deliveryDate = getOrderDeliveryDate(order);
             if (!deliveryDate) return false;
 
-            // Date Range check
-            if (deliveryDate < start || deliveryDate > end) return false;
+            // Date Range check (local timestamp comparison)
+            const time = deliveryDate.getTime();
+            if (time < start.getTime() || time > end.getTime()) return false;
 
             // Type filter check
             if (typeFilter !== 'ALL' && order.type !== typeFilter) return false;
@@ -241,7 +253,17 @@ export const Reports: React.FC = () => {
 
     const formatDateOnly = (dateStr: string) => {
         if (!dateStr) return '-';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const localD = new Date(y, m - 1, d);
+            return new Intl.DateTimeFormat('es-MX', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            }).format(localD);
+        }
         const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '-';
         return new Intl.DateTimeFormat('es-MX', {
             day: '2-digit',
             month: 'short',
