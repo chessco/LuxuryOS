@@ -14,7 +14,11 @@ window.addEventListener('vite:preloadError', (event) => {
 registerSW({
     immediate: true,
     onNeedRefresh() {
+        console.log('New content available, refreshing...');
         window.location.reload();
+    },
+    onOfflineReady() {
+        console.log('App ready to work offline');
     }
 });
 
