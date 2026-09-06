@@ -78,5 +78,9 @@ export class CreateOrderDto {
     materialCost?: number;
 
     @IsOptional()
+    @IsString()
+    createdById?: string;
+
+    @IsOptional()
     specifications?: any; // JSON
 }

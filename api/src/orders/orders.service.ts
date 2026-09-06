@@ -27,7 +27,10 @@ export class OrdersService {
 
         const orders = await this.prisma.order.findMany({
             where: query,
-            include: { client: true },
+            include: { 
+                client: true,
+                createdBy: { select: { id: true, name: true, email: true } }
+            },
         });
 
         // Determine grouping keys based on type
@@ -79,7 +82,7 @@ export class OrdersService {
         return updated;
     }
 
-    async createOrder(tenantId: string, data: CreateOrderDto) {
+    async createOrder(tenantId: string, data: CreateOrderDto, userId?: string) {
         const totalAmount = data.totalAmount ?? data.value ?? 0;
         const paidAmount = 0;
         const balance = totalAmount;
@@ -98,6 +101,7 @@ export class OrdersService {
             data: {
                 ...data,
                 tenantId,
+                createdById: data.createdById || userId,
                 totalAmount,
                 paidAmount,
                 balance,
@@ -106,6 +110,7 @@ export class OrdersService {
             },
             include: {
                 client: true,
+                createdBy: { select: { id: true, name: true, email: true } },
                 queueTicket: true,
             }
         });
@@ -118,6 +123,7 @@ export class OrdersService {
             where: { tenantId },
             include: { 
                 client: true, 
+                createdBy: { select: { id: true, name: true, email: true } },
                 queueTicket: true
             },
         });
@@ -135,6 +141,7 @@ export class OrdersService {
             where: { id, tenantId },
             include: { 
                 client: true, 
+                createdBy: { select: { id: true, name: true, email: true } },
                 payments: true,
                 queueTicket: true
             },
