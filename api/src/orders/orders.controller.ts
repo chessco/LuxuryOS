@@ -41,7 +41,8 @@ export class OrdersController {
 
     @Post('orders')
     async createOrder(@Body() body: CreateOrderDto, @Request() req) {
-        return this.ordersService.createOrder(req.user.tenantId, body);
+        const userId = req.user.id || req.user.userId;
+        return this.ordersService.createOrder(req.user.tenantId, body, userId);
     }
 
     @Get('orders/:id')

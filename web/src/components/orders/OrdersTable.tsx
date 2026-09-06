@@ -72,6 +72,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                 if (sortConfig.key === 'client') {
                     aValue = a.client?.name || a.client || '';
                     bValue = b.client?.name || b.client || '';
+                } else if (sortConfig.key === 'createdByName') {
+                    aValue = a.createdByName || a.createdBy?.name || '';
+                    bValue = b.createdByName || b.createdBy?.name || '';
                 } else if (sortConfig.key === 'value' || sortConfig.key === 'totalAmount') {
                     aValue = parseFloat(String(a.value || 0).replace(/[^0-9.-]/g, '')) || 0;
                     bValue = parseFloat(String(b.value || 0).replace(/[^0-9.-]/g, '')) || 0;
@@ -143,6 +146,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                             <HeaderTh label="Pedido" sortKey="id" />
                             <HeaderTh label="Cliente" sortKey="client" />
                             <HeaderTh label="Item" sortKey="item" />
+                            <HeaderTh label="Usuario" sortKey="createdByName" />
                             <HeaderTh label="Recibido" sortKey="receivedDate" />
                             {isDeliveredFilter && (
                                 <HeaderTh label="Fecha Entrega" sortKey="deliveredDate" />
@@ -173,6 +177,18 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                 </td>
                                 <td className="px-8 py-6">
                                     <span className="text-zinc-500 dark:text-zinc-400 text-sm font-medium transition-colors">{order.item}</span>
+                                </td>
+
+                                {/* Usuario Recepcionista / Creador */}
+                                <td className="px-8 py-6">
+                                    <div className="flex items-center gap-2">
+                                        <div className="size-6 rounded-full bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                            <span className="material-symbols-outlined text-[13px]">person</span>
+                                        </div>
+                                        <span className="text-zinc-800 dark:text-zinc-200 text-xs font-bold uppercase tracking-tight">
+                                            {order.createdByName || order.createdBy?.name || order.specifications?.receivedBy || '—'}
+                                        </span>
+                                    </div>
                                 </td>
                                 
                                 {/* Fecha Recepción */}

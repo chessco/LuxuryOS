@@ -30,6 +30,12 @@ interface OrderItem {
     priority?: string;
     notes?: string;
     specifications?: any;
+    createdBy?: {
+        id: string;
+        name?: string;
+        email?: string;
+    };
+    createdByName?: string;
     deliveredAt?: string;
     createdAt: string;
     updatedAt: string;
@@ -166,6 +172,7 @@ export const Reports: React.FC = () => {
                 const piece = (order.pieceType || '').toLowerCase();
                 const metal = (order.metal || '').toLowerCase();
                 const notes = (order.notes || '').toLowerCase();
+                const userName = (order.createdBy?.name || order.createdByName || order.specifications?.receivedBy || '').toLowerCase();
 
                 const matches =
                     clientName.includes(q) ||
@@ -173,7 +180,8 @@ export const Reports: React.FC = () => {
                     folio.includes(q) ||
                     piece.includes(q) ||
                     metal.includes(q) ||
-                    notes.includes(q);
+                    notes.includes(q) ||
+                    userName.includes(q);
 
                 if (!matches) return false;
             }
@@ -608,6 +616,7 @@ export const Reports: React.FC = () => {
                                     <th className="py-4 px-6">Cliente</th>
                                     <th className="py-4 px-6">Pieza / Detalles</th>
                                     <th className="py-4 px-6">Fecha Entrega</th>
+                                    <th className="py-4 px-6">Usuario</th>
                                     <th className="py-4 px-6">Fecha Recepción</th>
                                     <th className="py-4 px-6 text-right">Valor de la Orden</th>
                                     <th className="py-4 px-6 text-center no-print">Detalle</th>
@@ -680,6 +689,16 @@ export const Reports: React.FC = () => {
                                                 </span>
                                             </td>
 
+                                            {/* Usuario Recepcionista / Creador */}
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="material-symbols-outlined text-[15px] text-indigo-500">person</span>
+                                                    <span className="font-bold text-foreground uppercase tracking-tight text-xs">
+                                                        {order.createdBy?.name || order.createdByName || order.specifications?.receivedBy || '—'}
+                                                    </span>
+                                                </div>
+                                            </td>
+
                                             {/* Fecha Recepción */}
                                             <td className="py-4 px-6 font-mono text-muted-foreground">
                                                 {formatDateOnly(order.createdAt)}
@@ -706,7 +725,7 @@ export const Reports: React.FC = () => {
                             </tbody>
                             <tfoot>
                                 <tr className="border-t-2 border-border bg-muted/40 font-bold text-foreground">
-                                    <td colSpan={6} className="py-4 px-6 text-right text-xs uppercase tracking-wider">
+                                    <td colSpan={7} className="py-4 px-6 text-right text-xs uppercase tracking-wider">
                                         Total Facturado en Entregas:
                                     </td>
                                     <td className="py-4 px-6 text-right font-mono text-base text-emerald-500 font-black">

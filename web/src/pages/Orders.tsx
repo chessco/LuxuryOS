@@ -160,6 +160,7 @@ const Orders: React.FC = () => {
                         ...o,
                         // Mapping DB fields to UI expectation
                         client: o.client?.name || 'Cliente',
+                        createdByName: o.createdBy?.name || o.specifications?.receivedBy || o.specifications?.createdByName || '—',
                         item: o.pieceType,
                         value: `$${Number(o.value).toLocaleString()} MXN`,
                         status: stage, // keep raw stage for logic, map for display
@@ -399,7 +400,8 @@ const Orders: React.FC = () => {
                 (o.client && String(o.client).toLowerCase().includes(q)) ||
                 (o.id && o.id.toLowerCase().includes(q)) ||
                 (o.item && String(o.item).toLowerCase().includes(q)) ||
-                (o.pieceType && String(o.pieceType).toLowerCase().includes(q))
+                (o.pieceType && String(o.pieceType).toLowerCase().includes(q)) ||
+                (o.createdByName && String(o.createdByName).toLowerCase().includes(q))
             );
         }
 

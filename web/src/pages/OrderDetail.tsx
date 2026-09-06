@@ -253,9 +253,10 @@ const OrderDetail: React.FC = () => {
                         const acts: any[] = [];
 
                         // 1. Creation
+                        const creatorName = foundOrder.createdBy?.name || foundOrder.specifications?.receivedBy || foundOrder.specifications?.createdByName || "Sistema";
                         acts.push({
-                            user: "Sistema",
-                            action: "creó el pedido",
+                            user: creatorName,
+                            action: "recibió / creó el pedido",
                             target: "",
                             time: new Date(foundOrder.createdAt).toLocaleString(),
                             dotColor: "bg-muted-foreground/30"
@@ -414,6 +415,10 @@ const OrderDetail: React.FC = () => {
                                 }`}>{order.statusLabel || order.status}</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px]">person</span>
+                                <span>Recibió: <strong className="text-foreground">{order.createdBy?.name || order.specifications?.receivedBy || order.specifications?.createdByName || '—'}</strong></span>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-[18px]">history</span>
                                 <span>Recibido: {order.date}</span>
@@ -919,12 +924,12 @@ const DetailRow: React.FC<{ label: string, value: string, isItalic?: boolean, on
 );
 
 const STEPS = [
-    { name: 'Diseño', icon: 'brush' },
-    { name: 'Gemas', icon: 'diamond' },
-    { name: 'Fundición', icon: 'bolt' },
-    { name: 'Engaste', icon: 'settings_suggest' },
-    { name: 'Control', icon: 'fact_check' },
-    { name: 'Entrega', icon: 'local_shipping' }
+    { name: 'Diseño', status: 'COTIZACION_ENVIADA', icon: 'brush' },
+    { name: 'Gemas', status: 'APROBADO_ANTICIPO', icon: 'diamond' },
+    { name: 'Fundición', status: 'EN_PRODUCCION', icon: 'bolt' },
+    { name: 'Engaste', status: 'EN_PRODUCCION', icon: 'settings_suggest' },
+    { name: 'Control', status: 'CONTROL_CALIDAD', icon: 'fact_check' },
+    { name: 'Entrega', status: 'ENTREGADO_POSTVENTA', icon: 'local_shipping' }
 ];
 
 const FlowStep: React.FC<{ name: string, icon: string, status: 'completed' | 'current' | 'upcoming', onClick: () => void, isAuthorized?: boolean }> = ({ name, icon, status, onClick, isAuthorized }) => (
