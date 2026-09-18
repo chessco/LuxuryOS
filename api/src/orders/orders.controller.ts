@@ -57,7 +57,7 @@ export class OrdersController {
 
     @Patch('orders/:id')
     async updateOrder(@Param('id') id: string, @Body() body: any, @Request() req) {
-        return this.ordersService.updateOrder(req.user.tenantId, id, body);
+        return this.ordersService.updateOrder(req.user.tenantId, id, body, req.user);
     }
 
     @Get('orders')

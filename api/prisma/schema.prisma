@@ -27,6 +27,7 @@ enum Role {
   TENANT_ADMIN
   TENANT_USER
   VENDEDOR
+  JOYERO
 }
 
 model User {

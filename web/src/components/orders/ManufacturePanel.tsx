@@ -57,7 +57,15 @@ export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpd
     const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
 
     const handleStepClick = async (status: string) => {
-        if (!isAuthorized) return;
+        const targetIndex = DEFAULT_MANUFACTURE_STEPS.findIndex(s => s.status === status);
+        if (targetIndex === -1 || targetIndex === currentIndex) return;
+
+        // Regla: El workflow puede ser modificado por todos pero no ir hacia atrás (solo ADMIN y SYSTEM)
+        if (!isAuthorized && targetIndex < currentIndex) {
+            alert('No está permitido retroceder el estado del flujo de trabajo.');
+            return;
+        }
+
         try {
             await onUpdateStatus({
                 status: status,

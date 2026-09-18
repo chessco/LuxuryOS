@@ -185,14 +185,77 @@ export class OrdersService {
         return order; // No transition possible
     }
 
-    async updateOrder(tenantId: string, id: string, data: any) {
+    async updateOrder(tenantId: string, id: string, data: any, currentUser?: any) {
         const order = await this.getOrder(tenantId, id);
         if (!order) throw new NotFoundException('Order not found');
+
+        const userRole = currentUser?.role;
+        const isAuthorized = userRole === 'SYSTEM_ADMIN' || userRole === 'TENANT_ADMIN';
+
+        const STATUS_ORDER: Record<string, number> = {
+            'RECEIVED': 0,
+            'RECIBIDO': 0,
+            'DRAFT': 0,
+            'SPEC_PENDING': 0,
+            'INTERES_LEAD': 0,
+            'COTIZACION_ENVIADA': 0,
+            'APROBADO_ANTICIPO': 0,
+            'IN_REPAIR': 1,
+            'IN_PRODUCTION': 1,
+            'EN_PRODUCCION': 1,
+            'QUALITY_CHECK': 1,
+            'CONTROL_CALIDAD': 1,
+            'MATERIALS_PENDING': 1,
+            'REPAIR_COMPLETED': 2,
+            'READY_FOR_PICKUP': 2,
+            'READY': 2,
+            'DELIVERED': 3,
+            'ENTREGADO': 3,
+            'ENTREGADO_POSTVENTA': 3,
+        };
+
+        const currentStatusUpper = String(order.status || '').toUpperCase();
+        const currentStageUpper = String(order.stage || '').toUpperCase();
+        const statusIdx = STATUS_ORDER[currentStatusUpper];
+        const stageIdx = STATUS_ORDER[currentStageUpper];
+        const currentIdx = Math.max(statusIdx ?? 0, stageIdx ?? 0);
+        const isReceived = currentIdx === 0;
+
+        if (!isAuthorized && currentUser) {
+            // 1. Si no es admin/system y la orden ya no está en RECIBIDO, no se pueden modificar campos de detalle
+            if (!isReceived) {
+                const detailKeys = [
+                    'pieceType', 'value', 'cost', 'dueDate', 'metal', 'color',
+                    'karats', 'weight', 'size', 'thickness', 'itemCode',
+                    'laborCost', 'materialCost', 'clientId', 'priority', 'imageUrl'
+                ];
+                const hasDetailChanges = detailKeys.some(k => data[k] !== undefined);
+                if (hasDetailChanges) {
+                    throw new ForbiddenException('Las órdenes en estado diferente a Recibido solo pueden ser modificadas por Administradores y Sistema.');
+                }
+            }
+
+            // 2. Si se actualiza el workflow (status o stage), no se permite ir hacia atrás
+            if (data.status) {
+                const newStatusUpper = String(data.status).toUpperCase();
+                const newIdx = STATUS_ORDER[newStatusUpper];
+                if (newIdx !== undefined && newIdx < currentIdx) {
+                    throw new ForbiddenException('No está permitido retroceder el estado del flujo de trabajo.');
+                }
+            }
+            if (data.stage) {
+                const newStageUpper = String(data.stage).toUpperCase();
+                const newIdx = STATUS_ORDER[newStageUpper];
+                if (newIdx !== undefined && newIdx < currentIdx) {
+                    throw new ForbiddenException('No está permitido retroceder el estado del flujo de trabajo.');
+                }
+            }
+        }
 
         const {
             pieceType, value, cost, priority, notes, dueDate,
             metal, color, karats, weight, size, thickness, itemCode,
-            laborCost, materialCost, specifications, clientId, status, imageUrl
+            laborCost, materialCost, specifications, clientId, status, stage, imageUrl
         } = data;
 
         // Recalculate totalAmount and balance if financial fields are changing
@@ -247,6 +310,7 @@ export class OrdersService {
                 specifications,
                 clientId,
                 status,
+                stage: stage !== undefined ? stage : undefined,
                 imageUrl,
                 ...(isDelivering ? { deliveredAt: new Date() } : {})
             }

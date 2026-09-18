@@ -393,6 +393,13 @@ const OrderDetail: React.FC = () => {
         }
     };
 
+    const isJoyero = user.role === 'JOYERO';
+    const statusUpper = String(order.status || order.orderStatus || '').toUpperCase();
+    const stageUpper = String(order.stage || '').toUpperCase();
+    const isReceived = (!statusUpper || statusUpper === 'RECEIVED' || statusUpper === 'RECIBIDO' || statusUpper === 'DRAFT' || statusUpper === 'SPEC_PENDING') &&
+                       (!stageUpper || stageUpper === 'RECEIVED' || stageUpper === 'RECIBIDO' || stageUpper === 'INTERES_LEAD');
+    const canModifyOrderDetails = isAuthorized || (!isJoyero && isReceived);
+
     return (
         <div className="flex-1 flex flex-col h-full">
             {/* Breadcrumbs & Header */}
@@ -412,7 +419,7 @@ const OrderDetail: React.FC = () => {
                             <span className={`px-3 py-1 bg-muted border border-border text-[9px] font-black uppercase tracking-widest rounded-full transition-colors ${order.statusType === 'urgent' ? 'text-red-600 border-red-500/20 bg-red-500/5' :
                                 order.statusType === 'success' ? 'text-emerald-600 border-emerald-500/20 bg-emerald-500/5' :
                                     'text-indigo-600 border-indigo-500/20 bg-indigo-500/5'
-                                }`}>{order.statusLabel || order.status}</span>
+                                }}`}>{order.statusLabel || order.status}</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
                             <div className="flex items-center gap-2">
@@ -432,18 +439,21 @@ const OrderDetail: React.FC = () => {
                             <div className="flex items-center gap-2">
                                 <select
                                     value={(order.priority || 'MEDIA').toUpperCase()}
+                                    disabled={!canModifyOrderDetails}
                                     onChange={async (e) => {
                                         const newPriority = e.target.value;
                                         await handleSaveDetails({ priority: newPriority });
                                     }}
-                                    className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest cursor-pointer outline-none border transition-all shadow-sm ${
+                                    className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest outline-none border transition-all shadow-sm ${
+                                        !canModifyOrderDetails ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                                    } ${
                                         (order.priority || '').toUpperCase() === 'ALTA'
                                             ? 'bg-amber-400 text-black border-amber-500 font-black shadow-md'
                                             : (order.priority || '').toUpperCase() === 'MEDIA'
                                             ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-bold'
                                             : 'bg-muted text-muted-foreground border-border font-medium'
                                     }`}
-                                    title="Haz clic para modificar la prioridad del pedido"
+                                    title={canModifyOrderDetails ? "Haz clic para modificar la prioridad del pedido" : "Solo modificable en estado Recibido o por Administrador"}
                                 >
                                     <option value="BAJA" className="bg-background text-foreground">! BAJA</option>
                                     <option value="MEDIA" className="bg-background text-foreground">! MEDIA</option>
@@ -462,14 +472,18 @@ const OrderDetail: React.FC = () => {
                                 <span>Borrar Pedido</span>
                             </button>
                         )}
-                        <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm">
-                            <span className="material-symbols-outlined text-[20px]">edit</span>
-                            <span>Editar Detalles</span>
-                        </button>
-                        <button onClick={() => setIsLabelPrintOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest">
-                            <span className="material-symbols-outlined text-[20px]">print</span>
-                            <span>Imprimir Etiqueta</span>
-                        </button>
+                        {!isJoyero && canModifyOrderDetails && (
+                            <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm">
+                                <span className="material-symbols-outlined text-[20px]">edit</span>
+                                <span>Editar Detalles</span>
+                            </button>
+                        )}
+                        {!isJoyero && (
+                            <button onClick={() => setIsLabelPrintOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest">
+                                <span className="material-symbols-outlined text-[20px]">print</span>
+                                <span>Imprimir Etiqueta</span>
+                            </button>
+                        )}
                         <button
                             onClick={() => setIsPrintViewOpen(true)}
                             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
@@ -495,9 +509,8 @@ const OrderDetail: React.FC = () => {
             </header>
 
             {/* Stats Grid */}
-            {/* Stats Grid */}
             <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${user.role === 'VENDEDOR' ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4 mb-10`}>
-                <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('totalAmount', v)} subtext="Venta" icon="payments" color="text-foreground" />
+                <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('totalAmount', v) : undefined} subtext="Venta" icon="payments" color="text-foreground" />
                 <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
                 <StatCard 
                     label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
@@ -510,14 +523,14 @@ const OrderDetail: React.FC = () => {
                 />
                 {user.role !== 'VENDEDOR' && (
                     <>
-                        <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('cost', v)} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
+                        <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
                         <StatCard label="Margen" value={(parseValue(order.totalAmount) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
                     </>
                 )}
                 <StatCard
                     label="Entrega"
                     value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
-                    onUpdate={(v) => updateField('dueDate', v)}
+                    onUpdate={canModifyOrderDetails ? (v) => updateField('dueDate', v) : undefined}
                     isDate
                     subtext={order.dueDate ? (
                         (() => {
@@ -725,7 +738,7 @@ const OrderDetail: React.FC = () => {
                     )}
 
                     {/* Envelope / Reference Photos Section */}
-                    {order.type === OrderType.REPAIR && (
+                    {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && (
                         <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">

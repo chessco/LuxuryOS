@@ -18,9 +18,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
     const { variant, mode, toggleMode } = useTheme();
     const userRole = user.role === 'TENANT_ADMIN' 
         ? 'Atelier Manager' 
-        : (user.role === 'VENDEDOR' 
-            ? 'Vendedor' 
-            : (user.role === 'TENANT_USER' ? 'Equipo de Ventas' : 'Sistema'));
+        : (user.role === 'JOYERO'
+            ? 'Joyero (Taller)'
+            : (user.role === 'VENDEDOR' 
+                ? 'Vendedor' 
+                : (user.role === 'TENANT_USER' ? 'Equipo de Ventas' : 'Sistema')));
 
     const navigation = [
         {
@@ -58,7 +60,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
     const isAdminOrSystem = user.role === 'TENANT_ADMIN' || user.role === 'SYSTEM_ADMIN';
     const isVentaOrJoyero = ['VENDEDOR', 'VENTAS', 'JOYERO', 'TALLER', 'TENANT_USER'].includes(user.role);
 
-    const filteredNavigation = navigation.map(section => {
+    const filteredNavigation = navigation
+        .filter(section => {
+            // La sección Fila y Turnos solo debe de aparecer para rol ADMIN y SYSTEM
+            if (section.title === 'Fila y Turnos' && !isAdminOrSystem) {
+                return false;
+            }
+            return true;
+        })
+        .map(section => {
         let items = section.items;
 
         if (isVentaOrJoyero) {

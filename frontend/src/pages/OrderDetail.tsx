@@ -355,6 +355,15 @@ const OrderDetail: React.FC = () => {
         }
     };
 
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isJoyero = user.role === 'JOYERO';
+    const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
+    const statusUpper = String(order.status || order.orderStatus || '').toUpperCase();
+    const stageUpper = String(order.stage || '').toUpperCase();
+    const isReceived = (!statusUpper || statusUpper === 'RECEIVED' || statusUpper === 'RECIBIDO' || statusUpper === 'DRAFT' || statusUpper === 'SPEC_PENDING') &&
+                       (!stageUpper || stageUpper === 'RECEIVED' || stageUpper === 'RECIBIDO' || stageUpper === 'INTERES_LEAD');
+    const canModifyOrderDetails = isAuthorized || (!isJoyero && isReceived);
+
     return (
         <div className="flex-1 flex flex-col h-full">
             {/* Breadcrumbs & Header */}
@@ -374,7 +383,7 @@ const OrderDetail: React.FC = () => {
                             <span className={`px-3 py-1 bg-muted border border-border text-[9px] font-black uppercase tracking-widest rounded-full transition-colors ${order.statusType === 'urgent' ? 'text-red-600 border-red-500/20 bg-red-500/5' :
                                 order.statusType === 'success' ? 'text-emerald-600 border-emerald-500/20 bg-emerald-500/5' :
                                     'text-indigo-600 border-indigo-500/20 bg-indigo-500/5'
-                                }`}>{order.status}</span>
+                                }}`}>{order.status}</span>
                         </div>
                         <div className="flex items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
                             <div className="flex items-center gap-2">
@@ -388,10 +397,12 @@ const OrderDetail: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm">
-                            <span className="material-symbols-outlined text-[20px]">edit</span>
-                            <span>Editar Detalles</span>
-                        </button>
+                        {!isJoyero && canModifyOrderDetails && (
+                            <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm">
+                                <span className="material-symbols-outlined text-[20px]">edit</span>
+                                <span>Editar Detalles</span>
+                            </button>
+                        )}
                         {order.type === OrderType.REPAIR && (
                             <button
                                 onClick={() => setIsPrintViewOpen(true)}
@@ -420,13 +431,13 @@ const OrderDetail: React.FC = () => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard label="Valor Total" value={Number(order.value || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('value', v)} subtext="Impuestos incluidos" icon="payments" color="text-foreground" />
-                <StatCard label="Costo de Producción" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={(v) => updateField('cost', v)} subtext="Materiales + Mano de obra" icon="precision_manufacturing" color="text-foreground" />
+                <StatCard label="Valor Total" value={Number(order.value || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('value', v) : undefined} subtext="Impuestos incluidos" icon="payments" color="text-foreground" />
+                <StatCard label="Costo de Producción" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Materiales + Mano de obra" icon="precision_manufacturing" color="text-foreground" />
                 <StatCard label="Margen Estimado" value={(parseValue(order.value) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Rentabilidad alta" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
                 <StatCard
                     label="Fecha de Entrega"
                     value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
-                    onUpdate={(v) => updateField('dueDate', v)}
+                    onUpdate={canModifyOrderDetails ? (v) => updateField('dueDate', v) : undefined}
                     isDate
                     subtext={order.dueDate ? (
                         (() => {
@@ -654,7 +665,7 @@ const OrderDetail: React.FC = () => {
                     )}
 
                     {/* Envelope / Reference Photos Section */}
-                    {order.type === OrderType.REPAIR && (
+                    {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && (
                         <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">

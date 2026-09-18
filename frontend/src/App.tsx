@@ -21,6 +21,8 @@ import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
     const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const defaultRoute = (user.role === 'VENDEDOR' || user.role === 'JOYERO') ? "/orders" : "/dashboard";
 
     return (
         <ThemeProvider>
@@ -43,7 +45,7 @@ function App() {
                         <Route path="/screen" element={<PublicScreen />} />
                         <Route path="/staff/queue" element={<StaffQueue />} />
                         <Route path="/pickup" element={<Pickup />} />
-                        <Route path="/" element={<Navigate to={token ? "/dashboard" : "/login"} replace />} />
+                        <Route path="/" element={<Navigate to={token ? defaultRoute : "/login"} replace />} />
                     </Route>
                     <Route path="/kiosk" element={<Kiosk />} />
                 </Routes>

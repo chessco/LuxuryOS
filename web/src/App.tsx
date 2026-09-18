@@ -35,7 +35,7 @@ const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.
 function App() {
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const defaultRoute = user.role === 'VENDEDOR' ? "/orders" : "/dashboard";
+    const defaultRoute = (user.role === 'VENDEDOR' || user.role === 'JOYERO') ? "/orders" : "/dashboard";
 
     return (
         <ThemeProvider>
@@ -105,11 +105,15 @@ function App() {
                             </RoleRedirect>
                         } />
                         <Route path="/staff/queue" element={
-                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN', 'TENANT_USER', 'VENDEDOR']} redirectTo="/orders">
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
                                 <StaffQueue />
                             </RoleRedirect>
                         } />
-                        <Route path="/pickup" element={<Pickup />} />
+                        <Route path="/pickup" element={
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
+                                <Pickup />
+                            </RoleRedirect>
+                        } />
                         <Route path="/" element={<Navigate to={token ? defaultRoute : "/login"} replace />} />
                     </Route>
 
