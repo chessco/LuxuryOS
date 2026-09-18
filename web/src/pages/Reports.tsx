@@ -689,12 +689,18 @@ export const Reports: React.FC = () => {
                                                 </span>
                                             </td>
 
-                                            {/* Usuario Recepcionista / Creador */}
+                                            {/* Usuario que puso la orden en status Listo */}
                                             <td className="py-4 px-6">
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="material-symbols-outlined text-[15px] text-indigo-500">person</span>
+                                                    <span className="material-symbols-outlined text-[15px] text-emerald-500">done_all</span>
                                                     <span className="font-bold text-foreground uppercase tracking-tight text-xs">
-                                                        {order.createdBy?.name || order.createdByName || order.specifications?.receivedBy || '—'}
+                                                        {order.specifications?.readyByName ||
+                                                         order.specifications?.readyBy?.name ||
+                                                         order.readyByName ||
+                                                         order.completedByName ||
+                                                         (order.type === 'REPAIR' || order.type === 'MANUFACTURE'
+                                                             ? 'Joyero'
+                                                             : (order.createdBy?.name || order.createdByName || order.specifications?.receivedBy || '—'))}
                                                     </span>
                                                 </div>
                                             </td>
@@ -799,11 +805,21 @@ export const Reports: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Fechas */}
-                            <div className="grid grid-cols-2 gap-3 text-muted-foreground">
+                            {/* Fechas y Responsable */}
+                            <div className="grid grid-cols-3 gap-3 text-muted-foreground">
                                 <div>
                                     <span className="text-[10px] font-bold uppercase">Recepción:</span>
                                     <p className="font-mono text-foreground">{formatDateOnly(selectedOrder.createdAt)}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-bold uppercase">Listo Por:</span>
+                                    <p className="font-bold text-foreground truncate">
+                                        {selectedOrder.specifications?.readyByName ||
+                                         selectedOrder.specifications?.readyBy?.name ||
+                                         selectedOrder.readyByName ||
+                                         selectedOrder.completedByName ||
+                                         (selectedOrder.type === 'REPAIR' || selectedOrder.type === 'MANUFACTURE' ? 'Joyero' : (selectedOrder.createdBy?.name || '—'))}
+                                    </p>
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-bold uppercase">Entrega:</span>

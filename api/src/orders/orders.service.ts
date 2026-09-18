@@ -53,7 +53,7 @@ export class OrdersService {
         return columns;
     }
 
-    async moveOrder(id: string, tenantId: string, toStage: any) {
+    async moveOrder(id: string, tenantId: string, toStage: any, user?: any) {
         const order = await this.prisma.order.findUnique({
             where: { id },
         });
@@ -66,6 +66,30 @@ export class OrdersService {
             updateData.status = toStage;
         } else {
             updateData.stage = toStage;
+        }
+
+        const toStageUpper = String(toStage).toUpperCase();
+        const isReadyStage = toStageUpper === 'REPAIR_COMPLETED' ||
+                             toStageUpper === 'READY_FOR_PICKUP' ||
+                             toStageUpper === 'LISTO_ENTREGA' ||
+                             toStageUpper === 'READY' ||
+                             toStageUpper === 'LISTO' ||
+                             toStageUpper === 'PARA ENTREGA';
+
+        const specs = (order.specifications as any) || {};
+        if (isReadyStage) {
+            const userName = user?.name || user?.email || 'Joyero';
+            updateData.specifications = {
+                ...specs,
+                readyByName: userName,
+                readyBy: {
+                    id: user?.id,
+                    name: userName,
+                    email: user?.email,
+                    role: user?.role,
+                    at: new Date()
+                }
+            };
         }
 
         if (toStage === 'DELIVERED' || toStage === 'ENTREGADO' || toStage === 'ENTREGADO_POSTVENTA') {
@@ -148,21 +172,31 @@ export class OrdersService {
         });
     }
 
-    async advanceStatus(tenantId: string, id: string) {
+    async advanceStatus(tenantId: string, id: string, user?: any) {
         const order = await this.getOrder(tenantId, id);
         if (!order) throw new NotFoundException('Order not found');
 
         const strategy = this.strategyFactory.getStrategy(order.type);
+        const specs = (order.specifications as any) || {};
+        const userName = user?.name || user?.email || 'Joyero';
 
         // Specialized logic for Standard (OrderStage) vs others (OrderStatus)
         if (order.type === 'STANDARD') {
             const nextStage = (strategy as any).getNextStage(order.stage);
             if (nextStage) {
+                const isReady = nextStage === 'LISTO_ENTREGA';
                 const updated = await this.prisma.order.update({
                     where: { id },
                     data: { 
                         stage: nextStage,
-                        ...(nextStage === 'ENTREGADO_POSTVENTA' ? { deliveredAt: new Date() } : {})
+                        ...(nextStage === 'ENTREGADO_POSTVENTA' ? { deliveredAt: new Date() } : {}),
+                        ...(isReady ? {
+                            specifications: {
+                                ...specs,
+                                readyByName: userName,
+                                readyBy: { id: user?.id, name: userName, email: user?.email, role: user?.role, at: new Date() }
+                            }
+                        } : {})
                     }
                 });
                 await this.notifyOrderWorkflowStatus(tenantId, id);
@@ -171,11 +205,19 @@ export class OrdersService {
         } else {
             const nextStatus = strategy.getNextStatus(order.status);
             if (nextStatus) {
+                const isReady = nextStatus === 'REPAIR_COMPLETED' || nextStatus === 'READY_FOR_PICKUP';
                 const updated = await this.prisma.order.update({
                     where: { id },
                     data: { 
                         status: nextStatus,
-                        ...(nextStatus === 'DELIVERED' ? { deliveredAt: new Date() } : {})
+                        ...(nextStatus === 'DELIVERED' ? { deliveredAt: new Date() } : {}),
+                        ...(isReady ? {
+                            specifications: {
+                                ...specs,
+                                readyByName: userName,
+                                readyBy: { id: user?.id, name: userName, email: user?.email, role: user?.role, at: new Date() }
+                            }
+                        } : {})
                     }
                 });
                 await this.notifyOrderWorkflowStatus(tenantId, id);
@@ -287,6 +329,26 @@ export class OrdersService {
         const balance = totalAmount.sub(paidAmount);
 
         const isDelivering = (status === 'DELIVERED' || status === 'ENTREGADO' || status === 'ENTREGADO_POSTVENTA');
+        const specs = (order.specifications as any) || {};
+        const isReadyStage = (status && ['REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'LISTO_ENTREGA'].includes(String(status).toUpperCase())) ||
+                             (stage && ['LISTO_ENTREGA'].includes(String(stage).toUpperCase()));
+
+        let finalSpecifications = specifications !== undefined ? specifications : specs;
+        if (isReadyStage) {
+            const userName = currentUser?.name || currentUser?.email || 'Joyero';
+            finalSpecifications = {
+                ...(typeof finalSpecifications === 'object' ? finalSpecifications : {}),
+                readyByName: userName,
+                readyBy: {
+                    id: currentUser?.id,
+                    name: userName,
+                    email: currentUser?.email,
+                    role: currentUser?.role,
+                    at: new Date()
+                }
+            };
+        }
+
         const updated = await this.prisma.order.update({
             where: { id },
             data: {
@@ -307,7 +369,7 @@ export class OrdersService {
                 materialCost: updatedMaterial,
                 totalAmount,
                 balance,
-                specifications,
+                specifications: finalSpecifications,
                 clientId,
                 status,
                 stage: stage !== undefined ? stage : undefined,

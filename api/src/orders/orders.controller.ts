@@ -36,7 +36,7 @@ export class OrdersController {
         @Body('toStage') toStage: any,
         @Request() req,
     ) {
-        return this.ordersService.moveOrder(id, req.user.tenantId, toStage);
+        return this.ordersService.moveOrder(id, req.user.tenantId, toStage, req.user);
     }
 
     @Post('orders')
@@ -56,7 +56,7 @@ export class OrdersController {
 
     @Patch('orders/:id/advance')
     async advanceStatus(@Param('id') id: string, @Request() req) {
-        return this.ordersService.advanceStatus(req.user.tenantId, id);
+        return this.ordersService.advanceStatus(req.user.tenantId, id, req.user);
     }
 
     @Patch('orders/:id')
