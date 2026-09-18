@@ -149,7 +149,7 @@ const Orders: React.FC = () => {
         }
     }, [isJoyero, orderType, navigate]);
 
-    const [isModalOpen, setIsModalOpen] = useState(autoOpenNew);
+    const [isModalOpen, setIsModalOpen] = useState(autoOpenNew && !isJoyero);
     const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
     const [orders, setOrders] = useState<any[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -159,10 +159,16 @@ const Orders: React.FC = () => {
     const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
 
     useEffect(() => {
-        if (autoOpenNew) {
+        if (autoOpenNew && !isJoyero) {
             setIsModalOpen(true);
+        } else if (autoOpenNew && isJoyero) {
+            setIsModalOpen(false);
+            const nextParams = new URLSearchParams(location.search);
+            nextParams.delete('newOrder');
+            const searchStr = nextParams.toString() ? `?${nextParams.toString()}` : '';
+            navigate(`${location.pathname}${searchStr}`, { replace: true });
         }
-    }, [autoOpenNew]);
+    }, [autoOpenNew, isJoyero]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -225,6 +231,10 @@ const Orders: React.FC = () => {
     }, [orderType]);
 
     const handleCreateOrder = async (newOrder: any) => {
+        if (isJoyero) {
+            alert("El rol Joyero no tiene permisos para crear órdenes o reparaciones.");
+            return;
+        }
         try {
             let selectedClient: any = null;
 
@@ -549,13 +559,15 @@ const Orders: React.FC = () => {
                                     </button>
                                 </div>
                             )}
-                            <button
-                                onClick={() => setIsModalOpen(true)}
-                                className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
-                            >
-                                <span className="material-symbols-outlined text-[20px]">add</span>
-                                <span>{newButtonLabel}</span>
-                            </button>
+                            {!isJoyero && (
+                                <button
+                                    onClick={() => setIsModalOpen(true)}
+                                    className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">add</span>
+                                    <span>{newButtonLabel}</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -655,7 +667,7 @@ const Orders: React.FC = () => {
             )}
 
             <AnimatePresence>
-                {isModalOpen && (
+                {isModalOpen && !isJoyero && (
                     <NewOrderDrawer
                         onClose={() => {
                             setIsModalOpen(false);

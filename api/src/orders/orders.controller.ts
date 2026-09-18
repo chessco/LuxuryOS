@@ -41,6 +41,10 @@ export class OrdersController {
 
     @Post('orders')
     async createOrder(@Body() body: CreateOrderDto, @Request() req) {
+        const userRole = String(req.user?.role || '').toUpperCase();
+        if (userRole === 'JOYERO') {
+            throw new ForbiddenException('El rol Joyero no tiene permisos para crear órdenes o reparaciones');
+        }
         const userId = req.user.id || req.user.userId;
         return this.ordersService.createOrder(req.user.tenantId, body, userId);
     }
