@@ -57,8 +57,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
         }
     ];
 
-    const isAdminOrSystem = user.role === 'TENANT_ADMIN' || user.role === 'SYSTEM_ADMIN';
-    const isVentaOrJoyero = ['VENDEDOR', 'VENTAS', 'JOYERO', 'TALLER', 'TENANT_USER'].includes(user.role);
+    const isJoyero = 
+        user.role === 'JOYERO' || 
+        String(user.role || '').toUpperCase() === 'JOYERO' ||
+        String(user.email || '').toLowerCase().includes('joyero') ||
+        String(user.name || '').toLowerCase().includes('joyero');
+    const isAdminOrSystem = !isJoyero && (user.role === 'TENANT_ADMIN' || user.role === 'SYSTEM_ADMIN');
+    const isVentaOrJoyero = isJoyero || ['VENDEDOR', 'VENTAS', 'JOYERO', 'TALLER', 'TENANT_USER'].includes(user.role);
 
     const filteredNavigation = navigation
         .filter(section => {
@@ -81,6 +86,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
 
         if (user.role !== 'SYSTEM_ADMIN') {
             items = items.filter(item => item.path !== '/finance' && item.path !== '/inventory');
+        }
+
+        // Ocultar Clientes para el Joyero
+        if (isJoyero) {
+            items = items.filter(item => item.path !== '/clients' && item.name !== 'Clientes');
         }
 
         // Ocultar Pedidos para usuarios que no sean Admin o System
@@ -143,28 +153,41 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
 
                                     const inactiveClass = 'text-sidebar-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground';
 
+                                    const isBoardItem = item.path.includes('type=REPAIR') || item.path.includes('type=MANUFACTURE');
+
                                     return (
-                                        <Link
-                                            key={item.path}
-                                            to={item.path}
-                                            onClick={() => onClose()} // Close on navigate
-                                            className={`
-                                                flex items-center gap-3 px-3 py-2 rounded-[6px] transition-colors duration-150 group relative
-                                                ${isActive ? activeClass : inactiveClass}
-                                                ${item.highlight && !isActive ? 'text-indigo-600 dark:text-indigo-400' : ''}
-                                            `}
-                                        >
-                                            <span className={`material-symbols-outlined text-[20px] transition-transform duration-300 group-hover:scale-110 ${item.highlight ? 'icon-fill' : ''}`}>
-                                                {item.icon}
-                                            </span>
-                                            <p className="text-sm">{item.name}</p>
-                                            {item.highlight && !isActive && (
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-2 w-2">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                                        <div key={item.path} className="flex items-center gap-1 group/item">
+                                            <Link
+                                                to={item.path}
+                                                onClick={() => onClose()} // Close on navigate
+                                                className={`
+                                                    flex-1 flex items-center gap-3 px-3 py-2 rounded-[6px] transition-colors duration-150 relative
+                                                    ${isActive ? activeClass : inactiveClass}
+                                                    ${item.highlight && !isActive ? 'text-indigo-600 dark:text-indigo-400' : ''}
+                                                `}
+                                            >
+                                                <span className={`material-symbols-outlined text-[20px] transition-transform duration-300 group-hover/item:scale-110 ${item.highlight ? 'icon-fill' : ''}`}>
+                                                    {item.icon}
                                                 </span>
+                                                <p className="text-sm">{item.name}</p>
+                                                {item.highlight && !isActive && (
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-2 w-2">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                                                    </span>
+                                                )}
+                                            </Link>
+                                            {isBoardItem && (
+                                                <Link
+                                                    to={`${item.path}&newOrder=true`}
+                                                    onClick={() => onClose()}
+                                                    title={item.path.includes('type=REPAIR') ? "Alta de Reparación" : "Alta de Fabricación"}
+                                                    className="size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all shrink-0 active:scale-95"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">add</span>
+                                                </Link>
                                             )}
-                                        </Link>
+                                        </div>
                                     );
                                 })}
                             </div>

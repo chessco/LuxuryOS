@@ -26,7 +26,13 @@ import { ThemeProvider } from './context/ThemeContext';
 
 const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.ReactNode, allowedRoles: string[], redirectTo: string }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.role && !allowedRoles.includes(user.role)) {
+    const isJoyero = 
+        user.role === 'JOYERO' || 
+        String(user.role || '').toUpperCase() === 'JOYERO' ||
+        String(user.email || '').toLowerCase().includes('joyero') ||
+        String(user.name || '').toLowerCase().includes('joyero');
+    const effectiveRole = isJoyero ? 'JOYERO' : user.role;
+    if (effectiveRole && !allowedRoles.includes(effectiveRole)) {
         return <Navigate to={redirectTo} replace />;
     }
     return <>{children}</>;
@@ -35,7 +41,12 @@ const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.
 function App() {
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const defaultRoute = (user.role === 'VENDEDOR' || user.role === 'JOYERO') ? "/orders" : "/dashboard";
+    const isJoyero = 
+        user.role === 'JOYERO' || 
+        String(user.role || '').toUpperCase() === 'JOYERO' ||
+        String(user.email || '').toLowerCase().includes('joyero') ||
+        String(user.name || '').toLowerCase().includes('joyero');
+    const defaultRoute = isJoyero ? "/orders?type=REPAIR" : (user.role === 'VENDEDOR' ? "/orders" : "/dashboard");
 
     return (
         <ThemeProvider>
@@ -57,7 +68,11 @@ function App() {
                         } />
                         <Route path="/orders" element={<Orders />} />
                         <Route path="/orders/:id" element={<OrderDetail />} />
-                        <Route path="/clients" element={<Clients />} />
+                        <Route path="/clients" element={
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN', 'TENANT_USER', 'VENDEDOR', 'VENTAS']} redirectTo="/orders">
+                                <Clients />
+                            </RoleRedirect>
+                        } />
                         <Route path="/reports" element={<Reports />} />
                         <Route path="/inventory" element={
                             <RoleRedirect allowedRoles={['SYSTEM_ADMIN']} redirectTo="/orders">

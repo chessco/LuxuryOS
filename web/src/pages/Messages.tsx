@@ -35,18 +35,24 @@ export const Messages: React.FC = () => {
     const [availableClients, setAvailableClients] = useState<any[]>([]);
     const [customWaPhone, setCustomWaPhone] = useState('');
 
-    const selectedIdRef = useRef<string | null>(null);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isJoyero = 
+        user.role === 'JOYERO' || 
+        String(user.role || '').toUpperCase() === 'JOYERO' ||
+        String(user.email || '').toLowerCase().includes('joyero') ||
+        String(user.name || '').toLowerCase().includes('joyero');
 
     useEffect(() => {
         selectedIdRef.current = selectedId;
     }, [selectedId]);
 
     useEffect(() => {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
         setCurrentUser(user);
 
         loadConversations();
-        loadWaConversations();
+        if (!isJoyero) {
+            loadWaConversations();
+        }
         socketService.connect();
 
         socketService.onNewMessage((msg) => {
@@ -303,21 +309,23 @@ export const Messages: React.FC = () => {
                     <span>Mensajes Internos</span>
                 </button>
 
-                <button
-                    onClick={() => {
-                        setActiveTab('whatsapp');
-                        loadWaConversations();
-                    }}
-                    className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative ${
-                        activeTab === 'whatsapp'
-                            ? 'bg-emerald-600 text-white shadow-md'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                    }`}
-                >
-                    <span className="material-symbols-outlined text-[18px] text-emerald-400">chat</span>
-                    <span>Clientes (WhatsApp)</span>
-                    <span className="size-2 rounded-full bg-emerald-500 animate-ping"></span>
-                </button>
+                {!isJoyero && (
+                    <button
+                        onClick={() => {
+                            setActiveTab('whatsapp');
+                            loadWaConversations();
+                        }}
+                        className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative ${
+                            activeTab === 'whatsapp'
+                                ? 'bg-emerald-600 text-white shadow-md'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        }`}
+                    >
+                        <span className="material-symbols-outlined text-[18px] text-emerald-400">chat</span>
+                        <span>Clientes (WhatsApp)</span>
+                        <span className="size-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    </button>
+                )}
             </div>
 
             {/* TAB 1: INTERNAL TEAM MESSAGES */}
@@ -450,7 +458,7 @@ export const Messages: React.FC = () => {
             )}
 
             {/* TAB 2: WHATSAPP CUSTOMER MESSAGES */}
-            {activeTab === 'whatsapp' && (
+            {!isJoyero && activeTab === 'whatsapp' && (
                 <div className="flex flex-1 gap-6 overflow-hidden">
                     {/* Sidebar: WhatsApp Client List */}
                     <div className="w-80 flex flex-col bg-card border border-border rounded-[32px] overflow-hidden backdrop-blur-sm shadow-sm transition-colors">
