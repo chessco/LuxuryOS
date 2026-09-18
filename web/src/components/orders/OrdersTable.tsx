@@ -57,6 +57,8 @@ const getStatusOptions = (orderType: string) => {
 export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, onOrderDeleted, onRefresh }) => {
     const navigate = useNavigate();
     const isDeliveredFilter = activeFilter === 'Entregados' || activeFilter === 'Entregado';
+    const isReadyFilter = activeFilter === 'Para Entrega' || activeFilter === 'Listo' || activeFilter === 'Listo para entrega';
+    const showReadyBy = isDeliveredFilter || isReadyFilter;
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -146,7 +148,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                             <HeaderTh label="Pedido" sortKey="id" />
                             <HeaderTh label="Cliente" sortKey="client" />
                             <HeaderTh label="Item" sortKey="item" />
-                            <HeaderTh label={isDeliveredFilter ? "Listo Por" : "Usuario"} sortKey={isDeliveredFilter ? "readyByName" : "createdByName"} />
+                            <HeaderTh label={showReadyBy ? "Listo Por" : "Recibió"} sortKey={showReadyBy ? "readyByName" : "createdByName"} />
                             <HeaderTh label="Recibido" sortKey="receivedDate" />
                             {isDeliveredFilter && (
                                 <HeaderTh label="Fecha Entrega" sortKey="deliveredDate" />
@@ -183,14 +185,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                 <td className="px-8 py-6">
                                     <div className="flex items-center gap-2">
                                         <div className={`size-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                                            isDeliveredFilter ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                                            showReadyBy ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
                                         }`}>
-                                            <span className="material-symbols-outlined text-[13px]">{isDeliveredFilter ? 'done_all' : 'person'}</span>
+                                            <span className="material-symbols-outlined text-[13px]">{showReadyBy ? 'done_all' : 'person'}</span>
                                         </div>
                                         <span className="text-zinc-800 dark:text-zinc-200 text-xs font-bold uppercase tracking-tight">
-                                            {isDeliveredFilter
+                                            {showReadyBy
                                                 ? (order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || ((order.type === 'REPAIR' || order.type === 'MANUFACTURE') ? 'Joyero' : (order.createdByName || order.createdBy?.name || order.specifications?.receivedBy || '—')))
-                                                : (order.createdByName || order.createdBy?.name || order.specifications?.receivedBy || '—')}
+                                                : (order.createdBy?.role === 'JOYERO' ? 'Ventas Cared' : (order.createdByName || order.createdBy?.name || order.specifications?.receivedBy || 'Ventas Cared'))}
                                         </span>
                                     </div>
                                 </td>
