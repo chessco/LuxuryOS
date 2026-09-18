@@ -10,6 +10,7 @@ import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragStar
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PieceSelect } from '../components/orders/PieceSelect';
 
 // --- Interfaces for View ---
 export interface Order {
@@ -76,10 +77,17 @@ const Orders: React.FC = () => {
             orderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
                 STANDARD_COLUMNS;
 
+    const user = React.useMemo(() => {
+        try {
+            return JSON.parse(localStorage.getItem('user') || '{}');
+        } catch {
+            return {};
+        }
+    }, []);
+    const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
+
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<'kanban' | 'table'>(() => {
-        return variant === 'notion' ? 'table' : 'kanban';
-    });
+    const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
     const [orders, setOrders] = useState<any[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [clients, setClients] = useState<any[]>([]);
@@ -263,22 +271,24 @@ const Orders: React.FC = () => {
                             <p className="text-muted-foreground text-sm transition-colors">Gestión visual del flujo de producción y ventas</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="flex bg-muted p-1 rounded-2xl border border-border transition-colors">
-                                <button
-                                    onClick={() => setViewMode('kanban')}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">view_kanban</span>
-                                    <span>Kanban</span>
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('table')}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">view_list</span>
-                                    <span>Notion</span>
-                                </button>
-                            </div>
+                            {isSystemAdmin && (
+                                <div className="flex bg-muted p-1 rounded-2xl border border-border transition-colors">
+                                    <button
+                                        onClick={() => setViewMode('kanban')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">view_kanban</span>
+                                        <span>Kanban</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('table')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">view_list</span>
+                                        <span>Notion</span>
+                                    </button>
+                                </div>
+                            )}
                             <button
                                 onClick={() => setIsModalOpen(true)}
                                 className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
@@ -323,7 +333,7 @@ const Orders: React.FC = () => {
                 </div>
             </header>
 
-            {viewMode === 'kanban' ? (
+            {isSystemAdmin && viewMode === 'kanban' ? (
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -759,11 +769,9 @@ const NewOrderDrawer: React.FC<{
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="col-span-2 space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Pieza #{index + 1}</label>
-                                        <input
+                                        <PieceSelect
                                             value={item.item}
-                                            onChange={(e) => handleItemChange(index, 'item', e.target.value)}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
-                                            placeholder="Anillo, Collar, etc."
+                                            onChange={(val) => handleItemChange(index, 'item', val)}
                                             required
                                         />
                                     </div>

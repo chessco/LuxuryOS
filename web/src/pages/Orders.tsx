@@ -12,6 +12,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LabelPrintModal } from '../components/orders/LabelPrintModal';
+import { PieceSelect } from '../components/orders/PieceSelect';
 
 // --- Interfaces for View ---
 export interface Order {
@@ -124,6 +125,15 @@ const Orders: React.FC = () => {
         }
         return base;
     }, [orderType, activeFilter]);
+
+    const user = React.useMemo(() => {
+        try {
+            return JSON.parse(localStorage.getItem('user') || '{}');
+        } catch {
+            return {};
+        }
+    }, []);
+    const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
 
     const [isModalOpen, setIsModalOpen] = useState(autoOpenNew);
     const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
@@ -507,22 +517,24 @@ const Orders: React.FC = () => {
                             <p className="text-muted-foreground text-sm transition-colors">{boardSubtitle}</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="flex bg-muted p-1 rounded-2xl border border-border transition-colors">
-                                <button
-                                    onClick={() => setViewMode('kanban')}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">view_kanban</span>
-                                    <span>Kanban</span>
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('table')}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">view_list</span>
-                                    <span>Notion</span>
-                                </button>
-                            </div>
+                            {isSystemAdmin && (
+                                <div className="flex bg-muted p-1 rounded-2xl border border-border transition-colors">
+                                    <button
+                                        onClick={() => setViewMode('kanban')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">view_kanban</span>
+                                        <span>Kanban</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('table')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">view_list</span>
+                                        <span>Notion</span>
+                                    </button>
+                                </div>
+                            )}
                             <button
                                 onClick={() => setIsModalOpen(true)}
                                 className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
@@ -590,7 +602,7 @@ const Orders: React.FC = () => {
                 </div>
             </header>
 
-            {viewMode === 'kanban' ? (
+            {isSystemAdmin && viewMode === 'kanban' ? (
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -796,7 +808,7 @@ const NewOrderDrawer: React.FC<{
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
             if (!item.item?.trim()) {
-                alert(`Por favor, introduce el nombre de la pieza #${i + 1}.`);
+                alert(`Por favor, selecciona o introduce la pieza #${i + 1}.`);
                 return;
             }
             if (!item.metal) {
@@ -1247,11 +1259,9 @@ const NewOrderDrawer: React.FC<{
                                 <div className="flex flex-col gap-4">
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Pieza #{index + 1}</label>
-                                        <input
+                                        <PieceSelect
                                             value={item.item}
-                                            onChange={(e) => handleItemChange(index, 'item', e.target.value)}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
-                                            placeholder="Anillo, Collar, etc."
+                                            onChange={(val) => handleItemChange(index, 'item', val)}
                                             required
                                         />
                                     </div>

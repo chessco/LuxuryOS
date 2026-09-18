@@ -14,7 +14,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userName = user.name || user.email || 'Usuario';
     const { variant, mode, toggleMode } = useTheme();
-    const userRole = user.role === 'TENANT_ADMIN' ? 'Atelier Manager' : (user.role === 'TENANT_USER' ? 'Equipo de Ventas' : 'Sistema');
+    const userRole = user.role === 'TENANT_ADMIN' 
+        ? 'Atelier Manager' 
+        : (user.role === 'JOYERO'
+            ? 'Joyero (Taller)'
+            : (user.role === 'VENDEDOR' 
+                ? 'Vendedor' 
+                : (user.role === 'TENANT_USER' ? 'Equipo de Ventas' : 'Sistema')));
 
     const navigation = [
         {
@@ -47,7 +53,39 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
             ]
         }
     ];
+    const isAdminOrSystem = user.role === 'TENANT_ADMIN' || user.role === 'SYSTEM_ADMIN';
+    const isVentaOrJoyero = ['VENDEDOR', 'VENTAS', 'JOYERO', 'TALLER', 'TENANT_USER'].includes(user.role);
 
+    const filteredNavigation = navigation
+        .filter(section => {
+            if (section.title === 'Fila y Turnos' && !isAdminOrSystem) {
+                return false;
+            }
+            return true;
+        })
+        .map(section => {
+            let items = section.items;
+
+            if (isVentaOrJoyero) {
+                if (section.title === 'Principal') {
+                    items = items.filter(item => item.path === '/messages');
+                }
+                items = items.filter(item => !item.path.includes('type=LAYAWAY') && item.name !== 'Apartados');
+            }
+
+            if (user.role !== 'SYSTEM_ADMIN') {
+                items = items.filter(item => item.path !== '/finance' && item.path !== '/inventory');
+            }
+
+            if (!isAdminOrSystem) {
+                items = items.filter(item => item.path !== '/orders');
+            }
+
+            return {
+                ...section,
+                items
+            };
+        }).filter(section => section.items.length > 0);
     return (
         <>
             {/* Mobile Overlay */}
@@ -80,7 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 </div>
 
                 <nav className="flex flex-col gap-6 flex-1 overflow-y-auto no-scrollbar pb-6">
-                    {navigation.map((section) => (
+                    {filteredNavigation.map((section) => (
                         <div key={section.title} className="flex flex-col gap-1">
                             <h3 className="px-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-2">
                                 {section.title}

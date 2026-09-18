@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AutocompleteInput from '../AutocompleteInput';
+import { PieceSelect } from './PieceSelect';
 import { ClientsService } from '../../services/clients.service';
 
 interface EditOrderModalProps {
@@ -242,11 +243,9 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                 <div className="flex flex-col gap-4">
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Pieza #{index + 1}</label>
-                                        <input
+                                        <PieceSelect
                                             value={item.item}
-                                            onChange={(e) => handleItemChange(index, 'item', e.target.value)}
-                                            className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 transition-all outline-none shadow-inner [color-scheme:light] dark:[color-scheme:dark]"
-                                            placeholder="Anillo, Collar, etc."
+                                            onChange={(val) => handleItemChange(index, 'item', val)}
                                             required
                                         />
                                     </div>
