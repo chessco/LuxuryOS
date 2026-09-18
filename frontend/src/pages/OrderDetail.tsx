@@ -8,13 +8,17 @@ import { ManufacturePanel } from '../components/orders/ManufacturePanel';
 import { PaymentModal } from '../components/orders/PaymentModal';
 import { EditOrderModal } from '../components/orders/EditOrderModal';
 import { RepairPrintView } from '../components/orders/RepairPrintView';
+import { LabelPrintModal } from '../components/orders/LabelPrintModal';
+import { getStatusLabel } from './Orders';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const [order, setOrder] = useState<any | null>(null);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
+    const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(2);
     const [notesBuffer, setNotesBuffer] = useState('');
     const [activities, setActivities] = useState<any[]>([]);
@@ -29,19 +33,23 @@ const OrderDetail: React.FC = () => {
 
     const enrichOrder = (foundOrder: any) => {
         const clientName = foundOrder.client?.name || 'Cliente';
-        const total = parseFloat(String(foundOrder.totalAmount || '0')) || parseFloat(String(foundOrder.value || '0')) || 0;
+        const total = parseFloat(String(foundOrder.totalAmount || foundOrder.value || '0')) || 0;
         const paid = parseFloat(String(foundOrder.paidAmount || '0')) || 0;
         const balance = total - paid;
 
         return {
             ...foundOrder,
             clientName: clientName,
+            totalAmount: total,
+            paidAmount: paid,
+            balance: balance,
             initials: clientName.substring(0, 2).toUpperCase() || 'CX',
             initialsColor: 'bg-muted text-muted-foreground',
             date: foundOrder.createdAt ? new Date(foundOrder.createdAt).toLocaleDateString('es-MX', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
             }) : 'N/A',
+            statusLabel: getStatusLabel(foundOrder.status || foundOrder.orderStatus || ''),
             statusType: foundOrder.priority === 'ALTA' ? 'urgent' : 'normal',
             pendingAmount: `${balance.toLocaleString()} MXN`,
             paidAmountFormatted: `${paid.toLocaleString()} MXN`,
@@ -245,9 +253,10 @@ const OrderDetail: React.FC = () => {
                         const acts: any[] = [];
 
                         // 1. Creation
+                        const creatorName = foundOrder.createdBy?.name || foundOrder.specifications?.receivedBy || foundOrder.specifications?.createdByName || "Sistema";
                         acts.push({
-                            user: "Sistema",
-                            action: "creó el pedido",
+                            user: creatorName,
+                            action: "recibió / creó el pedido",
                             target: "",
                             time: new Date(foundOrder.createdAt).toLocaleString(),
                             dotColor: "bg-muted-foreground/30"
@@ -272,7 +281,7 @@ const OrderDetail: React.FC = () => {
                         acts.push({
                             user: "Tú",
                             action: "actualizaste el estado a",
-                            target: foundOrder.status || foundOrder.orderStatus,
+                            target: getStatusLabel(foundOrder.status || foundOrder.orderStatus),
                             time: foundOrder.updatedAt ? new Date(foundOrder.updatedAt).toLocaleString() : 'Hoy',
                             dotColor: "bg-indigo-500"
                         });
@@ -308,8 +317,37 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    const handleStepChange = (index: number) => {
+    const handleDeleteOrder = async () => {
+        if (!id) return;
+        if (!window.confirm("¿Estás completamente seguro de eliminar esta orden? Esta acción no se puede deshacer y borrará todos los pagos asociados.")) {
+            return;
+        }
+        try {
+            await OrdersService.deleteOrder(id);
+            alert("Pedido eliminado exitosamente.");
+            window.location.href = "/orders";
+        } catch (error) {
+            console.error(error);
+            alert("Error al eliminar el pedido.");
+        }
+    };
+
+    const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
+
+    const handleStepChange = async (index: number) => {
         if (index === currentStep) return;
+
+        if (isAuthorized) {
+            const stepStatus = STEPS[index].status;
+            try {
+                await OrdersService.updateOrder(id!, { stage: stepStatus });
+                window.location.reload();
+            } catch (error) {
+                console.error(error);
+                alert("Error al actualizar la fase de producción.");
+            }
+            return;
+        }
 
         setCurrentStep(index);
 
@@ -338,7 +376,7 @@ const OrderDetail: React.FC = () => {
 
             // For numbers
             let processedValue = value;
-            if (field === 'value' || field === 'cost' || field === 'laborCost' || field === 'materialCost') {
+            if (field === 'value' || field === 'cost' || field === 'laborCost' || field === 'materialCost' || field === 'totalAmount') {
                 const str = String(value || '0').replace(/[^0-9.-]/g, '');
                 processedValue = parseFloat(str) || 0;
             }
@@ -355,13 +393,11 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isJoyero = 
         user.role === 'JOYERO' || 
         String(user.role || '').toUpperCase() === 'JOYERO' ||
         String(user.email || '').toLowerCase().includes('joyero') ||
         String(user.name || '').toLowerCase().includes('joyero');
-    const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
     const statusUpper = String(order.status || order.orderStatus || '').toUpperCase();
     const stageUpper = String(order.stage || '').toUpperCase();
     const isReceived = (!statusUpper || statusUpper === 'RECEIVED' || statusUpper === 'RECIBIDO' || statusUpper === 'DRAFT' || statusUpper === 'SPEC_PENDING') &&
@@ -387,38 +423,87 @@ const OrderDetail: React.FC = () => {
                             <span className={`px-3 py-1 bg-muted border border-border text-[9px] font-black uppercase tracking-widest rounded-full transition-colors ${order.statusType === 'urgent' ? 'text-red-600 border-red-500/20 bg-red-500/5' :
                                 order.statusType === 'success' ? 'text-emerald-600 border-emerald-500/20 bg-emerald-500/5' :
                                     'text-indigo-600 border-indigo-500/20 bg-indigo-500/5'
-                                }}`}>{order.status}</span>
+                                }}`}>{order.statusLabel || order.status}</span>
                         </div>
-                        <div className="flex items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
+                        <div className="flex flex-wrap items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[18px]">person</span>
+                                <span>Recibió: <strong className="text-foreground">{order.createdBy?.name || order.specifications?.receivedBy || order.specifications?.createdByName || '—'}</strong></span>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-[18px]">history</span>
                                 <span>Recibido: {order.date}</span>
                             </div>
-                            <div className={`flex items-center gap-2 transition-colors ${order.statusType === 'urgent' ? 'text-red-600' : 'text-indigo-600'}`}>
-                                <span className="material-symbols-outlined text-[18px]">{order.statusType === 'urgent' ? 'priority_high' : 'info'}</span>
-                                <span>{order.priority}</span>
+                            {(order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || ((order.status === 'DELIVERED' || order.status === 'REPAIR_COMPLETED' || order.status === 'READY_FOR_PICKUP') && (order.type === 'REPAIR' || order.type === 'MANUFACTURE') ? 'Joyero' : null)) && (
+                                <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                                    <span className="material-symbols-outlined text-[16px]">verified</span>
+                                    <span>Listo por: <strong className="text-foreground">{order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || (order.type === 'REPAIR' || order.type === 'MANUFACTURE' ? 'Joyero' : '—')}</strong></span>
+                                </div>
+                            )}
+                            {(order.deliveredAt || order.status === 'DELIVERED' || order.status === 'ENTREGADO' || order.stage === 'ENTREGADO_POSTVENTA') && (
+                                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                                    <span className="material-symbols-outlined text-[16px]">local_shipping</span>
+                                    <span>Entregado: {order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (order.updatedAt ? new Date(order.updatedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Registrado')}</span>
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={(order.priority || 'MEDIA').toUpperCase()}
+                                    disabled={!canModifyOrderDetails}
+                                    onChange={async (e) => {
+                                        const newPriority = e.target.value;
+                                        await handleSaveDetails({ priority: newPriority });
+                                    }}
+                                    className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest outline-none border transition-all shadow-sm ${
+                                        !canModifyOrderDetails ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                                    } ${
+                                        (order.priority || '').toUpperCase() === 'ALTA'
+                                            ? 'bg-amber-400 text-black border-amber-500 font-black shadow-md'
+                                            : (order.priority || '').toUpperCase() === 'MEDIA'
+                                            ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-bold'
+                                            : 'bg-muted text-muted-foreground border-border font-medium'
+                                    }`}
+                                    title={canModifyOrderDetails ? "Haz clic para modificar la prioridad del pedido" : "Solo modificable en estado Recibido o por Administrador"}
+                                >
+                                    <option value="BAJA" className="bg-background text-foreground">! BAJA</option>
+                                    <option value="MEDIA" className="bg-background text-foreground">! MEDIA</option>
+                                    <option value="ALTA" className="bg-background font-bold text-amber-500">! ALTA ⚡</option>
+                                </select>
                             </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
+                        {user.role === 'SYSTEM_ADMIN' && (
+                            <button 
+                                onClick={handleDeleteOrder} 
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 hover:bg-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">delete</span>
+                                <span>Borrar Pedido</span>
+                            </button>
+                        )}
                         {!isJoyero && canModifyOrderDetails && (
                             <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm">
                                 <span className="material-symbols-outlined text-[20px]">edit</span>
                                 <span>Editar Detalles</span>
                             </button>
                         )}
-                        {order.type === OrderType.REPAIR && (
-                            <button
-                                onClick={() => setIsPrintViewOpen(true)}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
-                            >
+                        {!isJoyero && (
+                            <button onClick={() => setIsLabelPrintOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest">
                                 <span className="material-symbols-outlined text-[20px]">print</span>
-                                <span>Visualizar Sobre</span>
+                                <span>Imprimir Etiqueta</span>
                             </button>
                         )}
-                        {order.type === OrderType.REPAIR && order.status !== 'REPAIR_COMPLETED' && order.status !== 'DELIVERED' && (
+                        <button
+                            onClick={() => setIsPrintViewOpen(true)}
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">print</span>
+                            <span>Visualizar Sobre</span>
+                        </button>
+                        {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && order.status !== 'REPAIR_COMPLETED' && order.status !== 'READY_FOR_PICKUP' && order.status !== 'DELIVERED' && (
                             <button
-                                onClick={() => handleSaveDetails({ status: 'REPAIR_COMPLETED' })}
+                                onClick={() => handleSaveDetails({ status: (order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED' })}
                                 className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
                             >
                                 <span className="material-symbols-outlined text-[20px]">verified</span>
@@ -434,12 +519,26 @@ const OrderDetail: React.FC = () => {
             </header>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard label="Valor Total" value={Number(order.value || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('value', v) : undefined} subtext="Impuestos incluidos" icon="payments" color="text-foreground" />
-                <StatCard label="Costo de Producción" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Materiales + Mano de obra" icon="precision_manufacturing" color="text-foreground" />
-                <StatCard label="Margen Estimado" value={(parseValue(order.value) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Rentabilidad alta" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${user.role === 'VENDEDOR' ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4 mb-10`}>
+                <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('totalAmount', v) : undefined} subtext="Venta" icon="payments" color="text-foreground" />
+                <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
+                <StatCard 
+                    label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
+                    value={Math.abs(Number(order.balance || 0)).toLocaleString() + ' MXN'} 
+                    subtext={order.balance < 0 ? "Cliente tiene crédito" : "Pendiente de liquidar"} 
+                    icon={order.balance < 0 ? "account_balance" : "pending_actions"} 
+                    color={order.balance < 0 ? "text-emerald-500" : "text-amber-500"} 
+                    alert={order.balance > 0 ? "priority_high" : undefined} 
+                    alertColor="text-amber-500" 
+                />
+                {user.role !== 'VENDEDOR' && (
+                    <>
+                        <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
+                        <StatCard label="Margen" value={(parseValue(order.totalAmount) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
+                    </>
+                )}
                 <StatCard
-                    label="Fecha de Entrega"
+                    label="Entrega"
                     value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
                     onUpdate={canModifyOrderDetails ? (v) => updateField('dueDate', v) : undefined}
                     isDate
@@ -448,7 +547,7 @@ const OrderDetail: React.FC = () => {
                             const days = Math.ceil((new Date(order.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
                             return days > 0 ? `Quedan ${days} días` : days === 0 ? "Entrega hoy" : `Atrasa ${Math.abs(days)} días`;
                         })()
-                    ) : "Sin fecha asignada"}
+                    ) : "Sin fecha"}
                     icon="event"
                     color="text-foreground"
                     alert={order.dueDate && new Date(order.dueDate) < new Date() ? "priority_high" : undefined}
@@ -533,7 +632,20 @@ const OrderDetail: React.FC = () => {
                                         <DetailRow label="Kilataje" value={piece.karats || '-'} />
                                         <DetailRow label="Peso" value={piece.weight ? `${piece.weight} gr` : '-'} />
                                         <DetailRow label="Medida" value={piece.size || '-'} />
+                                        <DetailRow label="Grosor" value={piece.thickness || '-'} />
                                         <DetailRow label="Código" value={piece.itemCode || '-'} />
+                                        {(piece.laborCost || piece.materialCost) && (
+                                            <div className="pt-4 border-t border-border/50 space-y-4">
+                                                <DetailRow label="Mano de Obra" value={piece.laborCost ? `${Number(piece.laborCost).toLocaleString()} MXN` : '-'} />
+                                                <DetailRow label="Material" value={piece.materialCost ? `${Number(piece.materialCost).toLocaleString()} MXN` : '-'} />
+                                            </div>
+                                        )}
+                                        {piece.description && (
+                                            <div className="pt-4 border-t border-border/50">
+                                                <span className="text-zinc-400 dark:text-zinc-600 text-[8px] font-black uppercase tracking-widest block mb-2 transition-colors">Descripción / Trabajo</span>
+                                                <p className="text-foreground text-[11px] font-medium leading-relaxed bg-muted/50 p-3 rounded-xl border border-border/50 transition-colors">{piece.description}</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -561,7 +673,7 @@ const OrderDetail: React.FC = () => {
                             )}
                             <div>
                                 <h4 className="text-foreground font-bold text-lg transition-colors">{order.clientName}</h4>
-                                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1 transition-colors">VIP • Madrid, ES</p>
+                                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1 transition-colors">{order.client?.status || 'Activo'} • {order.client?.location || 'MÉXICO'}</p>
                             </div>
                         </div>
                         {!isJoyero && (
@@ -636,40 +748,7 @@ const OrderDetail: React.FC = () => {
                         <RepairPanel order={order} onUpdateStatus={handleSaveDetails} />
                     )}
                     {order.type === OrderType.MANUFACTURE && (
-                        <ManufacturePanel order={order} onUpdateStatus={() => { }} />
-                    )}
-
-                    {/* Production Flow (Legacy or Manufacture) */}
-                    {order.type === OrderType.MANUFACTURE && (
-                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
-                            <div className="flex items-center justify-between mb-12">
-                                <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest font-display transition-colors">Flujo de Producción</h3>
-                                <span className="text-muted-foreground text-[9px] font-bold uppercase tracking-widest transition-colors">Actualizado: Hace 2 horas</span>
-                            </div>
-                            <div className="relative flex justify-between items-center px-4">
-                                <div className="absolute left-0 right-0 h-px bg-border top-1/2 -translate-y-1/2 z-0">
-                                    <div
-                                        className="h-full bg-indigo-500/20 transition-all duration-500"
-                                        style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
-                                    ></div>
-                                </div>
-                                {STEPS.map((step, index) => {
-                                    let status: 'completed' | 'current' | 'upcoming' = 'upcoming';
-                                    if (index < currentStep) status = 'completed';
-                                    if (index === currentStep) status = 'current';
-
-                                    return (
-                                        <FlowStep
-                                            key={step.name}
-                                            name={step.name}
-                                            icon={step.icon}
-                                            status={status}
-                                            onClick={() => handleStepChange(index)}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </section>
+                        <ManufacturePanel order={order} onUpdateStatus={handleSaveDetails} />
                     )}
 
                     {/* Envelope / Reference Photos Section */}
@@ -788,6 +867,12 @@ const OrderDetail: React.FC = () => {
                 onClose={() => setIsPrintViewOpen(false)}
                 order={order}
             />
+
+            <LabelPrintModal
+                isOpen={isLabelPrintOpen}
+                onClose={() => setIsLabelPrintOpen(false)}
+                order={order}
+            />
         </div>
     );
 };
@@ -866,20 +951,20 @@ const DetailRow: React.FC<{ label: string, value: string, isItalic?: boolean, on
 );
 
 const STEPS = [
-    { name: 'Diseño', icon: 'brush' },
-    { name: 'Gemas', icon: 'diamond' },
-    { name: 'Fundición', icon: 'bolt' },
-    { name: 'Engaste', icon: 'settings_suggest' },
-    { name: 'Control', icon: 'fact_check' },
-    { name: 'Entrega', icon: 'local_shipping' }
+    { name: 'Diseño', status: 'COTIZACION_ENVIADA', icon: 'brush' },
+    { name: 'Gemas', status: 'APROBADO_ANTICIPO', icon: 'diamond' },
+    { name: 'Fundición', status: 'EN_PRODUCCION', icon: 'bolt' },
+    { name: 'Engaste', status: 'EN_PRODUCCION', icon: 'settings_suggest' },
+    { name: 'Control', status: 'CONTROL_CALIDAD', icon: 'fact_check' },
+    { name: 'Entrega', status: 'ENTREGADO_POSTVENTA', icon: 'local_shipping' }
 ];
 
-const FlowStep: React.FC<{ name: string, icon: string, status: 'completed' | 'current' | 'upcoming', onClick: () => void }> = ({ name, icon, status, onClick }) => (
-    <div onClick={onClick} className="relative z-10 flex flex-col items-center gap-3 group cursor-pointer">
-        <div className={`size-12 rounded-full flex items-center justify-center transition-all duration-500 ${status !== 'upcoming' ? 'bg-white dark:bg-zinc-950 border-2' : 'bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 text-zinc-300 dark:text-zinc-700 group-hover:border-zinc-400 dark:group-hover:border-zinc-700 group-hover:text-zinc-500 dark:group-hover:text-zinc-500'} ${status === 'completed' ? 'border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''} ${status === 'current' ? 'border-indigo-500 text-zinc-900 dark:text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110' : ''}`}>
+const FlowStep: React.FC<{ name: string, icon: string, status: 'completed' | 'current' | 'upcoming', onClick: () => void, isAuthorized?: boolean }> = ({ name, icon, status, onClick, isAuthorized }) => (
+    <div onClick={onClick} className={`relative z-10 flex flex-col items-center gap-3 group ${isAuthorized ? 'cursor-pointer' : 'cursor-default pointer-events-none opacity-85'}`}>
+        <div className={`size-12 rounded-full flex items-center justify-center transition-all duration-500 ${status !== 'upcoming' ? 'bg-white dark:bg-zinc-950 border-2' : 'bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 text-zinc-300 dark:text-zinc-700' + (isAuthorized ? ' group-hover:border-zinc-400 dark:group-hover:border-zinc-700 group-hover:text-zinc-500 dark:group-hover:text-zinc-500' : '')} ${status === 'completed' ? 'border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''} ${status === 'current' ? 'border-indigo-500 text-zinc-900 dark:text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110' : ''}`}>
             <span className={`material-symbols-outlined text-[20px] ${status === 'completed' ? 'icon-fill' : ''}`}>{status === 'completed' ? 'check_circle' : icon}</span>
         </div>
-        <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${status === 'completed' ? 'text-emerald-500' : status === 'current' ? 'text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-700 group-hover:text-zinc-500'}`}>{name}</span>
+        <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${status === 'completed' ? 'text-emerald-500' : status === 'current' ? 'text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-700' + (isAuthorized ? ' group-hover:text-zinc-500' : '')}`}>{name}</span>
     </div>
 );
 

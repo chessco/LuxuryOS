@@ -434,6 +434,12 @@ const OrderDetail: React.FC = () => {
                                 <span className="material-symbols-outlined text-[18px]">history</span>
                                 <span>Recibido: {order.date}</span>
                             </div>
+                            {(order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || ((order.status === 'DELIVERED' || order.status === 'REPAIR_COMPLETED' || order.status === 'READY_FOR_PICKUP') && (order.type === 'REPAIR' || order.type === 'MANUFACTURE') ? 'Joyero' : null)) && (
+                                <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                                    <span className="material-symbols-outlined text-[16px]">verified</span>
+                                    <span>Listo por: <strong className="text-foreground">{order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || (order.type === 'REPAIR' || order.type === 'MANUFACTURE' ? 'Joyero' : '—')}</strong></span>
+                                </div>
+                            )}
                             {(order.deliveredAt || order.status === 'DELIVERED' || order.status === 'ENTREGADO' || order.stage === 'ENTREGADO_POSTVENTA') && (
                                 <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
                                     <span className="material-symbols-outlined text-[16px]">local_shipping</span>

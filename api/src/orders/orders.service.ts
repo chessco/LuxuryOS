@@ -347,6 +347,9 @@ export class OrdersService {
                     at: new Date()
                 }
             };
+        } else if (specs.readyByName && typeof finalSpecifications === 'object' && !finalSpecifications.readyByName) {
+            finalSpecifications.readyByName = specs.readyByName;
+            finalSpecifications.readyBy = specs.readyBy;
         }
 
         const updated = await this.prisma.order.update({
