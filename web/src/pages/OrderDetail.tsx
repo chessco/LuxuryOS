@@ -393,7 +393,11 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    const isJoyero = user.role === 'JOYERO';
+    const isJoyero = 
+        user.role === 'JOYERO' || 
+        String(user.role || '').toUpperCase() === 'JOYERO' ||
+        String(user.email || '').toLowerCase().includes('joyero') ||
+        String(user.name || '').toLowerCase().includes('joyero');
     const statusUpper = String(order.status || order.orderStatus || '').toUpperCase();
     const stageUpper = String(order.stage || '').toUpperCase();
     const isReceived = (!statusUpper || statusUpper === 'RECEIVED' || statusUpper === 'RECIBIDO' || statusUpper === 'DRAFT' || statusUpper === 'SPEC_PENDING') &&
