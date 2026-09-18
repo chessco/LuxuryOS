@@ -21,8 +21,8 @@ const AVAILABLE_ICONS = [
 ];
 
 export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus }) => {
-    const currentStatus = order.status || order.orderStatus || OrderStatus.RECEIVED;
-    const currentIndex = REPAIR_STEPS.findIndex(s => s.status === currentStatus);
+    const currentStatus = String(order.status || order.orderStatus || OrderStatus.RECEIVED).toUpperCase();
+    const currentIndex = REPAIR_STEPS.findIndex(s => String(s.status).toUpperCase() === currentStatus);
 
     const [diagnosis, setDiagnosis] = useState(order.specifications?.diagnosis || '');
     const [partsNeeded, setPartsNeeded] = useState(order.specifications?.partsNeeded || '');
@@ -49,7 +49,10 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
     const handleNextStatus = async () => {
         if (currentIndex < REPAIR_STEPS.length - 1) {
             const nextStatus = REPAIR_STEPS[currentIndex + 1].status;
-            await onUpdateStatus({ status: nextStatus });
+            await onUpdateStatus({
+                status: nextStatus,
+                ...(nextStatus === OrderStatus.DELIVERED ? { deliveredAt: new Date().toISOString() } : {})
+            });
         }
     };
 
@@ -57,7 +60,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
     const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
 
     const handleStepClick = async (status: string) => {
-        const targetIndex = REPAIR_STEPS.findIndex(s => s.status === status);
+        const targetIndex = REPAIR_STEPS.findIndex(s => String(s.status).toUpperCase() === String(status).toUpperCase());
         if (targetIndex === -1 || targetIndex === currentIndex) return;
 
         // Regla: El workflow puede ser modificado por todos pero no ir hacia atrás (solo ADMIN y SYSTEM)
@@ -67,7 +70,10 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
         }
 
         try {
-            await onUpdateStatus({ status });
+            await onUpdateStatus({ 
+                status,
+                ...(status === OrderStatus.DELIVERED ? { deliveredAt: new Date().toISOString() } : {})
+            });
         } catch (error) {
             console.error("Failed to jump step", error);
         }
@@ -90,23 +96,23 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
     };
 
     return (
-        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors relative">
-            <header className="flex items-center justify-between mb-10">
+        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
+            <header className="flex flex-wrap items-center justify-between gap-4 mb-10">
                 <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-amber-600 dark:text-amber-500 text-[20px] transition-colors">handyman</span>
-                    </div>
-                    <div>
-                        <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest font-display transition-colors">Panel de Gestión de Reparaciones</h3>
-                        <p className="text-muted-foreground text-[9px] font-black uppercase tracking-widest mt-0.5 transition-colors">Control de Taller de Alta Joyería</p>
-                    </div>
+                    <div className="size-3 rounded-full bg-amber-500 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                    <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">
+                        Mesa de Trabajo • Taller de Reparaciones
+                    </h3>
                 </div>
-                <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full transition-colors">
-                    <span className="text-amber-600 dark:text-amber-500 text-[9px] font-black uppercase tracking-widest">Reparación Activa</span>
+                <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest transition-colors">Estado Actual:</span>
+                    <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full transition-colors">
+                        {REPAIR_STEPS[currentIndex]?.label || currentStatus}
+                    </span>
                 </div>
             </header>
 
-            {/* Stepper */}
+            {/* Stepper Header */}
             <div className="relative flex justify-between items-center mb-12 px-4">
                 <div className="absolute left-0 right-0 h-px bg-border top-[20px] z-0 transition-colors">
                     <div
@@ -115,8 +121,8 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                     />
                 </div>
                 {REPAIR_STEPS.map((step, idx) => {
-                    const isActive = idx <= currentIndex;
                     const isCurrent = idx === currentIndex;
+                    const isActive = idx <= currentIndex;
                     const iconName = customStepIcons[idx] || step.icon;
 
                     return (
@@ -129,26 +135,31 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                                 <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setEditingStepIndex(editingStepIndex === idx ? null : idx); }}
-                                    className="absolute -top-3 -right-2 size-5 rounded-full bg-card border border-border text-muted-foreground hover:text-amber-500 hover:border-amber-500/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md z-20"
+                                    className="absolute -top-3 -right-2 size-6 rounded-full bg-card border border-border text-muted-foreground hover:text-amber-500 hover:border-amber-500/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md z-30"
                                     title="Editar icono de este paso"
                                 >
                                     <span className="material-symbols-outlined text-[12px]">edit</span>
                                 </button>
                             )}
 
-                            <div 
+                            <button 
+                                type="button"
                                 onClick={() => handleStepClick(step.status)}
-                                className={`size-10 rounded-full flex items-center justify-center transition-all duration-500 border-2 ${
-                                    isCurrent ? 'bg-amber-500 border-amber-400 text-black scale-110 shadow-[0_0_20px_rgba(245,158,11,0.4)] cursor-pointer' :
-                                    isActive ? 'bg-background border-amber-500 text-amber-500 hover:border-amber-400 cursor-pointer' :
-                                        'bg-background border-border text-muted-foreground/30 hover:border-zinc-500/50 cursor-pointer'
-                                }`}
+                                className="flex flex-col items-center gap-2 cursor-pointer focus:outline-none select-none touch-manipulation active:scale-95 transition-transform"
                             >
-                                <span className="material-symbols-outlined text-[18px]">{iconName}</span>
-                            </div>
-                            <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${
-                                isActive ? 'text-foreground font-black' : 'text-muted-foreground'
-                            }`}>{step.label}</span>
+                                <div 
+                                    className={`size-11 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                                        isCurrent ? 'bg-amber-500 border-amber-400 text-black scale-110 shadow-[0_0_20px_rgba(245,158,11,0.4)]' :
+                                        isActive ? 'bg-background border-amber-500 text-amber-500 hover:border-amber-400' :
+                                            'bg-background border-border text-muted-foreground/30 hover:border-zinc-500/50'
+                                    }`}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">{iconName}</span>
+                                </div>
+                                <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${
+                                    isActive ? 'text-foreground font-black' : 'text-muted-foreground'
+                                }`}>{step.label}</span>
+                            </button>
                         </div>
                     );
                 })}
