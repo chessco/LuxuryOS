@@ -42,6 +42,8 @@ export const Messages: React.FC = () => {
         String(user.email || '').toLowerCase().includes('joyero') ||
         String(user.name || '').toLowerCase().includes('joyero');
 
+    const selectedIdRef = useRef<string | null>(null);
+
     useEffect(() => {
         selectedIdRef.current = selectedId;
     }, [selectedId]);
