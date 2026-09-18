@@ -356,7 +356,11 @@ const OrderDetail: React.FC = () => {
     };
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isJoyero = user.role === 'JOYERO';
+    const isJoyero = 
+        user.role === 'JOYERO' || 
+        String(user.role || '').toUpperCase() === 'JOYERO' ||
+        String(user.email || '').toLowerCase().includes('joyero') ||
+        String(user.name || '').toLowerCase().includes('joyero');
     const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
     const statusUpper = String(order.status || order.orderStatus || '').toUpperCase();
     const stageUpper = String(order.stage || '').toUpperCase();
