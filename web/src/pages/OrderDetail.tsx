@@ -300,8 +300,10 @@ const OrderDetail: React.FC = () => {
         if (!id) return;
         try {
             await OrdersService.advanceStatus(id);
-            // Re-fetch order to see changes
-            window.location.reload(); // Simple refresh for now to reset all panels/states
+            const fresh = await OrdersService.getOrder(id);
+            if (fresh) {
+                setOrder(enrichOrder(fresh));
+            }
         } catch (error) {
             console.error(error);
         }
@@ -310,8 +312,22 @@ const OrderDetail: React.FC = () => {
     const handleSaveDetails = async (data: any) => {
         if (!id) return;
         try {
+            // Optimistic update for immediate visual feedback on iPad
+            if (data.status || data.stage) {
+                setOrder((prev: any) => prev ? {
+                    ...prev,
+                    status: data.status || prev.status,
+                    orderStatus: data.status || prev.orderStatus,
+                    stage: data.stage || prev.stage,
+                    statusLabel: getStatusLabel(data.status || data.stage || prev.status)
+                } : prev);
+            }
+
             await OrdersService.updateOrder(id, data);
-            window.location.reload();
+            const fresh = await OrdersService.getOrder(id);
+            if (fresh) {
+                setOrder(enrichOrder(fresh));
+            }
         } catch (error) {
             console.error(error);
         }
@@ -337,31 +353,31 @@ const OrderDetail: React.FC = () => {
     const handleStepChange = async (index: number) => {
         if (index === currentStep) return;
 
-        if (isAuthorized) {
-            const stepStatus = STEPS[index].status;
-            try {
-                await OrdersService.updateOrder(id!, { stage: stepStatus });
-                window.location.reload();
-            } catch (error) {
-                console.error(error);
-                alert("Error al actualizar la fase de producción.");
-            }
+        // Regla: No ir hacia atrás si no es admin
+        if (!isAuthorized && index < currentStep) {
+            alert("No está permitido retroceder el estado del flujo de trabajo.");
             return;
         }
 
-        setCurrentStep(index);
-
-        // Add activity log
-        const stepName = STEPS[index].name;
-        const newActivity = {
-            user: "Tú",
-            action: "moviste el estado a",
-            target: stepName,
-            time: "Hace un momento",
-            dotColor: "bg-emerald-500"
-        };
-
-        setActivities(prev => [newActivity, ...prev]);
+        const stepStatus = STEPS[index].status;
+        try {
+            setCurrentStep(index);
+            await OrdersService.updateOrder(id!, { stage: stepStatus });
+            const fresh = await OrdersService.getOrder(id!);
+            if (fresh) {
+                setOrder(enrichOrder(fresh));
+            }
+            setActivities(prev => [{
+                user: "Tú",
+                action: "moviste el estado a",
+                target: STEPS[index].name,
+                time: "Hace un momento",
+                dotColor: "bg-emerald-500"
+            }, ...prev]);
+        } catch (error) {
+            console.error(error);
+            alert("Error al actualizar la fase de producción.");
+        }
     };
 
     if (!order) {
@@ -959,13 +975,17 @@ const STEPS = [
     { name: 'Entrega', status: 'ENTREGADO_POSTVENTA', icon: 'local_shipping' }
 ];
 
-const FlowStep: React.FC<{ name: string, icon: string, status: 'completed' | 'current' | 'upcoming', onClick: () => void, isAuthorized?: boolean }> = ({ name, icon, status, onClick, isAuthorized }) => (
-    <div onClick={onClick} className={`relative z-10 flex flex-col items-center gap-3 group ${isAuthorized ? 'cursor-pointer' : 'cursor-default pointer-events-none opacity-85'}`}>
-        <div className={`size-12 rounded-full flex items-center justify-center transition-all duration-500 ${status !== 'upcoming' ? 'bg-white dark:bg-zinc-950 border-2' : 'bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 text-zinc-300 dark:text-zinc-700' + (isAuthorized ? ' group-hover:border-zinc-400 dark:group-hover:border-zinc-700 group-hover:text-zinc-500 dark:group-hover:text-zinc-500' : '')} ${status === 'completed' ? 'border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''} ${status === 'current' ? 'border-indigo-500 text-zinc-900 dark:text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110' : ''}`}>
+const FlowStep: React.FC<{ name: string, icon: string, status: 'completed' | 'current' | 'upcoming', onClick: () => void }> = ({ name, icon, status, onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className="relative z-10 flex flex-col items-center gap-3 group cursor-pointer focus:outline-none select-none touch-manipulation active:scale-95 transition-transform"
+    >
+        <div className={`size-12 rounded-full flex items-center justify-center transition-all duration-300 ${status !== 'upcoming' ? 'bg-card border-2' : 'bg-card border border-border text-muted-foreground/40 group-hover:border-border/80 group-hover:text-muted-foreground'} ${status === 'completed' ? 'border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : ''} ${status === 'current' ? 'border-indigo-500 text-foreground shadow-[0_0_20px_rgba(99,102,241,0.5)] scale-110' : ''}`}>
             <span className={`material-symbols-outlined text-[20px] ${status === 'completed' ? 'icon-fill' : ''}`}>{status === 'completed' ? 'check_circle' : icon}</span>
         </div>
-        <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${status === 'completed' ? 'text-emerald-500' : status === 'current' ? 'text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-700' + (isAuthorized ? ' group-hover:text-zinc-500' : '')}`}>{name}</span>
-    </div>
+        <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${status === 'completed' ? 'text-emerald-500' : status === 'current' ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>{name}</span>
+    </button>
 );
 
 const ActivityItem: React.FC<{ user: string, action: string, target: string, time: string, dotColor?: string }> = ({ user, action, target, time, dotColor }) => (

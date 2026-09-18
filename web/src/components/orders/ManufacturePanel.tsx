@@ -57,7 +57,7 @@ export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpd
     const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
 
     const handleStepClick = async (status: string) => {
-        const targetIndex = DEFAULT_MANUFACTURE_STEPS.findIndex(s => s.status === status);
+        const targetIndex = DEFAULT_MANUFACTURE_STEPS.findIndex(s => String(s.status).toUpperCase() === String(status).toUpperCase());
         if (targetIndex === -1 || targetIndex === currentIndex) return;
 
         // Regla: El workflow puede ser modificado por todos pero no ir hacia atrás (solo ADMIN y SYSTEM)
@@ -69,7 +69,8 @@ export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpd
         try {
             await onUpdateStatus({
                 status: status,
-                stage: status === 'IN_PRODUCTION' ? 'IN_PRODUCTION' : status
+                stage: status === 'IN_PRODUCTION' ? 'IN_PRODUCTION' : status,
+                ...(status === 'DELIVERED' ? { deliveredAt: new Date().toISOString() } : {})
             });
         } catch (error) {
             console.error("Failed to update manufacture stage", error);
@@ -136,26 +137,31 @@ export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpd
                                 <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setEditingStepIndex(editingStepIndex === idx ? null : idx); }}
-                                    className="absolute -top-3 -right-2 size-5 rounded-full bg-card border border-border text-muted-foreground hover:text-indigo-500 hover:border-indigo-500/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md z-20"
+                                    className="absolute -top-3 -right-2 size-6 rounded-full bg-card border border-border text-muted-foreground hover:text-indigo-500 hover:border-indigo-500/50 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md z-30"
                                     title="Editar icono de este paso"
                                 >
                                     <span className="material-symbols-outlined text-[12px]">edit</span>
                                 </button>
                             )}
 
-                            <div 
+                            <button 
+                                type="button"
                                 onClick={() => handleStepClick(step.status)}
-                                className={`size-10 rounded-full flex items-center justify-center transition-all duration-500 border-2 ${
-                                    isCurrent ? 'bg-indigo-600 border-indigo-400 text-white scale-110 shadow-[0_0_20px_rgba(99,102,241,0.4)] cursor-pointer' :
-                                    isActive ? 'bg-background border-indigo-500 text-indigo-500 hover:border-indigo-400 cursor-pointer' :
-                                        'bg-background border-border text-muted-foreground/30 hover:border-zinc-500/50 cursor-pointer'
-                                }`}
+                                className="flex flex-col items-center gap-2 cursor-pointer focus:outline-none select-none touch-manipulation active:scale-95 transition-transform"
                             >
-                                <span className="material-symbols-outlined text-[18px]">{iconName}</span>
-                            </div>
-                            <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${
-                                isActive ? 'text-foreground font-black' : 'text-muted-foreground'
-                            }`}>{step.label}</span>
+                                <div 
+                                    className={`size-11 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                                        isCurrent ? 'bg-indigo-600 border-indigo-400 text-white scale-110 shadow-[0_0_20px_rgba(99,102,241,0.4)]' :
+                                        isActive ? 'bg-background border-indigo-500 text-indigo-500 hover:border-indigo-400' :
+                                            'bg-background border-border text-muted-foreground/30 hover:border-zinc-500/50'
+                                    }`}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">{iconName}</span>
+                                </div>
+                                <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${
+                                    isActive ? 'text-foreground font-black' : 'text-muted-foreground'
+                                }`}>{step.label}</span>
+                            </button>
                         </div>
                     );
                 })}
