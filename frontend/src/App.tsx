@@ -22,7 +22,12 @@ import { ThemeProvider } from './context/ThemeContext';
 function App() {
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const defaultRoute = (user.role === 'VENDEDOR' || user.role === 'JOYERO') ? "/orders" : "/dashboard";
+    const isJoyero = 
+        user.role === 'JOYERO' || 
+        String(user.role || '').toUpperCase() === 'JOYERO' ||
+        String(user.email || '').toLowerCase().includes('joyero') ||
+        String(user.name || '').toLowerCase().includes('joyero');
+    const defaultRoute = isJoyero ? "/orders?type=REPAIR" : (user.role === 'VENDEDOR' ? "/orders" : "/dashboard");
 
     return (
         <ThemeProvider>

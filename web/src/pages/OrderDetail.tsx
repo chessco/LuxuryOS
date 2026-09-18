@@ -650,12 +650,14 @@ const OrderDetail: React.FC = () => {
                     <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                         <div className="flex items-center justify-between mb-8">
                             <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Cliente</h3>
-                            <Link
-                                to={`/clients?search=${encodeURIComponent(order.clientName)}`}
-                                className="text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:underline transition-colors"
-                            >
-                                Ver Perfil <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                            </Link>
+                            {!isJoyero && (
+                                <Link
+                                    to={`/clients?search=${encodeURIComponent(order.clientName)}`}
+                                    className="text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:underline transition-colors"
+                                >
+                                    Ver Perfil <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                </Link>
+                            )}
                         </div>
                         <div className="flex items-center gap-4 mb-8">
                             {order.avatar ? (
@@ -668,14 +670,16 @@ const OrderDetail: React.FC = () => {
                                 <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1 transition-colors">{order.client?.status || 'Activo'} • {order.client?.location || 'MÉXICO'}</p>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button className="flex items-center justify-center gap-2 bg-muted border border-border rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm transition-colors">
-                                <span className="material-symbols-outlined text-[18px]">mail</span> Email
-                            </button>
-                            <button className="flex items-center justify-center gap-2 bg-muted border border-border rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm transition-colors">
-                                <span className="material-symbols-outlined text-[18px]">call</span> Llamar
-                            </button>
-                        </div>
+                        {!isJoyero && (
+                            <div className="grid grid-cols-2 gap-3">
+                                <button className="flex items-center justify-center gap-2 bg-muted border border-border rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm transition-colors">
+                                    <span className="material-symbols-outlined text-[18px]">mail</span> Email
+                                </button>
+                                <button className="flex items-center justify-center gap-2 bg-muted border border-border rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm transition-colors">
+                                    <span className="material-symbols-outlined text-[18px]">call</span> Llamar
+                                </button>
+                            </div>
+                        )}
                     </section>
 
                     {/* Payment Status */}

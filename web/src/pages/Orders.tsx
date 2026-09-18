@@ -134,6 +134,20 @@ const Orders: React.FC = () => {
         }
     }, []);
     const isSystemAdmin = user?.role === 'SYSTEM_ADMIN';
+    const isJoyero = React.useMemo(() => {
+        return (
+            user?.role === 'JOYERO' ||
+            String(user?.role || '').toUpperCase() === 'JOYERO' ||
+            String(user?.email || '').toLowerCase().includes('joyero') ||
+            String(user?.name || '').toLowerCase().includes('joyero')
+        );
+    }, [user]);
+
+    useEffect(() => {
+        if (isJoyero && !orderType) {
+            navigate('/orders?type=REPAIR', { replace: true });
+        }
+    }, [isJoyero, orderType, navigate]);
 
     const [isModalOpen, setIsModalOpen] = useState(autoOpenNew);
     const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
@@ -327,7 +341,7 @@ const Orders: React.FC = () => {
             const searchStr = nextParams.toString() ? `?${nextParams.toString()}` : '';
             navigate(`${location.pathname}${searchStr}`, { replace: true });
 
-            if (newOrder.shouldPrintLabel) {
+            if (newOrder.shouldPrintLabel && !isJoyero) {
                 setLabelPrintOrder(created);
                 setIsLabelPrintOpen(true);
             }
@@ -661,6 +675,8 @@ const Orders: React.FC = () => {
                         initialClientName={prefillClientName}
                         initialClientPhone={prefillClientPhone}
                         ticketCode={prefillTicketCode}
+                        orderType={orderType}
+                        isJoyero={isJoyero}
                     />
                 )}
             </AnimatePresence>
@@ -686,7 +702,9 @@ const NewOrderDrawer: React.FC<{
     initialClientName?: string;
     initialClientPhone?: string;
     ticketCode?: string;
-}> = ({ onClose, onSave, clients, clientOptions, onClientCreated, initialClientName, initialClientPhone, ticketCode }) => {
+    orderType?: string | null;
+    isJoyero?: boolean;
+}> = ({ onClose, onSave, clients, clientOptions, onClientCreated, initialClientName, initialClientPhone, ticketCode, orderType, isJoyero }) => {
     const [showQuickAddClient, setShowQuickAddClient] = useState(false);
     const [newClientData, setNewClientData] = useState({ name: '', phone: '', email: '' });
     const [searchMode, setSearchMode] = useState<'name' | 'phone'>('name');
@@ -886,14 +904,18 @@ const NewOrderDrawer: React.FC<{
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h2 className="text-foreground text-xl font-black uppercase tracking-widest font-display">Nuevo Pedido</h2>
+                            <h2 className="text-foreground text-xl font-black uppercase tracking-widest font-display">
+                                {orderType === 'REPAIR' ? 'Nueva Reparación' : orderType === 'MANUFACTURE' ? 'Nueva Fabricación' : 'Nuevo Pedido'}
+                            </h2>
                             {ticketCode && (
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
                                     Turno {ticketCode}
                                 </span>
                             )}
                         </div>
-                        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1.5">Registro Técnico de Joyería</p>
+                        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1.5">
+                            {orderType === 'REPAIR' ? 'Alta Técnica de Reparación' : orderType === 'MANUFACTURE' ? 'Alta Técnica de Fabricación' : 'Registro Técnico de Joyería'}
+                        </p>
                     </div>
                 </div>
 
@@ -1386,31 +1408,33 @@ const NewOrderDrawer: React.FC<{
                 </form>
 
                 {/* Footer Actions */}
-                <div className="p-8 border-t border-border bg-muted/20 grid grid-cols-3 gap-4">
+                <div className={`p-8 border-t border-border bg-muted/20 grid ${isJoyero ? 'grid-cols-2' : 'grid-cols-3'} gap-4`}>
                     <button type="button" onClick={onClose} className="py-4 rounded-xl text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground transition-all">
                         Cancelar
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setShouldPrintLabel(true);
-                            setTimeout(() => {
-                                const form = document.getElementById('new-order-form') as HTMLFormElement;
-                                form?.requestSubmit();
-                            }, 50);
-                        }}
-                        className="py-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">print</span>
-                        <span>Imprimir Etiqueta</span>
-                    </button>
+                    {!isJoyero && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShouldPrintLabel(true);
+                                setTimeout(() => {
+                                    const form = document.getElementById('new-order-form') as HTMLFormElement;
+                                    form?.requestSubmit();
+                                }, 50);
+                            }}
+                            className="py-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                        >
+                            <span className="material-symbols-outlined text-[16px]">print</span>
+                            <span>Imprimir Etiqueta</span>
+                        </button>
+                    )}
                     <button
                         type="submit"
                         form="new-order-form"
                         onClick={() => setShouldPrintLabel(false)}
                         className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95"
                     >
-                        Crear Pedido
+                        {orderType === 'REPAIR' ? 'Registrar Reparación' : orderType === 'MANUFACTURE' ? 'Registrar Fabricación' : 'Crear Pedido'}
                     </button>
                 </div>
             </motion.div>
