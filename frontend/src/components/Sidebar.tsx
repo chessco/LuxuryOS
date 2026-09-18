@@ -168,7 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                                                     </span>
                                                 )}
                                             </Link>
-                                            {isBoardItem && (
+                                            {isBoardItem && !isJoyero && (
                                                 <Link
                                                     to={`${item.path}&newOrder=true`}
                                                     onClick={() => onClose()}
