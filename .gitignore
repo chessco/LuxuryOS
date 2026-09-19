@@ -50,8 +50,25 @@ coverage/
 .agent/
 .antigravity/
 
-# Zip files
+# Zip and archive files
 *.zip
+**/*.zip
+*.tar
+*.tar.gz
+**/*.tar.gz
+*.tgz
+**/*.tgz
+
+# Private keys and certificates
+*.pem
+**/*.pem
+*.key
+**/*.key
+*.pkcs12
+*.pfx
+*.p12
+id_rsa*
+id_ed25519*
 
 # Legacy folder
 _legacy/
