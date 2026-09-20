@@ -13,8 +13,8 @@ export class ChatController {
     }
 
     @Get('conversations/:id/messages')
-    async getMessages(@Param('id') conversationId: string) {
-        return this.chatService.getMessages(conversationId);
+    async getMessages(@Param('id') conversationId: string, @Req() req) {
+        return this.chatService.getMessages(conversationId, req.user?.id || req.user?.sub, req.user?.tenantId);
     }
 
     @Post('conversations/find-or-create')

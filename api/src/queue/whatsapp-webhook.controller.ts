@@ -16,8 +16,10 @@ export class WhatsAppWebhookController {
 
     @Post()
     handle(@Body() body: any) {
-        // Basic logging of callbacks
-        console.log('[WhatsApp Webhook] Received:', JSON.stringify(body, null, 2));
+        // Redacted logging of callbacks to avoid exposing sensitive PII in server logs
+        const objectType = body?.object || 'unknown';
+        const entryCount = Array.isArray(body?.entry) ? body.entry.length : 0;
+        console.log(`[WhatsApp Webhook] Event received: object=${objectType}, entries=${entryCount}`);
         return { status: 'ok' };
     }
 }

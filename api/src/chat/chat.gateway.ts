@@ -12,9 +12,26 @@ import { ChatService } from './chat.service';
 import { UseGuards } from '@nestjs/common';
 import { WsJwtGuard } from './ws-jwt.guard';
 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : [
+        'https://luxuryos.pitayacode.io',
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'http://localhost:3002',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:3000',
+    ];
+
 @WebSocketGateway({
     cors: {
-        origin: '*',
+        origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+            if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin) || origin.endsWith('.pitayacode.io')) {
+                return callback(null, true);
+            }
+            return callback(new Error('Not allowed by CORS'));
+        },
+        credentials: true,
     },
 })
 @UseGuards(WsJwtGuard)
@@ -33,9 +50,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     @SubscribeMessage('joinRoom')
-    handleJoinRoom(client: Socket, conversationId: string) {
+    async handleJoinRoom(
+        @ConnectedSocket() client: Socket,
+        @MessageBody() conversationId: string
+    ) {
+        const userId = client.data?.user?.sub || client.data?.user?.id;
+        const tenantId = client.data?.user?.tenantId;
+
+        if (!userId || !tenantId) {
+            client.emit('error', { message: 'No autenticado para acceder al chat' });
+            return;
+        }
+
+        const isMember = await this.chatService.isUserInConversation(conversationId, userId, tenantId);
+        if (!isMember) {
+            client.emit('error', { message: 'No autorizado para unirse a esta conversación' });
+            return;
+        }
+
         client.join(conversationId);
-        console.log(`Client ${client.id} joined room: ${conversationId}`);
+        console.log(`Client ${client.id} (user ${userId}) joined room: ${conversationId}`);
     }
 
     @SubscribeMessage('leaveRoom')
@@ -47,18 +81,24 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @SubscribeMessage('sendMessage')
     async handleMessage(
         @ConnectedSocket() client: Socket,
-        @MessageBody() data: { conversationId: string; senderId: string; content: string },
+        @MessageBody() data: { conversationId: string; senderId?: string; content: string },
     ) {
-        console.log(`[ChatGateway] Received sendMessage:`, { ...data, socketId: client.id });
+        const userId = client.data?.user?.sub || client.data?.user?.id;
+        const tenantId = client.data?.user?.tenantId;
+
+        if (!userId || !tenantId) {
+            client.emit('error', { message: 'No autenticado para enviar mensajes' });
+            return;
+        }
 
         try {
+            // Enforce authenticated senderId from JWT session
             const message = await this.chatService.saveMessage(
                 data.conversationId,
-                data.senderId,
+                userId,
                 data.content,
+                tenantId
             );
-
-            console.log(`[ChatGateway] Message saved, broadcasting to room: ${data.conversationId}`);
 
             // Broadcast to all clients in the room
             this.server.to(data.conversationId).emit('newMessage', message);
@@ -68,11 +108,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 conversationId: data.conversationId,
                 lastMessage: message
             });
-
-            console.log(`[ChatGateway] Broadcast complete for message: ${message.id}`);
-        } catch (error) {
+        } catch (error: any) {
             console.error(`[ChatGateway] Error handling sendMessage:`, error);
-            client.emit('error', { message: 'Failed to send message' });
+            client.emit('error', { message: error.message || 'Failed to send message' });
         }
     }
 }

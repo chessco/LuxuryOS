@@ -21,9 +21,9 @@ export class AuthService {
                 where: { email: normalizedEmail },
             });
         } else {
-            // Partial email (just the username part before @)
+            // Username provided without domain: match exact username prefix before @
             user = await this.prisma.user.findFirst({
-                where: { email: { startsWith: normalizedEmail } },
+                where: { email: { startsWith: `${normalizedEmail}@` } },
             });
         }
 

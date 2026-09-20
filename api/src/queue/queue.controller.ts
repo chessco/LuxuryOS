@@ -22,10 +22,19 @@ export class QueueController {
         private readonly queueGateway: QueueGateway,
     ) { }
 
+    private async resolveTenantId(req: any): Promise<string> {
+        const headerTenant = req.headers['x-tenant-id'];
+        if (headerTenant && typeof headerTenant === 'string') {
+            const exists = await this.queueService.checkTenantExists(headerTenant);
+            if (exists) return headerTenant;
+        }
+        return this.queueService.getDefaultTenantId();
+    }
+
     @Post('tickets')
     async create(@Body() data: CreateQueueTicketDto, @Req() req: any) {
         try {
-            const tenantId = req.headers['x-tenant-id'] || '071ab28f-da33-4bf8-90ed-f8a1af880078';
+            const tenantId = await this.resolveTenantId(req);
             const ticket = await this.queueService.createTicket(tenantId, data);
             
             try {
@@ -46,7 +55,7 @@ export class QueueController {
 
     @Get('tickets/public')
     async getPublic(@Req() req: any) {
-        const tenantId = req.headers['x-tenant-id'] || '071ab28f-da33-4bf8-90ed-f8a1af880078';
+        const tenantId = await this.resolveTenantId(req);
         return this.queueService.getPublicTickets(tenantId);
     }
 
@@ -57,7 +66,7 @@ export class QueueController {
 
     @Get('recommendations/:kind')
     async getRecommendations(@Param('kind') kind: QueueTicketKind, @Req() req: any) {
-        const tenantId = req.headers['x-tenant-id'] || '071ab28f-da33-4bf8-90ed-f8a1af880078';
+        const tenantId = await this.resolveTenantId(req);
         return this.queueService.getRecommendations(tenantId, kind);
     }
 
