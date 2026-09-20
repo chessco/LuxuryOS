@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { Role } from '@prisma/client';
@@ -35,8 +35,13 @@ export class UsersService {
         return user;
     }
 
-    async create(tenantId: string, data: any) {
+    async create(tenantId: string, data: any, currentUser?: any) {
         const { email, name, password, role } = data;
+
+        if (role === Role.SYSTEM_ADMIN && currentUser?.role !== Role.SYSTEM_ADMIN) {
+            throw new ForbiddenException('Solo un Administrador del Sistema puede crear usuarios SYSTEM_ADMIN');
+        }
+
         const passwordHash = await bcrypt.hash(password, 10);
 
         return this.prisma.user.create({
@@ -57,9 +62,24 @@ export class UsersService {
         });
     }
 
-    async update(tenantId: string, id: string, data: any) {
+    async update(tenantId: string, id: string, data: any, currentUser?: any) {
+        const target = await this.prisma.user.findUnique({ where: { id, tenantId } });
+        if (!target) throw new NotFoundException('Usuario no encontrado');
+
+        if (target.role === Role.SYSTEM_ADMIN && currentUser?.role !== Role.SYSTEM_ADMIN) {
+            throw new ForbiddenException('No tienes permisos para modificar a un Administrador del Sistema');
+        }
+
         const { email, name, role, password } = data;
-        const updateData: any = { email, name, role };
+
+        if (role && role === Role.SYSTEM_ADMIN && currentUser?.role !== Role.SYSTEM_ADMIN) {
+            throw new ForbiddenException('Solo un Administrador del Sistema puede asignar el rol SYSTEM_ADMIN');
+        }
+
+        const updateData: any = { email, name };
+        if (role) {
+            updateData.role = role;
+        }
 
         if (password) {
             updateData.passwordHash = await bcrypt.hash(password, 10);
@@ -78,7 +98,18 @@ export class UsersService {
         });
     }
 
-    async delete(tenantId: string, id: string) {
+    async delete(tenantId: string, id: string, currentUser?: any) {
+        if (currentUser?.id === id) {
+            throw new BadRequestException('No puedes eliminar tu propia cuenta');
+        }
+
+        const target = await this.prisma.user.findUnique({ where: { id, tenantId } });
+        if (!target) throw new NotFoundException('Usuario no encontrado');
+
+        if (target.role === Role.SYSTEM_ADMIN && currentUser?.role !== Role.SYSTEM_ADMIN) {
+            throw new ForbiddenException('No tienes permisos para eliminar a un Administrador del Sistema');
+        }
+
         return this.prisma.user.delete({
             where: { id, tenantId },
         });

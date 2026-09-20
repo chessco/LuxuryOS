@@ -6,11 +6,16 @@ import { Prisma } from '@prisma/client';
 export class PaymentsService {
     constructor(private prisma: PrismaService) { }
 
-    async recordPayment(orderId: string, amount: number, method: string, reference?: string, userId?: string) {
+    async recordPayment(orderId: string, amount: number, method: string, reference?: string, userId?: string, tenantId?: string) {
         if (amount <= 0) throw new BadRequestException('El monto debe ser positivo');
 
         return this.prisma.$transaction(async (tx) => {
-            const order = await tx.order.findUnique({ where: { id: orderId } });
+            const order = await tx.order.findFirst({
+                where: {
+                    id: orderId,
+                    ...(tenantId ? { tenantId } : {}),
+                },
+            });
             if (!order) throw new BadRequestException('Orden no encontrada');
 
             // Crear registro de pago
@@ -28,12 +33,6 @@ export class PaymentsService {
             const newPaidAmount = order.paidAmount.add(new Prisma.Decimal(amount));
             const newBalance = order.totalAmount.sub(newPaidAmount);
 
-            // Validar sobrepago (opcional, pero buena práctica)
-            if (newBalance.lt(0)) {
-                // throw new BadRequestException('El pago excede el saldo pendiente');
-                // O permitirlo como saldo a favor
-            }
-
             // Actualizar Orden
             const updatedOrder = await tx.order.update({
                 where: { id: orderId },
@@ -48,14 +47,21 @@ export class PaymentsService {
         });
     }
 
-    async getPaymentsByOrder(orderId: string) {
+    async getPaymentsByOrder(orderId: string, tenantId?: string) {
+        if (tenantId) {
+            const order = await this.prisma.order.findFirst({
+                where: { id: orderId, tenantId },
+            });
+            if (!order) throw new BadRequestException('Orden no encontrada');
+        }
+
         return this.prisma.payment.findMany({
             where: { orderId },
             orderBy: { recordedAt: 'desc' },
         });
     }
 
-    async deletePayment(paymentId: string) {
+    async deletePayment(paymentId: string, tenantId?: string) {
         return this.prisma.$transaction(async (tx) => {
             const payment = await tx.payment.findUnique({
                 where: { id: paymentId },
@@ -63,6 +69,10 @@ export class PaymentsService {
             });
 
             if (!payment) throw new BadRequestException('Pago no encontrado');
+
+            if (tenantId && payment.order.tenantId !== tenantId) {
+                throw new BadRequestException('No autorizado para eliminar este pago');
+            }
 
             const order = payment.order;
 

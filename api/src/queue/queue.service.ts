@@ -14,6 +14,29 @@ export class QueueService {
         private configService: ConfigService,
     ) { }
 
+    async checkTenantExists(tenantId: string): Promise<boolean> {
+        if (!tenantId) return false;
+        const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: { id: true },
+        });
+        return !!tenant;
+    }
+
+    async getDefaultTenantId(): Promise<string> {
+        const defaultId = process.env.DEFAULT_TENANT_ID || '071ab28f-da33-4bf8-90ed-f8a1af880078';
+        const tenant = await this.prisma.tenant.findUnique({
+            where: { id: defaultId },
+            select: { id: true },
+        });
+        if (tenant) return tenant.id;
+
+        const firstTenant = await this.prisma.tenant.findFirst({
+            select: { id: true },
+        });
+        return firstTenant ? firstTenant.id : defaultId;
+    }
+
     async createTicket(tenantId: string, data: CreateQueueTicketDto) {
         try {
             const today = new Date();

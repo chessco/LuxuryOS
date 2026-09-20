@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../queue/notification.service';
 
@@ -8,6 +8,17 @@ export class ChatService {
         private prisma: PrismaService,
         private notificationService: NotificationService
     ) { }
+
+    async isUserInConversation(conversationId: string, userId: string, tenantId: string): Promise<boolean> {
+        const conv = await this.prisma.conversation.findFirst({
+            where: {
+                id: conversationId,
+                tenantId,
+                users: { some: { id: userId } },
+            },
+        });
+        return !!conv;
+    }
 
     async getConversations(userId: string, tenantId: string) {
         return this.prisma.conversation.findMany({
@@ -28,7 +39,14 @@ export class ChatService {
         });
     }
 
-    async getMessages(conversationId: string) {
+    async getMessages(conversationId: string, userId?: string, tenantId?: string) {
+        if (userId && tenantId) {
+            const isMember = await this.isUserInConversation(conversationId, userId, tenantId);
+            if (!isMember) {
+                throw new ForbiddenException('No tienes acceso a los mensajes de esta conversación');
+            }
+        }
+
         return this.prisma.message.findMany({
             where: { conversationId },
             include: {
@@ -40,7 +58,14 @@ export class ChatService {
         });
     }
 
-    async saveMessage(conversationId: string, senderId: string, content: string) {
+    async saveMessage(conversationId: string, senderId: string, content: string, tenantId?: string) {
+        if (tenantId) {
+            const isMember = await this.isUserInConversation(conversationId, senderId, tenantId);
+            if (!isMember) {
+                throw new ForbiddenException('No tienes acceso para enviar mensajes a esta conversación');
+            }
+        }
+
         const message = await this.prisma.message.create({
             data: {
                 conversationId,

@@ -28,9 +28,9 @@ export default function UsersPage() {
             try {
                 await UsersService.delete(id);
                 setUsers(prev => prev.filter(u => u.id !== id));
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error deleting user:', error);
-                alert('No se pudo eliminar el usuario');
+                alert(error.response?.data?.message || 'No se pudo eliminar el usuario');
             }
         }
     };
@@ -45,9 +45,9 @@ export default function UsersPage() {
             fetchUsers();
             setIsModalOpen(false);
             setEditingUser(null);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error saving user:', error);
-            alert('Error al guardar el usuario. Verifica los datos.');
+            alert(error.response?.data?.message || 'Error al guardar el usuario. Verifica los datos.');
         }
     };
 

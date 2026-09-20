@@ -12,17 +12,21 @@ export class PaymentsController {
         @Body() body: { orderId: string; amount: number; method: string; reference?: string },
         @Request() req
     ) {
+        const userId = req.user?.id || req.user?.userId || req.user?.sub;
+        const tenantId = req.user?.tenantId;
         return this.paymentsService.recordPayment(
             body.orderId,
             body.amount,
             body.method,
             body.reference,
-            req.user.userId
+            userId,
+            tenantId
         );
     }
 
     @Delete(':id')
-    async deletePayment(@Param('id') id: string) {
-        return this.paymentsService.deletePayment(id);
+    async deletePayment(@Param('id') id: string, @Request() req) {
+        const tenantId = req.user?.tenantId;
+        return this.paymentsService.deletePayment(id, tenantId);
     }
 }

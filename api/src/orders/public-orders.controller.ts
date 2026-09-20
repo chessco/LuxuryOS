@@ -7,35 +7,53 @@ export class PublicOrdersController {
     constructor(private prisma: PrismaService) { }
 
     private async findOrderByIdOrToken(idOrToken: string) {
+        if (!idOrToken) return null;
         let clean = idOrToken.trim();
         if (clean.toUpperCase().startsWith('ORD-')) {
             clean = clean.substring(4).trim();
         }
 
-        // 1. Check direct match by ID or prefix
-        let order = await this.prisma.order.findFirst({
-            where: {
-                OR: [
-                    { id: clean },
-                    { id: { startsWith: clean.toLowerCase() } },
-                    { id: { startsWith: clean.toUpperCase() } },
-                ]
-            },
-            include: { client: true }
-        });
+        // Prevent prefix enumeration: queries shorter than 8 characters are strictly rejected
+        if (clean.length < 8) {
+            return null;
+        }
 
-        if (order) return order;
+        // 1. Direct match by full UUID (36 characters)
+        if (clean.length === 36) {
+            const order = await this.prisma.order.findUnique({
+                where: { id: clean },
+                include: { client: true }
+            });
+            if (order) return order;
+        }
 
-        // 2. Check if clean matches an HMAC token
-        const recentOrders = await this.prisma.order.findMany({
-            take: 2000,
-            orderBy: { createdAt: 'desc' },
-            include: { client: true }
-        });
+        // 2. Match by 16-character tracking token
+        if (clean.length >= 16) {
+            const recentOrders = await this.prisma.order.findMany({
+                take: 2000,
+                orderBy: { createdAt: 'desc' },
+                include: { client: true }
+            });
 
-        for (const o of recentOrders) {
-            if (generateTrackToken(o.id).toLowerCase() === clean.toLowerCase()) {
-                return o;
+            for (const o of recentOrders) {
+                if (generateTrackToken(o.id).toLowerCase() === clean.toLowerCase()) {
+                    return o;
+                }
+            }
+        }
+
+        // 3. Exact 8-character prefix corresponding to standard ticket format (ORD-XXXXXXXX)
+        if (clean.length === 8) {
+            const orders = await this.prisma.order.findMany({
+                where: {
+                    id: { startsWith: clean.toLowerCase() }
+                },
+                take: 2,
+                include: { client: true }
+            });
+
+            if (orders.length === 1) {
+                return orders[0];
             }
         }
 
