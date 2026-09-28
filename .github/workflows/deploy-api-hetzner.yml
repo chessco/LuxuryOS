@@ -37,7 +37,8 @@ jobs:
             fi
 
             echo "[1/4] Actualizando repositorio..."
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "[2/4] Reconstruyendo contenedor luxury-api-prod..."
             docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build --no-deps api
