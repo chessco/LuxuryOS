@@ -9,18 +9,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env.deploy') });
 dotenv.config();
 
+const env = (name) => (process.env[name] || '').trim();
+
 const config = {
-  host: process.env.DEPLOY_HOST,
-  port: parseInt(process.env.DEPLOY_PORT || '22'),
-  username: process.env.DEPLOY_USER,
-  password: process.env.DEPLOY_PASSWORD,
+  host: env('DEPLOY_HOST'),
+  port: parseInt(env('DEPLOY_PORT') || '22'),
+  username: env('DEPLOY_USER'),
+  password: env('DEPLOY_PASSWORD'),
   readyTimeout: 20000,
 };
 
 async function deploy() {
   const sftp = new Client();
   const localDir = path.join(__dirname, 'dist');
-  const remoteDir = process.env.DEPLOY_REMOTE_PATH || 'public_html';
+  const remoteDir = env('DEPLOY_REMOTE_PATH') || 'public_html';
 
   if (!fs.existsSync(localDir)) {
     console.error('Error: La carpeta "dist" no existe. Ejecuta "npm run build" primero.');
