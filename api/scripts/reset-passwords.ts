@@ -4,8 +4,8 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-    const newPassword = '***REMOVED***';
-    console.log(`Resetting passwords for all users to: ${newPassword}`);
+    const newPassword = process.env.NEW_PASSWORD || (() => { throw new Error('Define NEW_PASSWORD en el entorno'); })();
+    console.log(`Resetting passwords for all users`);
 
     try {
         const users = await prisma.user.findMany();

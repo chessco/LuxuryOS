@@ -21,7 +21,7 @@ async function main() {
     });
 
     // 2. Create Users with Roles
-    const passwordHash = await bcrypt.hash('***REMOVED***', 10);
+    const passwordHash = await bcrypt.hash(process.env.SEED_PASSWORD || (() => { throw new Error('Define SEED_PASSWORD en el entorno'); })(), 10);
 
     // System Admin
     await prisma.user.create({
