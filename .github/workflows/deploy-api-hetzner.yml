@@ -1,0 +1,53 @@
+name: Deploy API to Hetzner
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      - 'docker-compose.prod.yml'
+      - '.github/workflows/deploy-api-hetzner.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api-hetzner
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy API (luxury-api-prod)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          port: ${{ secrets.HETZNER_PORT || 22 }}
+          script_stop: true
+          script: |
+            cd /opt/pitaya/luxuryos
+
+            if [ ! -d .git ]; then
+              echo "El directorio no es un clon de git. Clona el repo una vez en el servidor."
+              exit 1
+            fi
+
+            echo "[1/4] Actualizando repositorio..."
+            git pull origin main
+
+            echo "[2/4] Reconstruyendo contenedor luxury-api-prod..."
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build --no-deps api
+
+            echo "[3/4] Sincronizando esquema de base de datos..."
+            docker exec -u root luxury-api-prod npx prisma db push
+
+            echo "[4/4] Verificando estado..."
+            sleep 5
+            docker ps --filter name=luxury-api-prod
+            docker logs --tail 20 luxury-api-prod
+
+            docker image prune -f
