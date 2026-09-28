@@ -5,6 +5,21 @@ import { socketService } from '../services/socket.service';
 import { UsersService } from '../services/users.service';
 import { ClientsService } from '../services/clients.service';
 
+const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
+
+const renderWithLinks = (text: string, linkClassName: string): React.ReactNode[] =>
+    String(text ?? '').split(URL_REGEX).map((part, i) => {
+        if (i % 2 === 0) return part;
+        const trailing = part.match(/[.,;:!?)\]]+$/)?.[0] ?? '';
+        const url = trailing ? part.slice(0, -trailing.length) : part;
+        return (
+            <React.Fragment key={i}>
+                <a href={url} target="_blank" rel="noopener noreferrer" className={linkClassName}>{url}</a>
+                {trailing}
+            </React.Fragment>
+        );
+    });
+
 export const Messages: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'internal' | 'whatsapp'>('internal');
 
@@ -604,7 +619,14 @@ export const Messages: React.FC = () => {
                                                                     />
                                                                 </div>
                                                             )}
-                                                            <div className="whitespace-pre-wrap leading-relaxed">{textBody}</div>
+                                                            <div className="whitespace-pre-wrap leading-relaxed break-words">
+                                                                {renderWithLinks(
+                                                                    textBody,
+                                                                    isOutbound
+                                                                        ? 'underline font-bold text-white hover:text-emerald-100'
+                                                                        : 'underline font-bold text-emerald-600 hover:text-emerald-500'
+                                                                )}
+                                                            </div>
                                                             <div className={`text-[8px] font-black uppercase tracking-tighter mt-1.5 flex items-center justify-end gap-1 ${
                                                                 isOutbound ? 'text-emerald-100' : 'text-muted-foreground'
                                                             }`}>
