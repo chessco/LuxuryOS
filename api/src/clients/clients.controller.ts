@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Body, UseGuards, Request, Patch, Delete, Param } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
 
 @Controller('clients')
 @UseGuards(JwtAuthGuard)
@@ -23,6 +26,8 @@ export class ClientsController {
     }
 
     @Delete(':id')
+    @UseGuards(RolesGuard)
+    @Roles(Role.TENANT_ADMIN)
     async deleteClient(@Param('id') id: string, @Request() req) {
         return this.clientsService.delete(req.user.tenantId, id);
     }

@@ -4,11 +4,40 @@ import { AppModule } from './app.module';
 import * as express from 'express';
 
 import { ValidationPipe } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { isOriginAllowed } from './common/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  const server = app.getHttpAdapter().getInstance();
+  server.disable('x-powered-by');
+  server.set('trust proxy', 'loopback, linklocal, uniquelocal');
+
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000');
+    next();
+  });
+
+  const jwtService = app.get(JwtService);
+  const jsonAuthenticated = express.json({ limit: '50mb' });
+  const jsonAnonymous = express.json({ limit: '256kb' });
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const header = req.headers.authorization || '';
+    if (header.startsWith('Bearer ')) {
+      try {
+        jwtService.verify(header.slice(7));
+        return jsonAuthenticated(req, res, next);
+      } catch {
+        // token inválido o vencido: se trata como anónimo
+      }
+    }
+    return jsonAnonymous(req, res, next);
+  });
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -18,22 +47,9 @@ async function bootstrap() {
     }),
   );
 
-  const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
-  const defaultAllowedOrigins = [
-    'https://luxuryos.pitayacode.io',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:3002',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:3000',
-  ];
-  const allowedOrigins = allowedOriginsEnv
-    ? allowedOriginsEnv.split(',').map((o) => o.trim())
-    : defaultAllowedOrigins;
-
   app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin) || origin.endsWith('.pitayacode.io')) {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (isOriginAllowed(origin)) {
         return callback(null, true);
       }
       return callback(new Error(`Origen no permitido por CORS: ${origin}`));

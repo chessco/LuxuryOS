@@ -11,22 +11,12 @@ import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { UseGuards } from '@nestjs/common';
 import { WsJwtGuard } from './ws-jwt.guard';
-
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-    : [
-        'https://luxuryos.pitayacode.io',
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'http://localhost:3002',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:3000',
-    ];
+import { isOriginAllowed } from '../common/cors';
 
 @WebSocketGateway({
     cors: {
         origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-            if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin) || origin.endsWith('.pitayacode.io')) {
+            if (isOriginAllowed(origin)) {
                 return callback(null, true);
             }
             return callback(new Error('Not allowed by CORS'));

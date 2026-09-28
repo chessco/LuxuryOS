@@ -1,17 +1,74 @@
-import { Controller, Get, Post, Param, Body, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Req, NotFoundException, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateTrackToken } from './tracking.util';
+import { RateLimiter } from '../common/rate-limiter';
+import { clientIp } from '../common/roles.util';
 
 @Controller('public/orders')
 export class PublicOrdersController {
+    private readonly requestsByIp = new RateLimiter(120, 10 * 60 * 1000);
+    private readonly failuresByIpAndOrder = new RateLimiter(8, 15 * 60 * 1000);
+    private readonly failuresByOrder = new RateLimiter(30, 60 * 60 * 1000);
+
+    private tokenIndex = new Map<string, string>();
+    private tokenIndexBuiltAt = 0;
+    private tokenIndexBuilding: Promise<void> | null = null;
+
     constructor(private prisma: PrismaService) { }
 
-    private async findOrderByIdOrToken(idOrToken: string) {
-        if (!idOrToken) return null;
-        let clean = idOrToken.trim();
+    private assertRateLimit(req: any) {
+        if (!this.requestsByIp.consume(clientIp(req))) {
+            throw new HttpException('Demasiadas solicitudes. Intenta de nuevo en unos minutos.', HttpStatus.TOO_MANY_REQUESTS);
+        }
+    }
+
+    private cleanIdentifier(idOrToken: string): string {
+        let clean = (idOrToken || '').trim();
         if (clean.toUpperCase().startsWith('ORD-')) {
             clean = clean.substring(4).trim();
         }
+        return clean;
+    }
+
+    // Un identificador fuerte (UUID completo o token de 16+ caracteres) no se puede adivinar por prefijo
+    private isStrongIdentifier(idOrToken: string): boolean {
+        return this.cleanIdentifier(idOrToken).length >= 16;
+    }
+
+    private async refreshTokenIndex() {
+        if (!this.tokenIndexBuilding) {
+            this.tokenIndexBuilding = (async () => {
+                const rows = await this.prisma.order.findMany({
+                    select: { id: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 20000,
+                });
+                const next = new Map<string, string>();
+                for (const row of rows) {
+                    next.set(generateTrackToken(row.id).toLowerCase(), row.id);
+                }
+                this.tokenIndex = next;
+                this.tokenIndexBuiltAt = Date.now();
+            })().finally(() => {
+                this.tokenIndexBuilding = null;
+            });
+        }
+        await this.tokenIndexBuilding;
+    }
+
+    private async findOrderIdByToken(token: string): Promise<string | null> {
+        const key = token.toLowerCase();
+        const cached = this.tokenIndex.get(key);
+        if (cached) return cached;
+        if (Date.now() - this.tokenIndexBuiltAt > 30_000) {
+            await this.refreshTokenIndex();
+        }
+        return this.tokenIndex.get(key) ?? null;
+    }
+
+    private async findOrderByIdOrToken(idOrToken: string) {
+        if (!idOrToken) return null;
+        const clean = this.cleanIdentifier(idOrToken);
 
         // Prevent prefix enumeration: queries shorter than 8 characters are strictly rejected
         if (clean.length < 8) {
@@ -29,16 +86,13 @@ export class PublicOrdersController {
 
         // 2. Match by 16-character tracking token
         if (clean.length >= 16) {
-            const recentOrders = await this.prisma.order.findMany({
-                take: 2000,
-                orderBy: { createdAt: 'desc' },
-                include: { client: true }
-            });
-
-            for (const o of recentOrders) {
-                if (generateTrackToken(o.id).toLowerCase() === clean.toLowerCase()) {
-                    return o;
-                }
+            const orderId = await this.findOrderIdByToken(clean);
+            if (orderId) {
+                const order = await this.prisma.order.findUnique({
+                    where: { id: orderId },
+                    include: { client: true }
+                });
+                if (order) return order;
             }
         }
 
@@ -81,7 +135,8 @@ export class PublicOrdersController {
     }
 
     @Get('track/:id/check')
-    async checkOrder(@Param('id') idOrToken: string) {
+    async checkOrder(@Param('id') idOrToken: string, @Req() req: any) {
+        this.assertRateLimit(req);
         const order = await this.findOrderByIdOrToken(idOrToken);
         if (!order) {
             throw new NotFoundException('Pedido no encontrado');
@@ -99,9 +154,11 @@ export class PublicOrdersController {
     @Post('track/:id/verify')
     async verifyAndTrackOrder(
         @Param('id') idOrToken: string,
-        @Body('phoneDigits') phoneDigits: string
+        @Body('phoneDigits') phoneDigits: string,
+        @Req() req: any
     ) {
-        if (!phoneDigits || phoneDigits.trim().length < 4) {
+        this.assertRateLimit(req);
+        if (typeof phoneDigits !== 'string' || !phoneDigits || phoneDigits.trim().length < 4) {
             throw new BadRequestException('Por favor ingrese los últimos 4 dígitos de su teléfono.');
         }
 
@@ -117,11 +174,20 @@ export class PublicOrdersController {
         const clientPhone = (order.client?.phone || (order as any).clientPhone || '').replace(/\D/g, '');
         const enteredDigits = phoneDigits.trim().replace(/\D/g, '').slice(-4);
 
+        const ipOrderKey = `${clientIp(req)}|${order.id}`;
+        if (this.failuresByIpAndOrder.isBlocked(ipOrderKey) || this.failuresByOrder.isBlocked(order.id)) {
+            throw new HttpException('Demasiados intentos. Intenta de nuevo más tarde.', HttpStatus.TOO_MANY_REQUESTS);
+        }
+
         if (clientPhone.length >= 4) {
             const last4Registered = clientPhone.slice(-4);
             if (last4Registered !== enteredDigits) {
+                this.failuresByIpAndOrder.hit(ipOrderKey);
+                this.failuresByOrder.hit(order.id);
                 throw new BadRequestException('Los 4 dígitos ingresados no coinciden con el teléfono registrado.');
             }
+        } else if (!this.isStrongIdentifier(idOrToken)) {
+            throw new BadRequestException('Este pedido no tiene teléfono registrado. Usa el enlace de seguimiento que se te envió.');
         }
 
         const formatDate = (date?: Date | string | null) => {

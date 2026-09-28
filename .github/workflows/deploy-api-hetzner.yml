@@ -50,5 +50,3 @@ jobs:
             sleep 5
             docker ps --filter name=luxury-api-prod
             docker logs --tail 20 luxury-api-prod
-
-            docker image prune -f

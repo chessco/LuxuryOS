@@ -8,7 +8,7 @@ export class WhatsAppWebhookController {
     @Get()
     verify(@Query('hub.mode') mode: string, @Query('hub.verify_token') token: string, @Query('hub.challenge') challenge: string) {
         const verifyToken = this.configService.get('WA_VERIFY_TOKEN');
-        if (mode === 'subscribe' && token === verifyToken) {
+        if (mode === 'subscribe' && verifyToken && token === verifyToken) {
             return challenge;
         }
         return 'Forbidden';

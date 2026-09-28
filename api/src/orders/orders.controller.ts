@@ -15,6 +15,7 @@ import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OrderStage } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { isAdminRole } from '../common/roles.util';
 
 @Controller('kanban')
 @UseGuards(JwtAuthGuard)
@@ -46,6 +47,9 @@ export class OrdersController {
             throw new ForbiddenException('El rol Joyero no tiene permisos para crear órdenes o reparaciones');
         }
         const userId = req.user.id || req.user.userId;
+        if (!isAdminRole(userRole)) {
+            (body as any).createdById = undefined;
+        }
         return this.ordersService.createOrder(req.user.tenantId, body, userId);
     }
 

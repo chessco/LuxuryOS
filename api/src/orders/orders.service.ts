@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStage, OrderStatus, Prisma } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -7,6 +7,34 @@ import { generateTrackToken } from './tracking.util';
 import { OrderStrategyFactory } from './strategies/order-strategy.factory';
 import { NotificationService } from '../queue/notification.service';
 import { SettingsService } from '../settings/settings.service';
+import { isAdminRole } from '../common/roles.util';
+
+const STATUS_ORDER: Record<string, number> = {
+    'RECEIVED': 0,
+    'RECIBIDO': 0,
+    'DRAFT': 0,
+    'SPEC_PENDING': 0,
+    'INTERES_LEAD': 0,
+    'COTIZACION_ENVIADA': 0,
+    'QUOTE_SENT': 0,
+    'APPROVED': 0,
+    'APROBADO_ANTICIPO': 0,
+    'DIAGNOSIS_PENDING': 1,
+    'WAITING_PARTS': 1,
+    'IN_REPAIR': 1,
+    'IN_PRODUCTION': 1,
+    'EN_PRODUCCION': 1,
+    'QUALITY_CHECK': 1,
+    'CONTROL_CALIDAD': 1,
+    'MATERIALS_PENDING': 1,
+    'REPAIR_COMPLETED': 2,
+    'READY_FOR_PICKUP': 2,
+    'READY': 2,
+    'LISTO_ENTREGA': 2,
+    'DELIVERED': 3,
+    'ENTREGADO': 3,
+    'ENTREGADO_POSTVENTA': 3,
+};
 
 @Injectable()
 export class OrdersService {
@@ -61,8 +89,22 @@ export class OrdersService {
         if (!order) throw new NotFoundException('Pedido no encontrado');
         if (order.tenantId !== tenantId) throw new ForbiddenException('No tienes permiso para mover este pedido');
 
+        const usesStatus = order.type === 'REPAIR' || order.type === 'MANUFACTURE' || order.type === 'LAYAWAY';
+        const validTargets: string[] = usesStatus ? Object.values(OrderStatus) : Object.values(OrderStage);
+        if (typeof toStage !== 'string' || !validTargets.includes(toStage)) {
+            throw new BadRequestException('Estado destino inválido');
+        }
+
+        if (user && !isAdminRole(user.role)) {
+            const currentIdx = STATUS_ORDER[String((usesStatus ? order.status : order.stage) || '').toUpperCase()];
+            const targetIdx = STATUS_ORDER[toStage.toUpperCase()];
+            if (currentIdx !== undefined && targetIdx !== undefined && targetIdx < currentIdx) {
+                throw new ForbiddenException('No está permitido retroceder el estado del flujo de trabajo.');
+            }
+        }
+
         const updateData: any = {};
-        if (order.type === 'REPAIR' || order.type === 'MANUFACTURE' || order.type === 'LAYAWAY') {
+        if (usesStatus) {
             updateData.status = toStage;
         } else {
             updateData.stage = toStage;
@@ -106,7 +148,14 @@ export class OrdersService {
         return updated;
     }
 
+    private async assertClientInTenant(tenantId: string, clientId?: string | null) {
+        if (!clientId) return;
+        const client = await this.prisma.client.findFirst({ where: { id: clientId, tenantId }, select: { id: true } });
+        if (!client) throw new BadRequestException('El cliente indicado no existe');
+    }
+
     async createOrder(tenantId: string, data: CreateOrderDto, userId?: string) {
+        await this.assertClientInTenant(tenantId, data.clientId);
         const totalAmount = data.totalAmount ?? data.value ?? 0;
         const paidAmount = 0;
         const balance = totalAmount;
@@ -232,29 +281,7 @@ export class OrdersService {
         if (!order) throw new NotFoundException('Order not found');
 
         const userRole = currentUser?.role;
-        const isAuthorized = userRole === 'SYSTEM_ADMIN' || userRole === 'TENANT_ADMIN';
-
-        const STATUS_ORDER: Record<string, number> = {
-            'RECEIVED': 0,
-            'RECIBIDO': 0,
-            'DRAFT': 0,
-            'SPEC_PENDING': 0,
-            'INTERES_LEAD': 0,
-            'COTIZACION_ENVIADA': 0,
-            'APROBADO_ANTICIPO': 0,
-            'IN_REPAIR': 1,
-            'IN_PRODUCTION': 1,
-            'EN_PRODUCCION': 1,
-            'QUALITY_CHECK': 1,
-            'CONTROL_CALIDAD': 1,
-            'MATERIALS_PENDING': 1,
-            'REPAIR_COMPLETED': 2,
-            'READY_FOR_PICKUP': 2,
-            'READY': 2,
-            'DELIVERED': 3,
-            'ENTREGADO': 3,
-            'ENTREGADO_POSTVENTA': 3,
-        };
+        const isAuthorized = isAdminRole(userRole);
 
         const currentStatusUpper = String(order.status || '').toUpperCase();
         const currentStageUpper = String(order.stage || '').toUpperCase();
@@ -299,6 +326,10 @@ export class OrdersService {
             metal, color, karats, weight, size, thickness, itemCode,
             laborCost, materialCost, specifications, clientId, status, stage, imageUrl
         } = data;
+
+        if (clientId !== undefined) {
+            await this.assertClientInTenant(tenantId, clientId);
+        }
 
         // Recalculate totalAmount and balance if financial fields are changing
         const currentLabor = order.laborCost ? Number(order.laborCost) : 0;

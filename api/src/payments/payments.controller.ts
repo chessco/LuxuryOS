@@ -1,6 +1,9 @@
 import { Controller, Post, Body, UseGuards, Request, Delete, Param } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard)
@@ -25,6 +28,8 @@ export class PaymentsController {
     }
 
     @Delete(':id')
+    @UseGuards(RolesGuard)
+    @Roles(Role.TENANT_ADMIN)
     async deletePayment(@Param('id') id: string, @Request() req) {
         const tenantId = req.user?.tenantId;
         return this.paymentsService.deletePayment(id, tenantId);

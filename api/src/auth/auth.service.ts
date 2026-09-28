@@ -21,10 +21,12 @@ export class AuthService {
                 where: { email: normalizedEmail },
             });
         } else {
-            // Username provided without domain: match exact username prefix before @
-            user = await this.prisma.user.findFirst({
+            // Username provided without domain: only valid when it identifies exactly one account
+            const matches = await this.prisma.user.findMany({
                 where: { email: { startsWith: `${normalizedEmail}@` } },
+                take: 2,
             });
+            user = matches.length === 1 ? matches[0] : null;
         }
 
         if (user && (await bcrypt.compare(pass, user.passwordHash))) {
