@@ -15,43 +15,48 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-const getStatusOptions = (orderType: string) => {
+const getStatusOptions = (orderType: string, currentStatus?: string) => {
     const type = (orderType || 'STANDARD').toUpperCase();
+    let opts: { value: string; label: string }[] = [];
     if (type === 'REPAIR') {
-        return [
+        opts = [
             { value: 'RECEIVED', label: 'RECIBIDO' },
             { value: 'IN_REPAIR', label: 'EN TALLER' },
             { value: 'REPAIR_COMPLETED', label: 'LISTO' },
             { value: 'DELIVERED', label: 'ENTREGADO' },
             { value: 'CANCELLED', label: 'CANCELADO' }
         ];
-    }
-    if (type === 'MANUFACTURE') {
-        return [
+    } else if (type === 'MANUFACTURE') {
+        opts = [
             { value: 'RECEIVED', label: 'RECIBIDO' },
             { value: 'IN_PRODUCTION', label: 'EN TALLER' },
             { value: 'READY_FOR_PICKUP', label: 'LISTO' },
             { value: 'DELIVERED', label: 'ENTREGADO' },
             { value: 'CANCELLED', label: 'CANCELADO' }
         ];
-    }
-    if (type === 'LAYAWAY') {
-        return [
+    } else if (type === 'LAYAWAY') {
+        opts = [
             { value: 'LAYAWAY_OPEN', label: 'APARTADO' },
             { value: 'LAYAWAY_EXPIRED', label: 'VENCIDO' },
             { value: 'DELIVERED', label: 'ENTREGADO' },
             { value: 'CANCELLED', label: 'CANCELADO' }
         ];
+    } else {
+        opts = [
+            { value: 'INTERES_LEAD', label: 'INTERÉS / LEAD' },
+            { value: 'COTIZACION_ENVIADA', label: 'COTIZACIÓN' },
+            { value: 'APROBADO_ANTICIPO', label: 'APROBADO / ANTICIPO' },
+            { value: 'EN_PRODUCCION', label: 'EN PRODUCCIÓN' },
+            { value: 'CONTROL_CALIDAD', label: 'CONTROL CALIDAD' },
+            { value: 'ENTREGADO_POSTVENTA', label: 'ENTREGADO' },
+            { value: 'CANCELLED', label: 'CANCELADO' }
+        ];
     }
-    return [
-        { value: 'INTERES_LEAD', label: 'INTERÉS / LEAD' },
-        { value: 'COTIZACION_ENVIADA', label: 'COTIZACIÓN' },
-        { value: 'APROBADO_ANTICIPO', label: 'APROBADO / ANTICIPO' },
-        { value: 'EN_PRODUCCION', label: 'EN PRODUCCIÓN' },
-        { value: 'CONTROL_CALIDAD', label: 'CONTROL CALIDAD' },
-        { value: 'ENTREGADO_POSTVENTA', label: 'ENTREGADO' },
-        { value: 'CANCELLED', label: 'CANCELADO' }
-    ];
+
+    if (currentStatus && !opts.some(o => o.value === currentStatus)) {
+        opts.unshift({ value: currentStatus, label: getStatusLabel(currentStatus) });
+    }
+    return opts;
 };
 
 export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, onOrderDeleted, onRefresh }) => {
@@ -249,7 +254,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                         const isReady = displayLabel === 'PARA ENTREGA' || displayLabel === 'LISTO' || rawStatus === 'REPAIR_COMPLETED' || rawStatus === 'READY_FOR_PICKUP' || rawStatus === 'READY';
                                         const isInWorkshop = displayLabel === 'EN TALLER' || displayLabel === 'PRODUCCIÓN' || rawStatus === 'IN_REPAIR' || rawStatus === 'IN_PRODUCTION' || rawStatus === 'EN_PRODUCCION' || rawStatus === 'QUALITY_CHECK';
 
-                                        const options = getStatusOptions(order.type);
+                                        const options = getStatusOptions(order.type, rawStatus);
 
                                         return (
                                             <select

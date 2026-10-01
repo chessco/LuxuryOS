@@ -325,7 +325,7 @@ const Orders: React.FC = () => {
                 margin: 0,
                 priority: newOrder.priority === 'Alta' ? 'ALTA' : (newOrder.priority === 'Baja' ? 'BAJA' : 'MEDIA'),
                 clientId: selectedClient.id,
-                stage: 'INTERES_LEAD',
+                stage: (orderType === 'REPAIR' || orderType === 'MANUFACTURE') ? 'RECEIVED' : 'INTERES_LEAD',
                 type: (orderType || 'STANDARD').toUpperCase() as any,
                 promisedAt: newOrder.promisedDate ? new Date(newOrder.promisedDate) : undefined,
                 // New Fields in UPPERCASE
