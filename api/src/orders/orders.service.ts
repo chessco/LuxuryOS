@@ -224,7 +224,7 @@ export class OrdersService {
     }
 
     async getOrder(tenantId: string, id: string) {
-        return this.prisma.order.findUnique({
+        return this.prisma.order.findFirst({
             where: { id, tenantId },
             include: { 
                 client: true, 
@@ -336,7 +336,7 @@ export class OrdersService {
         }
 
         const {
-            pieceType, value, cost, priority, notes, dueDate,
+            pieceType, value, cost, priority, notes, dueDate, promisedAt,
             metal, color, karats, weight, size, thickness, itemCode,
             laborCost, materialCost, specifications, clientId, status, stage, imageUrl
         } = data;
@@ -406,6 +406,7 @@ export class OrdersService {
                 priority,
                 notes,
                 dueDate: dueDate ? new Date(dueDate) : undefined,
+                promisedAt: promisedAt !== undefined ? (promisedAt ? new Date(promisedAt) : null) : undefined,
                 metal,
                 color,
                 karats,

@@ -68,6 +68,25 @@ const getOrderSeq = (order: any) => {
     return digits ? parseInt(digits, 10) : 0;
 };
 
+const getInputValueForPromisedDate = (order: any) => {
+    if (order.promisedAt) {
+        try {
+            return new Date(order.promisedAt).toISOString().split('T')[0];
+        } catch {}
+    }
+    const str = order.promisedDate;
+    if (!str || str === '—') return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    const parts = str.split('/');
+    if (parts.length === 3) {
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2];
+        return `${year}-${month}-${day}`;
+    }
+    return '';
+};
+
 export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, onOrderDeleted, onRefresh }) => {
     const navigate = useNavigate();
     const isDeliveredFilter = activeFilter === 'Entregados' || activeFilter === 'Entregado';
@@ -188,10 +207,39 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                 </td>
 
                                 {/* 2. Fecha Entrega */}
-                                <td className="px-6 py-5">
-                                    <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 w-fit">
+                                <td
+                                    className="px-6 py-5"
+                                    onClick={stopPropagationTouch}
+                                    onTouchStart={stopPropagationTouch}
+                                    onTouchEnd={stopPropagationTouch}
+                                    onPointerDown={stopPropagationTouch}
+                                >
+                                    <div
+                                        className="relative flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 px-2.5 py-1 rounded-lg border border-emerald-500/20 w-fit transition-all cursor-pointer group/date"
+                                        title="Tocar para cambiar fecha de entrega"
+                                    >
                                         <span className="material-symbols-outlined text-[13px]">event</span>
                                         <span className="text-[11px] font-black tracking-tight">{order.promisedDate || order.deliveredDate || '—'}</span>
+                                        <input
+                                            type="date"
+                                            value={getInputValueForPromisedDate(order)}
+                                            onChange={async (e) => {
+                                                const val = e.target.value;
+                                                try {
+                                                    await OrdersService.updateOrder(order.id, { promisedAt: val ? new Date(val + 'T12:00:00.000Z').toISOString() : null });
+                                                    if (onRefresh) onRefresh();
+                                                } catch (err) {
+                                                    console.error("Error updating promisedAt date:", err);
+                                                    alert("Error al cambiar fecha de entrega");
+                                                }
+                                            }}
+                                            onClick={stopPropagationTouch}
+                                            onTouchStart={stopPropagationTouch}
+                                            onTouchEnd={stopPropagationTouch}
+                                            onPointerDown={stopPropagationTouch}
+                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                            title="Cambiar fecha de entrega"
+                                        />
                                     </div>
                                 </td>
 
