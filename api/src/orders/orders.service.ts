@@ -223,9 +223,9 @@ export class OrdersService {
         });
     }
 
-    async getOrder(tenantId: string, id: string) {
-        return this.prisma.order.findFirst({
-            where: { id, tenantId },
+    async getOrder(tenantId: string, idOrCode: string) {
+        let order = await this.prisma.order.findFirst({
+            where: { id: idOrCode, tenantId },
             include: { 
                 client: true, 
                 createdBy: { select: { id: true, name: true, email: true } },
@@ -233,6 +233,59 @@ export class OrdersService {
                 queueTicket: true
             },
         });
+
+        if (!order) {
+            const allOrders = await this.prisma.order.findMany({
+                where: { tenantId },
+                include: { 
+                    client: true, 
+                    createdBy: { select: { id: true, name: true, email: true } },
+                    payments: true,
+                    queueTicket: true
+                },
+            });
+
+            const searchCode = idOrCode.toUpperCase().trim();
+            order = allOrders.find(o => {
+                const specCode = String((o.specifications as any)?.orderCode || '').toUpperCase();
+                if (specCode === searchCode) return true;
+                const specClean = specCode.replace(/-0+/, '-');
+                const searchClean = searchCode.replace(/-0+/, '-');
+                if (specClean && specClean === searchClean) return true;
+                return false;
+            }) || null;
+        }
+
+        if (!order) return null;
+
+        const countBefore = await this.prisma.order.count({
+            where: {
+                tenantId: order.tenantId,
+                type: order.type,
+                createdAt: { lte: order.createdAt }
+            }
+        });
+
+        const prefix = order.type === 'REPAIR' ? 'REP' : (order.type === 'MANUFACTURE' ? 'FAB' : (order.type === 'LAYAWAY' ? 'APT' : 'PED'));
+        const sequenceNumber = countBefore;
+        let computedCode = `${prefix}-${sequenceNumber}`;
+
+        const specs = (order.specifications as any) || {};
+        let orderCode = specs.orderCode || computedCode;
+        const match = String(orderCode).match(/^([A-Z]+)-0*(\d+)$/i);
+        if (match) {
+            orderCode = `${match[1].toUpperCase()}-${match[2]}`;
+        }
+
+        return {
+            ...order,
+            sequenceNumber,
+            orderCode,
+            specifications: {
+                ...specs,
+                orderCode
+            }
+        };
     }
 
     async advanceStatus(tenantId: string, id: string, user?: any) {

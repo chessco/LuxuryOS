@@ -37,8 +37,11 @@ const OrderDetail: React.FC = () => {
         const paid = parseFloat(String(foundOrder.paidAmount || '0')) || 0;
         const balance = total - paid;
 
+        const orderCode = foundOrder.orderCode || formatOrderCode(foundOrder);
+
         return {
             ...foundOrder,
+            orderCode: orderCode,
             clientName: clientName,
             totalAmount: total,
             paidAmount: paid,
