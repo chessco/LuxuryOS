@@ -15,6 +15,7 @@ const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const [order, setOrder] = useState<any | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
@@ -246,6 +247,7 @@ const OrderDetail: React.FC = () => {
     useEffect(() => {
         const fetchOrder = async () => {
             if (id) {
+                setIsLoading(true);
                 try {
                     const foundOrder = await OrdersService.getOrder(id);
                     if (foundOrder) {
@@ -264,8 +266,6 @@ const OrderDetail: React.FC = () => {
                             time: new Date(foundOrder.createdAt).toLocaleString(),
                             dotColor: "bg-muted-foreground/30"
                         });
-
-                        // ...
 
                         // 2. Payments
                         if (foundOrder.payments) {
@@ -290,9 +290,14 @@ const OrderDetail: React.FC = () => {
                         });
 
                         setActivities(acts.reverse()); // Newest first
+                    } else {
+                        setOrder(null);
                     }
                 } catch (error) {
                     console.error("Failed to fetch order", error);
+                    setOrder(null);
+                } finally {
+                    setIsLoading(false);
                 }
             }
         };
@@ -383,8 +388,27 @@ const OrderDetail: React.FC = () => {
         }
     };
 
+    if (isLoading) {
+        return (
+            <div className="flex-1 flex items-center justify-center p-20 min-h-[400px]">
+                <div className="flex items-center gap-3 text-zinc-400 dark:text-zinc-500 text-xs font-black uppercase tracking-widest animate-pulse">
+                    <span className="material-symbols-outlined animate-spin text-[22px] text-indigo-500">sync</span>
+                    <span>Cargando detalle del pedido...</span>
+                </div>
+            </div>
+        );
+    }
+
     if (!order) {
-        return <div className="p-10 text-foreground font-black uppercase tracking-widest transition-colors">Pedido no encontrado</div>;
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-20 min-h-[400px] text-center">
+                <span className="material-symbols-outlined text-[48px] text-zinc-300 dark:text-zinc-600 mb-3">search_off</span>
+                <p className="text-zinc-400 text-xs font-black uppercase tracking-widest">Pedido no encontrado</p>
+                <Link to="/orders" className="mt-4 px-4 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500 text-indigo-600 hover:text-white border border-indigo-500/20 font-bold text-xs uppercase tracking-wider transition-all">
+                    Volver al listado de pedidos
+                </Link>
+            </div>
+        );
     }
 
     const updateField = async (field: string, value: any) => {
