@@ -78,21 +78,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                 } else if (sortConfig.key === 'value' || sortConfig.key === 'totalAmount' || sortConfig.key === 'laborCost') {
                     aValue = parseFloat(String(a.laborCost || a.value || 0).replace(/[^0-9.-]/g, '')) || 0;
                     bValue = parseFloat(String(b.laborCost || b.value || 0).replace(/[^0-9.-]/g, '')) || 0;
-                } else if (sortConfig.key === 'receivedDate') {
-                    aValue = new Date(a.createdAt).getTime();
-                    bValue = new Date(b.createdAt).getTime();
                 } else if (sortConfig.key === 'promisedDate') {
                     aValue = a.promisedDate || '';
                     bValue = b.promisedDate || '';
-                } else if (sortConfig.key === 'department') {
-                    aValue = a.department || '';
-                    bValue = b.department || '';
-                } else if (sortConfig.key === 'jeweler') {
-                    aValue = a.jeweler || '';
-                    bValue = b.jeweler || '';
-                } else if (sortConfig.key === 'completedDate') {
-                    aValue = a.completedDate || '';
-                    bValue = b.completedDate || '';
+                } else if (sortConfig.key === 'priority') {
+                    aValue = a.priority || '';
+                    bValue = b.priority || '';
                 }
 
                 if (aValue < bValue) {
@@ -104,11 +95,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                 return 0;
             });
         } else if (isDeliveredFilter) {
-            // Orden por defecto en Entregados: De más nuevo a más viejo según fecha de entrega
             sortableItems.sort((a, b) => {
                 const dateA = a.deliveredAt ? new Date(a.deliveredAt).getTime() : (a.updatedAt ? new Date(a.updatedAt).getTime() : new Date(a.createdAt).getTime());
                 const dateB = b.deliveredAt ? new Date(b.deliveredAt).getTime() : (b.updatedAt ? new Date(b.updatedAt).getTime() : new Date(b.createdAt).getTime());
-                return dateB - dateA; // Más nuevo primero
+                return dateB - dateA;
             });
         }
         return sortableItems;
@@ -146,22 +136,23 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
         </th>
     );
 
+    const stopPropagationTouch = (e: React.SyntheticEvent) => {
+        e.stopPropagation();
+    };
+
     return (
         <div className="w-full px-4 overflow-hidden transition-colors">
             <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-900 rounded-[32px] overflow-x-auto custom-scrollbar backdrop-blur-sm shadow-sm dark:shadow-2xl transition-colors">
-                <table className="w-full border-collapse min-w-[1100px]">
+                <table className="w-full border-collapse min-w-[900px]">
                     <thead>
                         <tr className="border-b border-zinc-100 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/60 transition-colors">
                             <HeaderTh label="Pedido" sortKey="id" />
                             <HeaderTh label="Fecha Entrega" sortKey="promisedDate" />
+                            <HeaderTh label="Prioridad" sortKey="priority" />
+                            <HeaderTh label="Cliente" sortKey="client" />
                             <HeaderTh label="Descripción" sortKey="item" />
-                            <HeaderTh label="Departamento" sortKey="department" />
                             <HeaderTh label="Mano de Obra" sortKey="laborCost" />
                             <HeaderTh label="Estado" sortKey="status" />
-                            <HeaderTh label="Cliente" sortKey="client" />
-                            <HeaderTh label="Joyero" sortKey="jeweler" />
-                            <HeaderTh label="Fecha Terminado" sortKey="completedDate" />
-                            <HeaderTh label="Prioridad" sortKey="priority" align="right" />
                             {isSystemAdmin && <th className="px-6 py-5 w-14"></th>}
                         </tr>
                     </thead>
@@ -177,7 +168,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                     <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black tracking-widest uppercase transition-colors">#{order.id.substring(0, 8)}</span>
                                 </td>
 
-                                {/* 3. Fecha Entrega */}
+                                {/* 2. Fecha Entrega */}
                                 <td className="px-6 py-5">
                                     <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 w-fit">
                                         <span className="material-symbols-outlined text-[13px]">event</span>
@@ -185,108 +176,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                     </div>
                                 </td>
 
-                                {/* 4. Descripción */}
-                                <td className="px-6 py-5">
-                                    <span className="text-zinc-800 dark:text-zinc-200 text-xs font-bold transition-colors">{order.description || order.item}</span>
-                                </td>
-
-                                {/* 5. Departamento */}
-                                <td className="px-6 py-5">
-                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
-                                        {order.department || 'CARED'}
-                                    </span>
-                                </td>
-
-                                {/* 6. Mano de Obra */}
-                                <td className="px-6 py-5">
-                                    <span className="text-zinc-900 dark:text-white font-black text-xs tracking-tight transition-colors">{order.laborCost || order.value}</span>
-                                </td>
-
-                                {/* 7. Estado */}
-                                <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
-                                    {(() => {
-                                        const rawStatus = (order.status || order.stage || 'RECEIVED').toUpperCase();
-                                        const displayLabel = getStatusLabel(order.statusLabel || rawStatus);
-                                        const isDelivered = displayLabel === 'ENTREGADO' || rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA';
-                                        const isReady = displayLabel === 'PARA ENTREGA' || displayLabel === 'LISTO' || rawStatus === 'REPAIR_COMPLETED' || rawStatus === 'READY_FOR_PICKUP' || rawStatus === 'READY';
-                                        const isInWorkshop = displayLabel === 'EN TALLER' || displayLabel === 'PRODUCCIÓN' || rawStatus === 'IN_REPAIR' || rawStatus === 'IN_PRODUCTION' || rawStatus === 'EN_PRODUCCION' || rawStatus === 'QUALITY_CHECK';
-
-                                        if (isSystemAdmin) {
-                                            const options = getStatusOptions(order.type);
-                                            return (
-                                                <select
-                                                    value={rawStatus}
-                                                    onChange={async (e) => {
-                                                        const newStatus = e.target.value;
-                                                        try {
-                                                            await OrdersService.moveOrder(order.id, newStatus);
-                                                            if (onRefresh) onRefresh();
-                                                        } catch (err) {
-                                                            console.error("Error updating status:", err);
-                                                            alert("Error al cambiar estado");
-                                                        }
-                                                    }}
-                                                    className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-widest cursor-pointer outline-none border transition-all shadow-sm ${
-                                                        isDelivered
-                                                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                                                            : isReady
-                                                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                                                            : isInWorkshop
-                                                            ? 'bg-yellow-300 dark:bg-yellow-400 text-black border-yellow-500 font-black'
-                                                            : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 font-bold'
-                                                    }`}
-                                                    title="Modificar estado directamente"
-                                                >
-                                                    {options.map((opt) => (
-                                                        <option key={opt.value} value={opt.value} className="bg-background text-foreground font-bold">
-                                                            {opt.label}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            );
-                                        }
-
-                                        return (
-                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border transition-colors ${
-                                                isDelivered
-                                                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                                    : isReady
-                                                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                                                    : isInWorkshop
-                                                    ? 'bg-yellow-300 dark:bg-yellow-400 text-black border-yellow-500 font-black'
-                                                    : 'bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:border-zinc-700'
-                                            }`}>
-                                                {displayLabel}
-                                            </span>
-                                        );
-                                    })()}
-                                </td>
-
-                                {/* 8. Cliente */}
-                                <td className="px-6 py-5">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className={`size-7 rounded-full flex items-center justify-center text-[9px] font-black border border-zinc-100 dark:border-zinc-800 transition-colors ${order.initialsColor || 'bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'}`}>
-                                            {order.initials}
-                                        </div>
-                                        <span className="text-zinc-900 dark:text-white text-xs font-bold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors uppercase tracking-tight whitespace-nowrap">{order.client}</span>
-                                    </div>
-                                </td>
-
-                                {/* 9. Joyero */}
-                                <td className="px-6 py-5">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="material-symbols-outlined text-[14px] text-zinc-400">handyman</span>
-                                        <span className="text-zinc-700 dark:text-zinc-300 text-xs font-bold uppercase tracking-tight whitespace-nowrap">{order.jeweler || '—'}</span>
-                                    </div>
-                                </td>
-
-                                {/* 10. Fecha Terminado */}
-                                <td className="px-6 py-5">
-                                    <span className="text-zinc-600 dark:text-zinc-400 text-[11px] font-medium transition-colors whitespace-nowrap">{order.completedDate || '—'}</span>
-                                </td>
-
-                                {/* Prioridad */}
-                                <td className="px-6 py-5 text-right" onClick={(e) => e.stopPropagation()}>
+                                {/* 3. Prioridad */}
+                                <td
+                                    className="px-6 py-5"
+                                    onClick={stopPropagationTouch}
+                                    onTouchStart={stopPropagationTouch}
+                                    onTouchEnd={stopPropagationTouch}
+                                    onPointerDown={stopPropagationTouch}
+                                >
                                     <select
                                         value={(order.priority || 'MEDIA').toUpperCase()}
                                         onChange={async (e) => {
@@ -298,6 +195,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                                 console.error("Error updating priority:", err);
                                             }
                                         }}
+                                        onClick={stopPropagationTouch}
+                                        onTouchStart={stopPropagationTouch}
+                                        onTouchEnd={stopPropagationTouch}
+                                        onPointerDown={stopPropagationTouch}
                                         className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest cursor-pointer outline-none border transition-all shadow-sm ${
                                             (order.priority || '').toUpperCase() === 'ALTA'
                                                 ? 'bg-amber-400 text-black border-amber-500 font-black'
@@ -312,8 +213,90 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                         <option value="ALTA" className="bg-background font-bold text-amber-500">! ALTA ⚡</option>
                                     </select>
                                 </td>
+
+                                {/* 4. Cliente */}
+                                <td className="px-6 py-5">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={`size-7 rounded-full flex items-center justify-center text-[9px] font-black border border-zinc-100 dark:border-zinc-800 transition-colors ${order.initialsColor || 'bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                                            {order.initials}
+                                        </div>
+                                        <span className="text-zinc-900 dark:text-white text-xs font-bold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors uppercase tracking-tight whitespace-nowrap">{order.client}</span>
+                                    </div>
+                                </td>
+
+                                {/* 5. Descripción */}
+                                <td className="px-6 py-5">
+                                    <span className="text-zinc-800 dark:text-zinc-200 text-xs font-bold transition-colors">{order.description || order.item}</span>
+                                </td>
+
+                                {/* 6. Mano de Obra */}
+                                <td className="px-6 py-5">
+                                    <span className="text-zinc-900 dark:text-white font-black text-xs tracking-tight transition-colors">{order.laborCost || order.value}</span>
+                                </td>
+
+                                {/* 7. Estado */}
+                                <td
+                                    className="px-6 py-5"
+                                    onClick={stopPropagationTouch}
+                                    onTouchStart={stopPropagationTouch}
+                                    onTouchEnd={stopPropagationTouch}
+                                    onPointerDown={stopPropagationTouch}
+                                >
+                                    {(() => {
+                                        const rawStatus = (order.status || order.stage || 'RECEIVED').toUpperCase();
+                                        const displayLabel = getStatusLabel(order.statusLabel || rawStatus);
+                                        const isDelivered = displayLabel === 'ENTREGADO' || rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA';
+                                        const isReady = displayLabel === 'PARA ENTREGA' || displayLabel === 'LISTO' || rawStatus === 'REPAIR_COMPLETED' || rawStatus === 'READY_FOR_PICKUP' || rawStatus === 'READY';
+                                        const isInWorkshop = displayLabel === 'EN TALLER' || displayLabel === 'PRODUCCIÓN' || rawStatus === 'IN_REPAIR' || rawStatus === 'IN_PRODUCTION' || rawStatus === 'EN_PRODUCCION' || rawStatus === 'QUALITY_CHECK';
+
+                                        const options = getStatusOptions(order.type);
+
+                                        return (
+                                            <select
+                                                value={rawStatus}
+                                                onChange={async (e) => {
+                                                    const newStatus = e.target.value;
+                                                    try {
+                                                        await OrdersService.moveOrder(order.id, newStatus);
+                                                        if (onRefresh) onRefresh();
+                                                    } catch (err) {
+                                                        console.error("Error updating status:", err);
+                                                        alert("Error al cambiar estado");
+                                                    }
+                                                }}
+                                                onClick={stopPropagationTouch}
+                                                onTouchStart={stopPropagationTouch}
+                                                onTouchEnd={stopPropagationTouch}
+                                                onPointerDown={stopPropagationTouch}
+                                                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest cursor-pointer outline-none border transition-all shadow-sm ${
+                                                    isDelivered
+                                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                                                        : isReady
+                                                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                                        : isInWorkshop
+                                                        ? 'bg-yellow-300 dark:bg-yellow-400 text-black border-yellow-500 font-black'
+                                                        : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 font-bold'
+                                                }`}
+                                                title="Modificar estado directamente"
+                                            >
+                                                {options.map((opt) => (
+                                                    <option key={opt.value} value={opt.value} className="bg-background text-foreground font-bold">
+                                                        {opt.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        );
+                                    })()}
+                                </td>
+
                                 {isSystemAdmin && (
-                                    <td className="px-8 py-6 text-center">
+                                    <td
+                                        className="px-8 py-6 text-center"
+                                        onClick={stopPropagationTouch}
+                                        onTouchStart={stopPropagationTouch}
+                                        onTouchEnd={stopPropagationTouch}
+                                        onPointerDown={stopPropagationTouch}
+                                    >
                                         <button
                                             onClick={async (e) => {
                                                 e.stopPropagation();
@@ -328,6 +311,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                                     }
                                                 }
                                             }}
+                                            onTouchStart={stopPropagationTouch}
+                                            onTouchEnd={stopPropagationTouch}
+                                            onPointerDown={stopPropagationTouch}
                                             className="size-8 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white flex items-center justify-center border border-red-500/20 transition-all active:scale-95 mx-auto"
                                             title="Eliminar Pedido"
                                         >
