@@ -153,7 +153,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                     <thead>
                         <tr className="border-b border-zinc-100 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/60 transition-colors">
                             <HeaderTh label="Pedido" sortKey="id" />
-                            <HeaderTh label="Recibido" sortKey="receivedDate" />
                             <HeaderTh label="Fecha Entrega" sortKey="promisedDate" />
                             <HeaderTh label="Descripción" sortKey="item" />
                             <HeaderTh label="Departamento" sortKey="department" />
@@ -176,16 +175,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                 {/* 1. Pedido */}
                                 <td className="px-6 py-5">
                                     <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black tracking-widest uppercase transition-colors">#{order.id.substring(0, 8)}</span>
-                                </td>
-
-                                {/* 2. Recibido */}
-                                <td className="px-6 py-5">
-                                    <div className="flex flex-col gap-0.5">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-zinc-900 dark:text-white text-[11px] font-bold transition-colors">{order.receivedDate}</span>
-                                            <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-black uppercase tracking-widest transition-colors">{order.receivedTime}</span>
-                                        </div>
-                                    </div>
                                 </td>
 
                                 {/* 3. Fecha Entrega */}
