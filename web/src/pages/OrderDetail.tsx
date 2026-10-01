@@ -450,6 +450,14 @@ const OrderDetail: React.FC = () => {
                                 <span className="material-symbols-outlined text-[18px]">history</span>
                                 <span>Recibido: {order.date}</span>
                             </div>
+                            <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                                <span className="material-symbols-outlined text-[16px]">store</span>
+                                <span>Depto: <strong className="text-foreground">{order.specifications?.department || order.department || 'CARED'}</strong></span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                                <span className="material-symbols-outlined text-[16px]">event</span>
+                                <span>Entrega: <strong className="text-foreground">{order.promisedAt ? new Date(order.promisedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : (order.specifications?.promisedDate || (order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Sin fecha'))}</strong></span>
+                            </div>
                             {(order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || ((order.status === 'DELIVERED' || order.status === 'REPAIR_COMPLETED' || order.status === 'READY_FOR_PICKUP') && (order.type === 'REPAIR' || order.type === 'MANUFACTURE') ? 'Joyero' : null)) && (
                                 <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
                                     <span className="material-symbols-outlined text-[16px]">verified</span>

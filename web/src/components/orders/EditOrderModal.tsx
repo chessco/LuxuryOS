@@ -20,6 +20,8 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         materialCost: order.materialCost || 0,
         priority: (order.priority || 'MEDIA').toUpperCase(),
         location: order.location || '',
+        department: order.specifications?.department || order.department || 'Cared',
+        promisedDate: order.promisedAt ? new Date(order.promisedAt).toISOString().split('T')[0] : (order.specifications?.promisedDate || (order.dueDate ? new Date(order.dueDate).toISOString().split('T')[0] : '')),
         notes: order.notes || '',
         dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split('T')[0] : '',
         clientId: order.clientId,
@@ -92,9 +94,16 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                 totalAmount: cleanNumber(formData.value), // Ensure totalAmount is synced
                 laborCost: cleanNumber(formData.laborCost),
                 materialCost: cleanNumber(formData.materialCost),
+                promisedAt: formData.promisedDate ? new Date(formData.promisedDate) : undefined,
+                dueDate: formData.promisedDate ? new Date(formData.promisedDate) : (formData.dueDate ? new Date(formData.dueDate) : undefined),
                 ...mainItem, // metal, color, etc.
                 pieceType: mainItem.item,
-                specifications: { ...order.specifications, items }
+                specifications: {
+                    ...order.specifications,
+                    items,
+                    department: (formData.department || 'Cared').toUpperCase().trim(),
+                    promisedDate: formData.promisedDate
+                }
             };
 
             await onSave(submissionData);
@@ -191,11 +200,24 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Fecha de Entrega</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Departamento / Localización</label>
+                                <select
+                                    value={formData.department || 'Cared'}
+                                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm font-bold text-foreground focus:border-indigo-500/50 outline-none appearance-none cursor-pointer transition-colors shadow-inner [color-scheme:light] dark:[color-scheme:dark]"
+                                >
+                                    <option value="Cared" className="bg-background font-medium">Cared</option>
+                                    <option value="Fabiola" className="bg-background font-medium">Fabiola</option>
+                                    <option value="Taller Principal" className="bg-background font-medium">Taller Principal</option>
+                                    <option value="Exhibición" className="bg-background font-medium">Exhibición</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Fecha Compromiso de Entrega</label>
                                 <input
                                     type="date"
-                                    value={formData.dueDate}
-                                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                                    value={formData.promisedDate || formData.dueDate}
+                                    onChange={(e) => setFormData({ ...formData, promisedDate: e.target.value, dueDate: e.target.value })}
                                     className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none [color-scheme:light] dark:[color-scheme:dark] shadow-inner"
                                 />
                             </div>
