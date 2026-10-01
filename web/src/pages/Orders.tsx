@@ -192,12 +192,25 @@ const Orders: React.FC = () => {
                         client: o.client?.name || 'Cliente',
                         createdByName: o.createdBy?.name || o.specifications?.receivedBy || o.specifications?.createdByName || '—',
                         item: o.pieceType,
-                        value: `$${Number(o.value).toLocaleString()} MXN`,
+                        description: o.pieceType || o.notes || '—',
+                        value: `$${Number(o.value || 0).toLocaleString()} MXN`,
+                        laborCost: `$${Number(o.laborCost || o.value || 0).toLocaleString()} MXN`,
+                        department: (o.specifications?.department || 'CARED').toUpperCase(),
+                        jeweler: o.specifications?.assignedJeweler || o.specifications?.readyByName || o.specifications?.readyBy?.name || o.readyByName || o.completedByName || (o.createdBy?.role === 'JOYERO' ? o.createdBy?.name : '—'),
+                        completedDate: o.specifications?.completedAt
+                            ? new Date(o.specifications.completedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : (o.deliveredAt
+                                ? new Date(o.deliveredAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' })
+                                : (stage === 'REPAIR_COMPLETED' || stage === 'READY_FOR_PICKUP' || stage === 'DELIVERED' || stage === 'ENTREGADO'
+                                    ? new Date(o.updatedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' })
+                                    : '—')),
+                        promisedDate: o.promisedAt
+                            ? new Date(o.promisedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : (o.specifications?.promisedDate || '—'),
                         status: stage, // keep raw stage for logic, map for display
                         statusLabel: getStatusLabel(stage),
                         initials: o.client?.name?.substring(0, 2).toUpperCase() || 'NC',
                         initialsColor: 'bg-muted text-muted-foreground border border-border',
-                        // ... map other fields if needed
                         statusType: stage === 'INTERES_LEAD' ? 'new' :
                             stage === 'EN_PRODUCCION' ? 'urgent' :
                                 stage === 'APROBADO_ANTICIPO' ? 'success' : 'normal',
@@ -310,10 +323,11 @@ const Orders: React.FC = () => {
                 cost: cleanNumber(newOrder.cost),
                 totalAmount: cleanNumber(newOrder.value),
                 margin: 0,
-                priority: newOrder.priority === 'Alta' ? 'ALTA' : 'MEDIA',
+                priority: newOrder.priority === 'Alta' ? 'ALTA' : (newOrder.priority === 'Baja' ? 'BAJA' : 'MEDIA'),
                 clientId: selectedClient.id,
                 stage: 'INTERES_LEAD',
                 type: (orderType || 'STANDARD').toUpperCase() as any,
+                promisedAt: newOrder.promisedDate ? new Date(newOrder.promisedDate) : undefined,
                 // New Fields in UPPERCASE
                 metal: firstItem.metal || '',
                 color: firstItem.color || '',
@@ -322,10 +336,14 @@ const Orders: React.FC = () => {
                 size: firstItem.size || '',
                 thickness: firstItem.thickness || '',
                 itemCode: firstItem.itemCode || '',
-                laborCost: cleanNumber(newOrder.laborCost),
-                materialCost: cleanNumber(newOrder.materialCost),
+                laborCost: cleanNumber(newOrder.value || newOrder.laborCost),
+                materialCost: cleanNumber(newOrder.materialCost || newOrder.cost),
                 notes: firstItem.notes || '',
-                specifications: { items: uppercaseItems }
+                specifications: {
+                    items: uppercaseItems,
+                    department: (newOrder.department || 'Cared').toUpperCase().trim(),
+                    promisedDate: newOrder.promisedDate || ''
+                }
             };
 
             const created = await OrdersService.create(payload);
@@ -729,6 +747,8 @@ const NewOrderDrawer: React.FC<{
         value: '',
         cost: '',
         priority: 'Media',
+        department: 'Cared',
+        promisedDate: '',
     });
 
     useEffect(() => {
@@ -1394,6 +1414,30 @@ const NewOrderDrawer: React.FC<{
                             Finanzas y Prioridad
                         </h3>
                         <div className="flex flex-col gap-4">
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Departamento / Localización</label>
+                                <select
+                                    name="department"
+                                    value={formData.department || 'Cared'}
+                                    onChange={handleChange as any}
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none cursor-pointer"
+                                >
+                                    <option value="Cared">Cared</option>
+                                    <option value="Fabiola">Fabiola</option>
+                                    <option value="Taller Principal">Taller Principal</option>
+                                    <option value="Exhibición">Exhibición</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Fecha Compromiso de Entrega</label>
+                                <input
+                                    type="date"
+                                    name="promisedDate"
+                                    value={formData.promisedDate || ''}
+                                    onChange={handleChange}
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none"
+                                />
+                            </div>
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Mano de Obra</label>
                                 <input name="value" value={formData.value} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />

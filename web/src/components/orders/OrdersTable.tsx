@@ -75,15 +75,24 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                 } else if (sortConfig.key === 'createdByName') {
                     aValue = a.createdByName || a.createdBy?.name || '';
                     bValue = b.createdByName || b.createdBy?.name || '';
-                } else if (sortConfig.key === 'value' || sortConfig.key === 'totalAmount') {
-                    aValue = parseFloat(String(a.value || 0).replace(/[^0-9.-]/g, '')) || 0;
-                    bValue = parseFloat(String(b.value || 0).replace(/[^0-9.-]/g, '')) || 0;
+                } else if (sortConfig.key === 'value' || sortConfig.key === 'totalAmount' || sortConfig.key === 'laborCost') {
+                    aValue = parseFloat(String(a.laborCost || a.value || 0).replace(/[^0-9.-]/g, '')) || 0;
+                    bValue = parseFloat(String(b.laborCost || b.value || 0).replace(/[^0-9.-]/g, '')) || 0;
                 } else if (sortConfig.key === 'receivedDate') {
                     aValue = new Date(a.createdAt).getTime();
                     bValue = new Date(b.createdAt).getTime();
-                } else if (sortConfig.key === 'deliveredDate') {
-                    aValue = a.deliveredAt ? new Date(a.deliveredAt).getTime() : (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
-                    bValue = b.deliveredAt ? new Date(b.deliveredAt).getTime() : (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
+                } else if (sortConfig.key === 'promisedDate') {
+                    aValue = a.promisedDate || '';
+                    bValue = b.promisedDate || '';
+                } else if (sortConfig.key === 'department') {
+                    aValue = a.department || '';
+                    bValue = b.department || '';
+                } else if (sortConfig.key === 'jeweler') {
+                    aValue = a.jeweler || '';
+                    bValue = b.jeweler || '';
+                } else if (sortConfig.key === 'completedDate') {
+                    aValue = a.completedDate || '';
+                    bValue = b.completedDate || '';
                 }
 
                 if (aValue < bValue) {
@@ -127,7 +136,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
 
     const HeaderTh: React.FC<{ label: string, sortKey: string, align?: 'left' | 'right' }> = ({ label, sortKey, align = 'left' }) => (
         <th
-            className={`px-8 py-6 text-${align} group/th cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-white/[0.02] transition-colors`}
+            className={`px-6 py-5 text-${align} group/th cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-white/[0.02] transition-colors`}
             onClick={() => requestSort(sortKey)}
         >
             <div className={`flex items-center gap-2 ${align === 'right' ? 'justify-end' : ''}`}>
@@ -139,21 +148,22 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
 
     return (
         <div className="w-full px-4 overflow-hidden transition-colors">
-            <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-900 rounded-[32px] overflow-hidden backdrop-blur-sm shadow-sm dark:shadow-2xl transition-colors">
-                <table className="w-full border-collapse">
+            <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-900 rounded-[32px] overflow-x-auto custom-scrollbar backdrop-blur-sm shadow-sm dark:shadow-2xl transition-colors">
+                <table className="w-full border-collapse min-w-[1100px]">
                     <thead>
                         <tr className="border-b border-zinc-100 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/60 transition-colors">
                             <HeaderTh label="Pedido" sortKey="id" />
-                            <HeaderTh label="Cliente" sortKey="client" />
-                            <HeaderTh label="Item" sortKey="item" />
                             <HeaderTh label="Recibido" sortKey="receivedDate" />
-                            {isDeliveredFilter && (
-                                <HeaderTh label="Fecha Entrega" sortKey="deliveredDate" />
-                            )}
+                            <HeaderTh label="Fecha Entrega" sortKey="promisedDate" />
+                            <HeaderTh label="Descripción" sortKey="item" />
+                            <HeaderTh label="Departamento" sortKey="department" />
+                            <HeaderTh label="Mano de Obra" sortKey="laborCost" />
                             <HeaderTh label="Estado" sortKey="status" />
-                            <HeaderTh label="Valor" sortKey="value" />
+                            <HeaderTh label="Cliente" sortKey="client" />
+                            <HeaderTh label="Joyero" sortKey="jeweler" />
+                            <HeaderTh label="Fecha Terminado" sortKey="completedDate" />
                             <HeaderTh label="Prioridad" sortKey="priority" align="right" />
-                            {isSystemAdmin && <th className="px-8 py-6 w-16"></th>}
+                            {isSystemAdmin && <th className="px-6 py-5 w-14"></th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800/30">
@@ -163,55 +173,48 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                 onClick={() => navigate(`/orders/${order.id}`)}
                                 className="group hover:bg-zinc-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
                             >
-                                <td className="px-8 py-6">
+                                {/* 1. Pedido */}
+                                <td className="px-6 py-5">
                                     <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black tracking-widest uppercase transition-colors">#{order.id.substring(0, 8)}</span>
                                 </td>
-                                <td className="px-8 py-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`size-8 rounded-full flex items-center justify-center text-[10px] font-black border border-zinc-100 dark:border-zinc-800 transition-colors ${order.initialsColor || 'bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'}`}>
-                                            {order.initials}
-                                        </div>
-                                        <span className="text-zinc-900 dark:text-white text-sm font-bold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors uppercase tracking-tight">{order.client}</span>
-                                    </div>
-                                </td>
-                                <td className="px-8 py-6">
-                                    <span className="text-zinc-500 dark:text-zinc-400 text-sm font-medium transition-colors">{order.item}</span>
-                                </td>
-                                
-                                {/* Fecha Recepción */}
-                                <td className="px-8 py-6">
-                                    <div className="flex flex-col gap-1">
+
+                                {/* 2. Recibido */}
+                                <td className="px-6 py-5">
+                                    <div className="flex flex-col gap-0.5">
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-zinc-900 dark:text-white text-[11px] font-bold transition-colors">{order.receivedDate}</span>
                                             <span className="text-zinc-400 dark:text-zinc-500 text-[9px] font-black uppercase tracking-widest transition-colors">{order.receivedTime}</span>
                                         </div>
-                                        {!isDeliveredFilter && order.deliveredDate && (
-                                            <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 w-fit">
-                                                <span className="material-symbols-outlined text-[12px]">local_shipping</span>
-                                                <span className="text-[9px] font-bold tracking-tight">Entrega: {order.deliveredDate}</span>
-                                            </div>
-                                        )}
                                     </div>
                                 </td>
 
-                                {/* Fecha Entrega (Columna exclusiva para Entregados) */}
-                                {isDeliveredFilter && (
-                                    <td className="px-8 py-6">
-                                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 w-fit shadow-sm">
-                                            <span className="material-symbols-outlined text-[16px]">local_shipping</span>
-                                            <div className="flex flex-col">
-                                                <span className="text-[11px] font-black leading-tight text-foreground">
-                                                    {order.deliveredDate || order.receivedDate}
-                                                </span>
-                                                <span className="text-[9px] font-black uppercase tracking-widest opacity-80">
-                                                    {order.deliveredTime || order.receivedTime}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                )}
+                                {/* 3. Fecha Entrega */}
+                                <td className="px-6 py-5">
+                                    <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 w-fit">
+                                        <span className="material-symbols-outlined text-[13px]">event</span>
+                                        <span className="text-[11px] font-black tracking-tight">{order.promisedDate || order.deliveredDate || '—'}</span>
+                                    </div>
+                                </td>
 
-                                <td className="px-8 py-6" onClick={(e) => e.stopPropagation()}>
+                                {/* 4. Descripción */}
+                                <td className="px-6 py-5">
+                                    <span className="text-zinc-800 dark:text-zinc-200 text-xs font-bold transition-colors">{order.description || order.item}</span>
+                                </td>
+
+                                {/* 5. Departamento */}
+                                <td className="px-6 py-5">
+                                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
+                                        {order.department || 'CARED'}
+                                    </span>
+                                </td>
+
+                                {/* 6. Mano de Obra */}
+                                <td className="px-6 py-5">
+                                    <span className="text-zinc-900 dark:text-white font-black text-xs tracking-tight transition-colors">{order.laborCost || order.value}</span>
+                                </td>
+
+                                {/* 7. Estado */}
+                                <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
                                     {(() => {
                                         const rawStatus = (order.status || order.stage || 'RECEIVED').toUpperCase();
                                         const displayLabel = getStatusLabel(order.statusLabel || rawStatus);
@@ -269,10 +272,32 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                         );
                                     })()}
                                 </td>
-                                <td className="px-8 py-6">
-                                    <span className="text-zinc-900 dark:text-white font-black tracking-tight transition-colors">{order.value}</span>
+
+                                {/* 8. Cliente */}
+                                <td className="px-6 py-5">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={`size-7 rounded-full flex items-center justify-center text-[9px] font-black border border-zinc-100 dark:border-zinc-800 transition-colors ${order.initialsColor || 'bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                                            {order.initials}
+                                        </div>
+                                        <span className="text-zinc-900 dark:text-white text-xs font-bold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors uppercase tracking-tight whitespace-nowrap">{order.client}</span>
+                                    </div>
                                 </td>
-                                <td className="px-8 py-6 text-right" onClick={(e) => e.stopPropagation()}>
+
+                                {/* 9. Joyero */}
+                                <td className="px-6 py-5">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="material-symbols-outlined text-[14px] text-zinc-400">handyman</span>
+                                        <span className="text-zinc-700 dark:text-zinc-300 text-xs font-bold uppercase tracking-tight whitespace-nowrap">{order.jeweler || '—'}</span>
+                                    </div>
+                                </td>
+
+                                {/* 10. Fecha Terminado */}
+                                <td className="px-6 py-5">
+                                    <span className="text-zinc-600 dark:text-zinc-400 text-[11px] font-medium transition-colors whitespace-nowrap">{order.completedDate || '—'}</span>
+                                </td>
+
+                                {/* Prioridad */}
+                                <td className="px-6 py-5 text-right" onClick={(e) => e.stopPropagation()}>
                                     <select
                                         value={(order.priority || 'MEDIA').toUpperCase()}
                                         onChange={async (e) => {
