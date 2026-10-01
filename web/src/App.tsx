@@ -46,7 +46,7 @@ function App() {
         String(user.role || '').toUpperCase() === 'JOYERO' ||
         String(user.email || '').toLowerCase().includes('joyero') ||
         String(user.name || '').toLowerCase().includes('joyero');
-    const defaultRoute = isJoyero ? "/orders?type=REPAIR" : (user.role === 'VENDEDOR' ? "/orders" : "/dashboard");
+    const defaultRoute = isJoyero ? "/orders?type=REPAIR" : "/orders?type=MANUFACTURE";
 
     return (
         <ThemeProvider>

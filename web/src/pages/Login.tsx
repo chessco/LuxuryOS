@@ -29,7 +29,8 @@ export default function LoginPage() {
             localStorage.setItem("user", JSON.stringify(user));
 
             setLoading(false);
-            navigate("/dashboard");
+            const isJoyero = user?.role === 'JOYERO' || String(user?.email || '').toLowerCase().includes('joyero');
+            navigate(isJoyero ? "/orders?type=REPAIR" : "/orders?type=MANUFACTURE");
         } catch (err: any) {
             console.error('Login error:', err);
             setError(err.response?.data?.message || 'Error al iniciar sesión. Por favor verifica tus credenciales.');

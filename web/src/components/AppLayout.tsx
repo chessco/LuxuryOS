@@ -10,7 +10,7 @@ export default function AppLayout() {
 
     const [isSidebarOpen, setIsSidebarOpen] = React.useState<boolean>(() => {
         const saved = localStorage.getItem("sidebar_open");
-        return saved !== null ? JSON.parse(saved) : true;
+        return saved !== null ? JSON.parse(saved) : false;
     });
 
     if (isLoginPage) {
