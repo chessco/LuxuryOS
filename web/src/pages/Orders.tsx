@@ -505,23 +505,7 @@ const Orders: React.FC = () => {
         return result;
     }, [orders, searchQuery, activeFilter]);
 
-    // Dynamic piece type filters from actual data
-    const pieceTypeFilters = React.useMemo(() => {
-        const types = new Map<string, number>();
-        orders.forEach(o => {
-            const t = (o.item || o.pieceType || '').trim();
-            if (t) {
-                const key = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
-                types.set(key, (types.get(key) || 0) + 1);
-            }
-        });
-        return Array.from(types.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3)
-            .map(([name]) => name);
-    }, [orders]);
-
-    const filterButtons = ['Recibido', 'En Taller', 'Para Entrega', 'Entregados', 'Esta Semana', 'Prioridad Alta', ...pieceTypeFilters];
+    const filterButtons = ['Recibido', 'En Taller', 'Para Entrega', 'Entregados', 'Esta Semana'];
 
     const getOrdersByStatus = (columnId: string) => {
         return filteredOrders.filter(o => o.status === columnId);
