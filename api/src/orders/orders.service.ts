@@ -176,7 +176,7 @@ export class OrdersService {
         });
         const sequence = count + 1;
         const prefix = type === 'REPAIR' ? 'REP' : (type === 'MANUFACTURE' ? 'FAB' : (type === 'LAYAWAY' ? 'APT' : 'PED'));
-        const orderCode = `${prefix}-${String(sequence).padStart(6, '0')}`;
+        const orderCode = `${prefix}-${sequence}`;
 
         const specifications = {
             ...(typeof data.specifications === 'object' ? data.specifications : {}),

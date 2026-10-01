@@ -101,20 +101,23 @@ export const getStatusLabel = (stage: string) => {
 
 export const formatOrderCode = (order: any, seqIndex?: number) => {
     if (!order) return '';
-    if (order.specifications?.orderCode) return order.specifications.orderCode;
-    if (order.orderCode) return order.orderCode;
-
     const t = (order.type || 'STANDARD').toUpperCase();
     let prefix = 'PED';
     if (t === 'REPAIR') prefix = 'REP';
     else if (t === 'MANUFACTURE') prefix = 'FAB';
     else if (t === 'LAYAWAY') prefix = 'APT';
 
-    const seqStr = seqIndex !== undefined
-        ? String(seqIndex).padStart(6, '0')
-        : (order.id ? order.id.substring(0, 6).toUpperCase() : '000001');
+    let rawCode = order.orderCode || order.specifications?.orderCode || '';
+    if (rawCode) {
+        const match = String(rawCode).match(/^([A-Z]+)-0*(\d+)$/i);
+        if (match) {
+            return `${match[1].toUpperCase()}-${match[2]}`;
+        }
+        return rawCode;
+    }
 
-    return `${prefix}-${seqStr}`;
+    const seqNum = seqIndex !== undefined ? seqIndex : (order.sequenceNumber || 1);
+    return `${prefix}-${seqNum}`;
 };
 
 const DELIVERED_COLUMN: Column = { id: 'DELIVERED', name: 'Entregado', color: 'bg-emerald-600' };
@@ -209,13 +212,27 @@ const Orders: React.FC = () => {
 
             const typeCounters: Record<string, number> = {};
             const orderCodeMap = new Map<string, string>();
+            const seqMap = new Map<string, number>();
+
             rawOrders.forEach(o => {
                 const t = (o.type || 'STANDARD').toUpperCase();
                 typeCounters[t] = (typeCounters[t] || 0) + 1;
                 const prefix = t === 'REPAIR' ? 'REP' : (t === 'MANUFACTURE' ? 'FAB' : (t === 'LAYAWAY' ? 'APT' : 'PED'));
-                const seqStr = String(typeCounters[t]).padStart(6, '0');
-                const code = o.specifications?.orderCode || `${prefix}-${seqStr}`;
-                orderCodeMap.set(o.id, code);
+                const seqNum = typeCounters[t];
+
+                let existingCode = o.specifications?.orderCode || o.orderCode;
+                let cleanCode = `${prefix}-${seqNum}`;
+                if (existingCode) {
+                    const match = String(existingCode).match(/^([A-Z]+)-0*(\d+)$/i);
+                    if (match) {
+                        cleanCode = `${match[1].toUpperCase()}-${match[2]}`;
+                    } else {
+                        cleanCode = existingCode;
+                    }
+                }
+
+                orderCodeMap.set(o.id, cleanCode);
+                seqMap.set(o.id, seqNum);
             });
 
             // Flatten board data from {STAGE: [orders]} to [orders] with mapped props for UI
@@ -224,6 +241,7 @@ const Orders: React.FC = () => {
                 data[stage].forEach((o: any) => {
                     flattenOrders.push({
                         ...o,
+                        sequenceNumber: seqMap.get(o.id) || 1,
                         orderCode: orderCodeMap.get(o.id) || formatOrderCode(o),
                         // Mapping DB fields to UI expectation
                         client: o.client?.name || 'Cliente',
@@ -258,6 +276,10 @@ const Orders: React.FC = () => {
                     });
                 });
             });
+
+            // Default sort flattenOrders numerically by sequence number (1, 2, 3, 4, 5...)
+            flattenOrders.sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
+
             setOrders(flattenOrders);
         } catch (error) {
             console.error("Error fetching board:", error);
@@ -485,13 +507,29 @@ const Orders: React.FC = () => {
         // Search filter
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase().trim();
-            result = result.filter(o =>
-                (o.client && String(o.client).toLowerCase().includes(q)) ||
-                (o.id && o.id.toLowerCase().includes(q)) ||
-                (o.item && String(o.item).toLowerCase().includes(q)) ||
-                (o.pieceType && String(o.pieceType).toLowerCase().includes(q)) ||
-                (o.createdByName && String(o.createdByName).toLowerCase().includes(q))
-            );
+            const cleanNumeric = q.replace(/[^0-9]/g, '');
+
+            result = result.filter(o => {
+                const code = (o.orderCode || formatOrderCode(o) || '').toLowerCase();
+                const client = String(o.client || '').toLowerCase();
+                const item = String(o.item || o.pieceType || '').toLowerCase();
+                const creator = String(o.createdByName || '').toLowerCase();
+                const notes = String(o.notes || '').toLowerCase();
+
+                if (code.includes(q) || client.includes(q) || item.includes(q) || creator.includes(q) || notes.includes(q)) {
+                    return true;
+                }
+
+                if (cleanNumeric.length > 0) {
+                    const codeNumeric = code.replace(/[^0-9]/g, '');
+                    const codeNumTrimmed = codeNumeric.replace(/^0+/, '') || '0';
+                    if (codeNumeric.endsWith(cleanNumeric) || codeNumTrimmed === cleanNumeric) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
         }
 
         // Active filter

@@ -59,6 +59,15 @@ const getStatusOptions = (orderType: string, currentStatus?: string) => {
     return opts;
 };
 
+const getOrderSeq = (order: any) => {
+    if (typeof order.sequenceNumber === 'number' && order.sequenceNumber > 0) {
+        return order.sequenceNumber;
+    }
+    const code = order.orderCode || formatOrderCode(order);
+    const digits = String(code).replace(/[^0-9]/g, '');
+    return digits ? parseInt(digits, 10) : 0;
+};
+
 export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, onOrderDeleted, onRefresh }) => {
     const navigate = useNavigate();
     const isDeliveredFilter = activeFilter === 'Entregados' || activeFilter === 'Entregado';
@@ -74,7 +83,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                 let aValue: any = a[sortConfig.key];
                 let bValue: any = b[sortConfig.key];
 
-                if (sortConfig.key === 'client') {
+                if (sortConfig.key === 'id' || sortConfig.key === 'orderCode') {
+                    aValue = getOrderSeq(a);
+                    bValue = getOrderSeq(b);
+                } else if (sortConfig.key === 'client') {
                     aValue = a.client?.name || a.client || '';
                     bValue = b.client?.name || b.client || '';
                 } else if (sortConfig.key === 'createdByName') {
@@ -102,9 +114,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
         } else if (isDeliveredFilter) {
             sortableItems.sort((a, b) => {
                 const dateA = a.deliveredAt ? new Date(a.deliveredAt).getTime() : (a.updatedAt ? new Date(a.updatedAt).getTime() : new Date(a.createdAt).getTime());
-                const dateB = b.deliveredAt ? new Date(b.deliveredAt).getTime() : (b.updatedAt ? new Date(b.updatedAt).getTime() : new Date(b.createdAt).getTime());
+                const dateB = b.deliveredAt ? new Date(b.deliveredAt).getTime() : (b.updatedAt ? new Date(b.updatedAt).getTime() : new Date(a.createdAt).getTime());
                 return dateB - dateA;
             });
+        } else {
+            sortableItems.sort((a, b) => getOrderSeq(a) - getOrderSeq(b));
         }
         return sortableItems;
     }, [orders, sortConfig, isDeliveredFilter]);
