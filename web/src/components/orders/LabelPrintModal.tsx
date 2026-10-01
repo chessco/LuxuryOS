@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import JsBarcode from 'jsbarcode';
 import axios from 'axios';
 import { getTrackToken } from '../../utils/tracking';
+import { formatOrderCode } from '../../pages/Orders';
 
 const getConcepto = (type: string) => {
     const t = (type || '').toUpperCase();
@@ -59,7 +60,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             });
         };
 
-        const orderCode = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
+        const orderCode = order.orderCode || formatOrderCode(order);
         const clientName = (order.client?.name || (order as any).clientName || 'Cliente').toUpperCase();
         const dateStr = formatDate(order.createdAt);
 
@@ -205,7 +206,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
 
     const isTurnOrder = !!order.queueTicket;
     const clientName = (order.client?.name || order.clientName || 'CLIENTE').toUpperCase();
-    const orderCode = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
+    const orderCode = order.orderCode || formatOrderCode(order);
     const formatDate = (date?: Date | string | null) => {
         const d = date ? new Date(date) : new Date();
         return d.toLocaleDateString('es-MX', {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getStatusLabel } from '../../pages/Orders';
+import { getStatusLabel, formatOrderCode } from '../../pages/Orders';
 import { OrdersService } from '../../services/orders.service';
 
 interface OrdersTableProps {
@@ -170,7 +170,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                             >
                                 {/* 1. Pedido */}
                                 <td className="px-6 py-5">
-                                    <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black tracking-widest uppercase transition-colors">#{order.id.substring(0, 8)}</span>
+                                    <span className="text-zinc-900 dark:text-white text-xs font-black tracking-wider uppercase transition-colors">{order.orderCode || formatOrderCode(order)}</span>
                                 </td>
 
                                 {/* 2. Fecha Entrega */}

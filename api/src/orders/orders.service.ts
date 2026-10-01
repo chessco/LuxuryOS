@@ -170,6 +170,19 @@ export class OrdersService {
             }
         }
 
+        const type = data.type || 'STANDARD';
+        const count = await this.prisma.order.count({
+            where: { tenantId, type }
+        });
+        const sequence = count + 1;
+        const prefix = type === 'REPAIR' ? 'REP' : (type === 'MANUFACTURE' ? 'FAB' : (type === 'LAYAWAY' ? 'APT' : 'PED'));
+        const orderCode = `${prefix}-${String(sequence).padStart(6, '0')}`;
+
+        const specifications = {
+            ...(typeof data.specifications === 'object' ? data.specifications : {}),
+            orderCode
+        };
+
         const created = await this.prisma.order.create({
             data: {
                 ...data,
@@ -180,6 +193,7 @@ export class OrdersService {
                 balance,
                 margin,
                 status: status ?? undefined, // Let Prisma default to DRAFT if undefined
+                specifications,
             },
             include: {
                 client: true,
@@ -484,7 +498,9 @@ export class OrdersService {
             return { success: false, reason: 'El cliente no tiene teléfono configurado' };
         }
 
-        const orderCode = `ORD-${order.id.substring(0, 8).toUpperCase()}`;
+        const specs = (order.specifications as any) || {};
+        const prefix = order.type === 'REPAIR' ? 'REP' : (order.type === 'MANUFACTURE' ? 'FAB' : (order.type === 'LAYAWAY' ? 'APT' : 'PED'));
+        const orderCode = specs.orderCode || `${prefix}-${order.id.substring(0, 6).toUpperCase()}`;
         const clientName = (order.client?.name || 'Cliente').toUpperCase();
         const formatDate = (date?: Date | string | null) => {
             const d = date ? new Date(date) : new Date();

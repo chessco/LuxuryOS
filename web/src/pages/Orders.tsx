@@ -99,6 +99,24 @@ export const getStatusLabel = (stage: string) => {
     return upper;
 };
 
+export const formatOrderCode = (order: any, seqIndex?: number) => {
+    if (!order) return '';
+    if (order.specifications?.orderCode) return order.specifications.orderCode;
+    if (order.orderCode) return order.orderCode;
+
+    const t = (order.type || 'STANDARD').toUpperCase();
+    let prefix = 'PED';
+    if (t === 'REPAIR') prefix = 'REP';
+    else if (t === 'MANUFACTURE') prefix = 'FAB';
+    else if (t === 'LAYAWAY') prefix = 'APT';
+
+    const seqStr = seqIndex !== undefined
+        ? String(seqIndex).padStart(6, '0')
+        : (order.id ? order.id.substring(0, 6).toUpperCase() : '000001');
+
+    return `${prefix}-${seqStr}`;
+};
+
 const DELIVERED_COLUMN: Column = { id: 'DELIVERED', name: 'Entregado', color: 'bg-emerald-600' };
 
 const Orders: React.FC = () => {
@@ -182,12 +200,31 @@ const Orders: React.FC = () => {
         try {
             setIsLoading(true);
             const data = await OrdersService.getBoard(orderType || undefined);
+
+            const rawOrders: any[] = [];
+            Object.keys(data).forEach(stage => {
+                data[stage].forEach((o: any) => rawOrders.push(o));
+            });
+            rawOrders.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+            const typeCounters: Record<string, number> = {};
+            const orderCodeMap = new Map<string, string>();
+            rawOrders.forEach(o => {
+                const t = (o.type || 'STANDARD').toUpperCase();
+                typeCounters[t] = (typeCounters[t] || 0) + 1;
+                const prefix = t === 'REPAIR' ? 'REP' : (t === 'MANUFACTURE' ? 'FAB' : (t === 'LAYAWAY' ? 'APT' : 'PED'));
+                const seqStr = String(typeCounters[t]).padStart(6, '0');
+                const code = o.specifications?.orderCode || `${prefix}-${seqStr}`;
+                orderCodeMap.set(o.id, code);
+            });
+
             // Flatten board data from {STAGE: [orders]} to [orders] with mapped props for UI
             const flattenOrders: any[] = [];
             Object.keys(data).forEach(stage => {
                 data[stage].forEach((o: any) => {
                     flattenOrders.push({
                         ...o,
+                        orderCode: orderCodeMap.get(o.id) || formatOrderCode(o),
                         // Mapping DB fields to UI expectation
                         client: o.client?.name || 'Cliente',
                         createdByName: o.createdBy?.name || o.specifications?.receivedBy || o.specifications?.createdByName || '—',

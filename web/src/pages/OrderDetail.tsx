@@ -9,7 +9,7 @@ import { PaymentModal } from '../components/orders/PaymentModal';
 import { EditOrderModal } from '../components/orders/EditOrderModal';
 import { RepairPrintView } from '../components/orders/RepairPrintView';
 import { LabelPrintModal } from '../components/orders/LabelPrintModal';
-import { getStatusLabel } from './Orders';
+import { getStatusLabel, formatOrderCode } from './Orders';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -429,13 +429,13 @@ const OrderDetail: React.FC = () => {
                     <span className="material-symbols-outlined text-[14px]">chevron_right</span>
                     <Link to="/orders" className="hover:text-foreground transition-colors">Pedidos</Link>
                     <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <span className="text-muted-foreground/60 transition-colors">Pedido #ORD-{order.id.substring(0, 8)}</span>
+                    <span className="text-muted-foreground/60 transition-colors">Pedido #{order.orderCode || formatOrderCode(order)}</span>
                 </nav>
 
                 <div className="flex flex-wrap justify-between items-end gap-6">
                     <div className="space-y-4">
                         <div className="flex items-center gap-4">
-                            <h1 className="text-foreground text-5xl font-black tracking-tighter font-display transition-colors">Pedido #ORD-{order.id.substring(0, 8)}</h1>
+                            <h1 className="text-foreground text-5xl font-black tracking-tighter font-display transition-colors">Pedido #{order.orderCode || formatOrderCode(order)}</h1>
                             <span className={`px-3 py-1 bg-muted border border-border text-[9px] font-black uppercase tracking-widest rounded-full transition-colors ${order.statusType === 'urgent' ? 'text-red-600 border-red-500/20 bg-red-500/5' :
                                 order.statusType === 'success' ? 'text-emerald-600 border-emerald-500/20 bg-emerald-500/5' :
                                     'text-indigo-600 border-indigo-500/20 bg-indigo-500/5'
