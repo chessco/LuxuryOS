@@ -11,15 +11,16 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
     const userRole = user.role === 'TENANT_ADMIN' ? 'Atelier Manager' : (user.role === 'TENANT_USER' ? 'Equipo de Ventas' : 'Sistema');
 
     return (
-        <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-8 transition-colors">
-            <div className="flex items-center gap-4 lg:hidden">
+        <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-6 sm:px-8 transition-colors">
+            <div className="flex items-center gap-3">
                 <button
                     onClick={onToggleMenu}
-                    className="text-muted-foreground hover:text-foreground transition-colors p-2 -ml-2 rounded-lg hover:bg-muted"
+                    title="Alternar Menú Lateral"
+                    className="flex size-10 items-center justify-center rounded-xl bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-sm active:scale-95 border border-border/50 cursor-pointer"
                 >
-                    <span className="material-symbols-outlined">menu</span>
+                    <span className="material-symbols-outlined text-[22px]">menu</span>
                 </button>
-                <span className="text-foreground font-bold text-lg">Luxury OS</span>
+                <span className="text-foreground font-bold text-lg tracking-tight font-display hidden sm:inline-block">Luxury OS</span>
             </div>
 
             {/* Search */}

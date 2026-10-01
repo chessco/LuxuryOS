@@ -106,18 +106,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
 
     return (
         <>
-            {/* Mobile Overlay */}
+            {/* Mobile / Tablet Backdrop Overlay */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-20 lg:hidden animate-in fade-in duration-300"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-300"
                     onClick={onClose}
                 />
             )}
 
             <aside className={`
-                fixed inset-y-0 left-0 z-30 w-72 flex-col border-r border-border bg-sidebar p-4 shadow-2xl transition-all duration-300 ease-in-out
-                lg:static lg:flex lg:translate-x-0 lg:shadow-none lg:z-auto
-                ${isOpen ? 'translate-x-0 flex' : '-translate-x-full lg:flex'}
+                fixed inset-y-0 left-0 z-50 flex-col border-r border-border bg-sidebar p-4 shadow-2xl transition-all duration-300 ease-in-out shrink-0
+                lg:static lg:z-auto lg:shadow-none
+                ${isOpen
+                    ? 'translate-x-0 flex w-72 lg:w-72 lg:opacity-100 lg:static'
+                    : '-translate-x-full hidden lg:flex lg:-ml-72 lg:w-0 lg:opacity-0 lg:p-0 lg:border-none lg:overflow-hidden pointer-events-none'
+                }
             `}>
                 <div className="flex items-center justify-between mb-8 px-2 py-4">
                     <div className="flex items-center gap-3">
@@ -125,13 +128,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                             <span className="material-symbols-outlined text-white text-xl">diamond</span>
                         </div>
                         <div className="flex flex-col">
-                            <h1 className="text-foreground text-lg font-bold leading-none tracking-tight uppercase">{atelierName}</h1>
-                            <p className="text-muted-foreground text-[10px] font-medium tracking-widest mt-1 uppercase">Luxury OS</p>
+                            <h1 className="text-foreground text-lg font-bold leading-none tracking-tight uppercase whitespace-nowrap">{atelierName}</h1>
+                            <p className="text-muted-foreground text-[10px] font-medium tracking-widest mt-1 uppercase whitespace-nowrap">Luxury OS</p>
                         </div>
                     </div>
-                    {/* Close button for mobile */}
-                    <button onClick={onClose} className="lg:hidden text-muted-foreground hover:text-foreground transition-colors">
-                        <span className="material-symbols-outlined">close</span>
+                    {/* Close button for drawer */}
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-muted">
+                        <span className="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
 
