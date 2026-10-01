@@ -118,8 +118,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 fixed inset-y-0 left-0 z-50 flex-col border-r border-border bg-sidebar p-4 shadow-2xl transition-all duration-300 ease-in-out shrink-0
                 lg:static lg:z-auto lg:shadow-none
                 ${isOpen
-                    ? 'translate-x-0 flex w-72 lg:w-72 lg:opacity-100 lg:static'
-                    : '-translate-x-full hidden lg:flex lg:-ml-72 lg:w-0 lg:opacity-0 lg:p-0 lg:border-none lg:overflow-hidden pointer-events-none'
+                    ? 'translate-x-0 flex w-72'
+                    : '-translate-x-full hidden w-0 p-0 border-none overflow-hidden pointer-events-none'
                 }
             `}>
                 <div className="flex items-center justify-between mb-8 px-2 py-4">
