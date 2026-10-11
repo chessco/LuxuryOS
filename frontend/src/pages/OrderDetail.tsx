@@ -637,37 +637,59 @@ const OrderDetail: React.FC = () => {
                         </div>
                     </div>
 
-                    {!isJoyero && (
-                        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
-                            {order.client?.phone && (
-                                <a
-                                    href={`https://wa.me/${String(order.client.phone).replace(/[^0-9]/g, '')}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">chat</span>
-                                    <span>WhatsApp</span>
-                                </a>
+                    {/* Mano de Obra y Comisión de la orden (aplica para toda la orden) + Acciones del Cliente */}
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 w-full lg:w-auto justify-between lg:justify-end">
+                        <div className="flex items-center gap-6 bg-muted/40 border border-border rounded-2xl px-6 py-3.5 shadow-sm">
+                            <div className="text-left sm:text-right">
+                                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Mano de Obra</span>
+                                <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
+                                    {(order.laborCost && Number(order.laborCost) > 0)
+                                        ? `${Number(order.laborCost).toLocaleString()} MXN`
+                                        : (order.value && Number(order.value) > 0 ? `${Number(order.value).toLocaleString()} MXN` : '—')}
+                                </span>
+                            </div>
+                            {(order.commission !== undefined && order.commission !== null) && (
+                                <div className="text-left sm:text-right border-l border-border pl-6">
+                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Comisión</span>
+                                    <span className="text-emerald-600 dark:text-emerald-400 text-xl sm:text-2xl font-black tracking-tight font-display">
+                                        {Number(order.commission || 0).toLocaleString()} MXN
+                                    </span>
+                                </div>
                             )}
-                            {order.client?.phone && (
-                                <a
-                                    href={`tel:${order.client.phone}`}
-                                    className="flex items-center gap-2 bg-muted border border-border rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">call</span>
-                                    <span>Llamar</span>
-                                </a>
-                            )}
-                            <Link
-                                to={`/clients?search=${encodeURIComponent(order.clientName)}`}
-                                className="flex items-center gap-2 bg-foreground text-background rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
-                            >
-                                <span>Ver Perfil</span>
-                                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                            </Link>
                         </div>
-                    )}
+
+                        {!isJoyero && (
+                            <div className="flex flex-wrap items-center gap-3">
+                                {order.client?.phone && (
+                                    <a
+                                        href={`https://wa.me/${String(order.client.phone).replace(/[^0-9]/g, '')}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">chat</span>
+                                        <span>WhatsApp</span>
+                                    </a>
+                                )}
+                                {order.client?.phone && (
+                                    <a
+                                        href={`tel:${order.client.phone}`}
+                                        className="flex items-center gap-2 bg-muted border border-border rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">call</span>
+                                        <span>Llamar</span>
+                                    </a>
+                                )}
+                                <Link
+                                    to={`/clients?search=${encodeURIComponent(order.clientName)}`}
+                                    className="flex items-center gap-2 bg-foreground text-background rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
+                                >
+                                    <span>Ver Perfil</span>
+                                    <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </section>
 
@@ -767,54 +789,45 @@ const OrderDetail: React.FC = () => {
                                         </div>
 
                                         {/* Description / Work / Diagnosis */}
-                                        {(piece.description || order.specifications?.diagnosis || order.specifications?.partsNeeded) && (
-                                            <div className="text-xs sm:text-sm font-medium leading-relaxed bg-muted/60 p-4 sm:p-5 rounded-2xl border border-border/80 text-foreground space-y-1.5 shadow-inner">
-                                                {piece.description && (
+                                        {(() => {
+                                            const pieceDescription = 
+                                                piece.description || 
+                                                piece.notes || 
+                                                piece.trabajo || 
+                                                piece.work || 
+                                                order.specifications?.diagnosis || 
+                                                order.description || 
+                                                ((!order.specifications?.items || order.specifications.items.length <= 1 || idx === 0) ? order.notes : '');
+
+                                            return (
+                                                <div className="text-xs sm:text-sm font-medium leading-relaxed bg-muted/60 p-4 sm:p-5 rounded-2xl border border-border/80 text-foreground space-y-1.5 shadow-inner">
                                                     <div>
                                                         <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Trabajo:</span>
-                                                        {piece.description}
+                                                        <span className={pieceDescription ? "font-bold text-foreground" : "italic text-muted-foreground"}>
+                                                            {pieceDescription || "Sin descripción de trabajo especificada"}
+                                                        </span>
                                                     </div>
-                                                )}
-                                                {order.specifications?.diagnosis && order.specifications?.diagnosis !== piece.description && (
-                                                    <div>
-                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Diagnóstico:</span>
-                                                        {order.specifications.diagnosis}
-                                                    </div>
-                                                )}
-                                                {order.specifications?.partsNeeded && (
-                                                    <div>
-                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Refacciones:</span>
-                                                        {order.specifications.partsNeeded}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Costs & Commission */}
-                                    <div className="w-full xl:w-auto xl:min-w-[200px] flex xl:flex-col justify-between xl:justify-center items-end gap-3 pt-4 xl:pt-0 border-t xl:border-t-0 xl:border-l border-border xl:pl-8 flex-shrink-0">
-                                        <div className="text-right">
-                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Mano de Obra</span>
-                                            <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
-                                                {piece.laborCost ? `${Number(piece.laborCost).toLocaleString()} MXN` : (order.laborCost ? `${Number(order.laborCost).toLocaleString()} MXN` : '—')}
-                                            </span>
-                                        </div>
-                                        {(piece.commission !== undefined || order.commission !== undefined) && (
-                                            <div className="text-right">
-                                                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Comisión</span>
-                                                <span className="text-emerald-600 dark:text-emerald-400 text-xl sm:text-2xl font-black tracking-tight font-display">
-                                                    {Number(piece.commission || order.commission || 0).toLocaleString()} MXN
-                                                </span>
-                                            </div>
-                                        )}
-                                        {!isJoyero && piece.materialCost && (
-                                            <div className="text-right">
-                                                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Material</span>
-                                                <span className="text-muted-foreground text-sm font-bold tracking-tight">
-                                                    {Number(piece.materialCost).toLocaleString()} MXN
-                                                </span>
-                                            </div>
-                                        )}
+                                                    {order.specifications?.diagnosis && order.specifications?.diagnosis !== pieceDescription && (
+                                                        <div>
+                                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Diagnóstico:</span>
+                                                            {order.specifications.diagnosis}
+                                                        </div>
+                                                    )}
+                                                    {order.specifications?.partsNeeded && (
+                                                        <div>
+                                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Refacciones:</span>
+                                                            {order.specifications.partsNeeded}
+                                                        </div>
+                                                    )}
+                                                    {!isJoyero && piece.materialCost && (
+                                                        <div>
+                                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Costo Material:</span>
+                                                            <span className="font-bold text-foreground">{Number(piece.materialCost).toLocaleString()} MXN</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             </div>

@@ -475,119 +475,129 @@ const OrderDetail: React.FC = () => {
                        (!stageUpper || stageUpper === 'RECEIVED' || stageUpper === 'RECIBIDO' || stageUpper === 'INTERES_LEAD');
     const canModifyOrderDetails = isAuthorized || (!isJoyero && isReceived);
 
+    const fmtDate = (d: any, withTime = false) => new Date(d).toLocaleDateString('es-MX', {
+        timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric',
+        ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {})
+    });
+    const receivedByLabel = order.createdBy?.name || order.specifications?.receivedBy || order.specifications?.createdByName || '—';
+    const promisedLabel = order.promisedAt
+        ? fmtDate(order.promisedAt)
+        : (order.specifications?.promisedDate || (order.dueDate ? fmtDate(order.dueDate) : 'Sin fecha'));
+    const isWorkshopOrder = order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE';
+    const isFinishedStatus = ['DELIVERED', 'REPAIR_COMPLETED', 'READY_FOR_PICKUP'].includes(order.status);
+    const readyByLabel = order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName
+        || (isFinishedStatus && isWorkshopOrder ? 'Joyero' : null);
+    const isDelivered = !!(order.deliveredAt || order.status === 'DELIVERED' || order.status === 'ENTREGADO' || order.stage === 'ENTREGADO_POSTVENTA');
+    const deliveredLabel = order.deliveredAt
+        ? fmtDate(order.deliveredAt, true)
+        : (order.updatedAt ? fmtDate(order.updatedAt, true) : 'Registrado');
+    const priorityKey = (order.priority || 'MEDIA').toUpperCase();
+    const statusTone = order.statusType === 'urgent'
+        ? 'text-red-600 dark:text-red-400 border-red-500/30 bg-red-500/10'
+        : order.statusType === 'success'
+            ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+            : 'text-indigo-600 dark:text-indigo-400 border-indigo-500/30 bg-indigo-500/10';
+    const canMarkReady = isWorkshopOrder && !isFinishedStatus;
+    const headerBtn = 'inline-flex items-center justify-center gap-2 min-h-11 px-4 rounded-xl border text-[11px] font-black uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95';
+    const headerBtnNeutral = `${headerBtn} bg-card border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 shadow-sm`;
+
     return (
         <div className="flex-1 flex flex-col h-full">
             {/* Breadcrumbs & Header */}
-            <header className="mb-10">
-                <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-6">
+            <header className="mb-8">
+                <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-5">
                     <Link to="/dashboard" className="hover:text-foreground transition-colors">Inicio</Link>
-                    <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
                     <Link to="/orders" className="hover:text-foreground transition-colors">Pedidos</Link>
-                    <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <span className="text-muted-foreground/60 transition-colors">Pedido #{order.orderCode || formatOrderCode(order)}</span>
+                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
+                    <span aria-current="page" className="text-foreground/70">Pedido #{order.orderCode || formatOrderCode(order)}</span>
                 </nav>
 
-                <div className="flex flex-wrap justify-between items-end gap-6">
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-4">
-                            <h1 className="text-foreground text-5xl font-black tracking-tighter font-display transition-colors">Pedido #{order.orderCode || formatOrderCode(order)}</h1>
-                            <span className={`px-3 py-1 bg-muted border border-border text-[9px] font-black uppercase tracking-widest rounded-full transition-colors ${order.statusType === 'urgent' ? 'text-red-600 border-red-500/20 bg-red-500/5' :
-                                order.statusType === 'success' ? 'text-emerald-600 border-emerald-500/20 bg-emerald-500/5' :
-                                    'text-indigo-600 border-indigo-500/20 bg-indigo-500/5'
-                                }}`}>{order.statusLabel || order.status}</span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-6 text-muted-foreground text-xs font-bold uppercase tracking-widest transition-colors">
-                            <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[18px]">person</span>
-                                <span>Recibió: <strong className="text-foreground">{order.createdBy?.name || order.specifications?.receivedBy || order.specifications?.createdByName || '—'}</strong></span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-[18px]">history</span>
-                                <span>Recibido: {order.date}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                                <span className="material-symbols-outlined text-[16px]">store</span>
-                                <span>Depto: <strong className="text-foreground">{order.specifications?.department || order.department || 'CARED'}</strong></span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                                <span className="material-symbols-outlined text-[16px]">event</span>
-                                <span>Entrega: <strong className="text-foreground">{order.promisedAt ? new Date(order.promisedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : (order.specifications?.promisedDate || (order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Sin fecha'))}</strong></span>
-                            </div>
-                            {(order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || ((order.status === 'DELIVERED' || order.status === 'REPAIR_COMPLETED' || order.status === 'READY_FOR_PICKUP') && (order.type === 'REPAIR' || order.type === 'MANUFACTURE') ? 'Joyero' : null)) && (
-                                <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                                    <span className="material-symbols-outlined text-[16px]">verified</span>
-                                    <span>Listo por: <strong className="text-foreground">{order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || (order.type === 'REPAIR' || order.type === 'MANUFACTURE' ? 'Joyero' : '—')}</strong></span>
-                                </div>
-                            )}
-                            {(order.deliveredAt || order.status === 'DELIVERED' || order.status === 'ENTREGADO' || order.stage === 'ENTREGADO_POSTVENTA') && (
-                                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                                    <span className="material-symbols-outlined text-[16px]">local_shipping</span>
-                                    <span>Entregado: {order.deliveredAt ? new Date(order.deliveredAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (order.updatedAt ? new Date(order.updatedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Registrado')}</span>
-                                </div>
-                            )}
-                            <div className="flex items-center gap-2">
-                                <select
-                                    value={(order.priority || 'MEDIA').toUpperCase()}
-                                    disabled={!canModifyOrderDetails}
-                                    onChange={async (e) => {
-                                        const newPriority = e.target.value;
-                                        await handleSaveDetails({ priority: newPriority });
-                                    }}
-                                    className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest outline-none border transition-all shadow-sm ${
-                                        !canModifyOrderDetails ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
-                                    } ${
-                                        (order.priority || '').toUpperCase() === 'ALTA'
-                                            ? 'bg-amber-400 text-black border-amber-500 font-black shadow-md'
-                                            : (order.priority || '').toUpperCase() === 'MEDIA'
-                                            ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-bold'
-                                            : 'bg-muted text-muted-foreground border-border font-medium'
-                                    }`}
-                                    title={canModifyOrderDetails ? "Haz clic para modificar la prioridad del pedido" : "Solo modificable en estado Recibido o por Administrador"}
-                                >
-                                    <option value="BAJA" className="bg-background text-foreground">! BAJA</option>
-                                    <option value="MEDIA" className="bg-background text-foreground">! MEDIA</option>
-                                    <option value="ALTA" className="bg-background font-bold text-amber-500">! ALTA ⚡</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        {isAuthorized && (
-                            <button 
-                                onClick={handleDeleteOrder} 
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 hover:bg-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm"
+                <div className="flex flex-col xl:flex-row xl:justify-between xl:items-start gap-6">
+                    <div className="space-y-5 min-w-0">
+                        {/* Title row: code + status + priority */}
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                            <h1 className="text-foreground text-4xl sm:text-5xl font-black tracking-tighter font-display">Pedido #{order.orderCode || formatOrderCode(order)}</h1>
+                            <span className={`inline-flex items-center gap-2 px-3.5 py-1.5 border text-[11px] font-black uppercase tracking-widest rounded-full ${statusTone}`}>
+                                <span className="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
+                                {order.statusLabel || order.status}
+                            </span>
+                            <label className="sr-only" htmlFor="order-priority">Prioridad del pedido</label>
+                            <select
+                                id="order-priority"
+                                value={priorityKey}
+                                disabled={!canModifyOrderDetails}
+                                onChange={async (e) => {
+                                    await handleSaveDetails({ priority: e.target.value });
+                                }}
+                                className={`min-h-9 px-3.5 py-1 rounded-full text-[11px] font-black uppercase tracking-widest border transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                                    !canModifyOrderDetails ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                                } ${
+                                    priorityKey === 'ALTA'
+                                        ? 'bg-amber-400 text-black border-amber-500 shadow-md'
+                                        : priorityKey === 'MEDIA'
+                                        ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20'
+                                        : 'bg-muted text-muted-foreground border-border font-medium'
+                                }`}
+                                title={canModifyOrderDetails ? "Haz clic para modificar la prioridad del pedido" : "Solo modificable en estado Recibido o por Administrador"}
                             >
-                                <span className="material-symbols-outlined text-[20px]">delete</span>
-                                <span>Borrar Pedido</span>
+                                <option value="BAJA" className="bg-background text-foreground">! BAJA</option>
+                                <option value="MEDIA" className="bg-background text-foreground">! MEDIA</option>
+                                <option value="ALTA" className="bg-background font-bold text-amber-500">! ALTA ⚡</option>
+                            </select>
+                        </div>
+
+                        {/* Key facts: label over value, delivery date emphasised */}
+                        <dl className="flex flex-wrap items-stretch gap-x-8 gap-y-4">
+                            <MetaItem icon="person" label="Recibió" value={receivedByLabel} />
+                            <MetaItem icon="history" label="Recibido" value={order.date} />
+                            <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
+                            <MetaItem icon="event" label="Entrega" value={promisedLabel} tone="emerald" />
+                            {readyByLabel && <MetaItem icon="verified" label="Listo por" value={readyByLabel} tone="indigo" />}
+                            {isDelivered && <MetaItem icon="local_shipping" label="Entregado" value={deliveredLabel} tone="emerald" />}
+                        </dl>
+                    </div>
+
+                    {/* Actions: one primary, neutral secondary, danger separated */}
+                    <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+                        {canMarkReady && (
+                            <button
+                                onClick={() => handleSaveDetails({ status: (order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED' })}
+                                className={`${headerBtn} bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-md`}
+                            >
+                                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">verified</span>
+                                <span>Listo para Entrega</span>
                             </button>
                         )}
                         {!isJoyero && canModifyOrderDetails && (
-                            <button onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm">
-                                <span className="material-symbols-outlined text-[20px]">edit</span>
-                                <span>Editar Detalles</span>
+                            <button onClick={() => setIsEditModalOpen(true)} className={headerBtnNeutral}>
+                                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
+                                <span>Editar</span>
                             </button>
                         )}
                         {!isJoyero && (
-                            <button onClick={() => setIsLabelPrintOpen(true)} className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest">
-                                <span className="material-symbols-outlined text-[20px]">print</span>
-                                <span>Imprimir Etiqueta</span>
+                            <button onClick={() => setIsLabelPrintOpen(true)} className={headerBtnNeutral}>
+                                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">sell</span>
+                                <span>Etiqueta</span>
                             </button>
                         )}
-                        <button
-                            onClick={() => setIsPrintViewOpen(true)}
-                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">print</span>
-                            <span>Visualizar Sobre</span>
+                        <button onClick={() => setIsPrintViewOpen(true)} className={headerBtnNeutral}>
+                            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">mail</span>
+                            <span>Ver Sobre</span>
                         </button>
-                        {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && order.status !== 'REPAIR_COMPLETED' && order.status !== 'READY_FOR_PICKUP' && order.status !== 'DELIVERED' && (
-                            <button
-                                onClick={() => handleSaveDetails({ status: (order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED' })}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
-                            >
-                                <span className="material-symbols-outlined text-[20px]">verified</span>
-                                <span>Listo para Entrega</span>
-                            </button>
+                        {isAuthorized && (
+                            <>
+                                <span className="hidden sm:block h-8 w-px bg-border" aria-hidden="true"></span>
+                                <button
+                                    onClick={handleDeleteOrder}
+                                    aria-label="Borrar pedido"
+                                    title="Borrar pedido"
+                                    className={`${headerBtn} bg-transparent border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10`}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]" aria-hidden="true">delete</span>
+                                    <span className="hidden 2xl:inline">Borrar</span>
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -637,37 +647,59 @@ const OrderDetail: React.FC = () => {
                         </div>
                     </div>
 
-                    {!isJoyero && (
-                        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
-                            {order.client?.phone && (
-                                <a
-                                    href={`https://wa.me/${String(order.client.phone).replace(/[^0-9]/g, '')}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">chat</span>
-                                    <span>WhatsApp</span>
-                                </a>
+                    {/* Mano de Obra y Comisión de la orden (aplica para toda la orden) + Acciones del Cliente */}
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 w-full lg:w-auto justify-between lg:justify-end">
+                        <div className="flex items-center gap-6 bg-muted/40 border border-border rounded-2xl px-6 py-3.5 shadow-sm">
+                            <div className="text-left sm:text-right">
+                                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Mano de Obra</span>
+                                <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
+                                    {(order.laborCost && Number(order.laborCost) > 0)
+                                        ? `${Number(order.laborCost).toLocaleString()} MXN`
+                                        : (order.value && Number(order.value) > 0 ? `${Number(order.value).toLocaleString()} MXN` : '—')}
+                                </span>
+                            </div>
+                            {(order.commission !== undefined && order.commission !== null) && (
+                                <div className="text-left sm:text-right border-l border-border pl-6">
+                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Comisión</span>
+                                    <span className="text-emerald-600 dark:text-emerald-400 text-xl sm:text-2xl font-black tracking-tight font-display">
+                                        {Number(order.commission || 0).toLocaleString()} MXN
+                                    </span>
+                                </div>
                             )}
-                            {order.client?.phone && (
-                                <a
-                                    href={`tel:${order.client.phone}`}
-                                    className="flex items-center gap-2 bg-muted border border-border rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">call</span>
-                                    <span>Llamar</span>
-                                </a>
-                            )}
-                            <Link
-                                to={`/clients?search=${encodeURIComponent(order.clientName)}`}
-                                className="flex items-center gap-2 bg-foreground text-background rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
-                            >
-                                <span>Ver Perfil</span>
-                                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                            </Link>
                         </div>
-                    )}
+
+                        {!isJoyero && (
+                            <div className="flex flex-wrap items-center gap-3">
+                                {order.client?.phone && (
+                                    <a
+                                        href={`https://wa.me/${String(order.client.phone).replace(/[^0-9]/g, '')}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">chat</span>
+                                        <span>WhatsApp</span>
+                                    </a>
+                                )}
+                                {order.client?.phone && (
+                                    <a
+                                        href={`tel:${order.client.phone}`}
+                                        className="flex items-center gap-2 bg-muted border border-border rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">call</span>
+                                        <span>Llamar</span>
+                                    </a>
+                                )}
+                                <Link
+                                    to={`/clients?search=${encodeURIComponent(order.clientName)}`}
+                                    className="flex items-center gap-2 bg-foreground text-background rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
+                                >
+                                    <span>Ver Perfil</span>
+                                    <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </section>
 
@@ -723,7 +755,7 @@ const OrderDetail: React.FC = () => {
                                                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Sin foto</span>
                                             </div>
                                         )}
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-all flex flex-col items-center justify-center gap-2.5 backdrop-blur-sm p-3">
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 group-focus-within/img:opacity-100 [@media(hover:none)]:opacity-100 [@media(hover:none)]:bg-black/40 transition-all flex flex-col items-center justify-end sm:justify-center gap-2.5 backdrop-blur-sm p-3">
                                             <button
                                                 onClick={() => fileInputRef.current?.click()}
                                                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-muted transition-all shadow-md"
@@ -767,54 +799,45 @@ const OrderDetail: React.FC = () => {
                                         </div>
 
                                         {/* Description / Work / Diagnosis */}
-                                        {(piece.description || order.specifications?.diagnosis || order.specifications?.partsNeeded) && (
-                                            <div className="text-xs sm:text-sm font-medium leading-relaxed bg-muted/60 p-4 sm:p-5 rounded-2xl border border-border/80 text-foreground space-y-1.5 shadow-inner">
-                                                {piece.description && (
+                                        {(() => {
+                                            const pieceDescription = 
+                                                piece.description || 
+                                                piece.notes || 
+                                                piece.trabajo || 
+                                                piece.work || 
+                                                order.specifications?.diagnosis || 
+                                                order.description || 
+                                                ((!order.specifications?.items || order.specifications.items.length <= 1 || idx === 0) ? order.notes : '');
+
+                                            return (
+                                                <div className="text-xs sm:text-sm font-medium leading-relaxed bg-muted/60 p-4 sm:p-5 rounded-2xl border border-border/80 text-foreground space-y-1.5 shadow-inner">
                                                     <div>
                                                         <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Trabajo:</span>
-                                                        {piece.description}
+                                                        <span className={pieceDescription ? "font-bold text-foreground" : "italic text-muted-foreground"}>
+                                                            {pieceDescription || "Sin descripción de trabajo especificada"}
+                                                        </span>
                                                     </div>
-                                                )}
-                                                {order.specifications?.diagnosis && order.specifications?.diagnosis !== piece.description && (
-                                                    <div>
-                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Diagnóstico:</span>
-                                                        {order.specifications.diagnosis}
-                                                    </div>
-                                                )}
-                                                {order.specifications?.partsNeeded && (
-                                                    <div>
-                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Refacciones:</span>
-                                                        {order.specifications.partsNeeded}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Costs & Commission */}
-                                    <div className="w-full xl:w-auto xl:min-w-[200px] flex xl:flex-col justify-between xl:justify-center items-end gap-3 pt-4 xl:pt-0 border-t xl:border-t-0 xl:border-l border-border xl:pl-8 flex-shrink-0">
-                                        <div className="text-right">
-                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Mano de Obra</span>
-                                            <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
-                                                {piece.laborCost ? `${Number(piece.laborCost).toLocaleString()} MXN` : (order.laborCost ? `${Number(order.laborCost).toLocaleString()} MXN` : '—')}
-                                            </span>
-                                        </div>
-                                        {(piece.commission !== undefined || order.commission !== undefined) && (
-                                            <div className="text-right">
-                                                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Comisión</span>
-                                                <span className="text-emerald-600 dark:text-emerald-400 text-xl sm:text-2xl font-black tracking-tight font-display">
-                                                    {Number(piece.commission || order.commission || 0).toLocaleString()} MXN
-                                                </span>
-                                            </div>
-                                        )}
-                                        {!isJoyero && piece.materialCost && (
-                                            <div className="text-right">
-                                                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Material</span>
-                                                <span className="text-muted-foreground text-sm font-bold tracking-tight">
-                                                    {Number(piece.materialCost).toLocaleString()} MXN
-                                                </span>
-                                            </div>
-                                        )}
+                                                    {order.specifications?.diagnosis && order.specifications?.diagnosis !== pieceDescription && (
+                                                        <div>
+                                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Diagnóstico:</span>
+                                                            {order.specifications.diagnosis}
+                                                        </div>
+                                                    )}
+                                                    {order.specifications?.partsNeeded && (
+                                                        <div>
+                                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Refacciones:</span>
+                                                            {order.specifications.partsNeeded}
+                                                        </div>
+                                                    )}
+                                                    {!isJoyero && piece.materialCost && (
+                                                        <div>
+                                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Costo Material:</span>
+                                                            <span className="font-bold text-foreground">{Number(piece.materialCost).toLocaleString()} MXN</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             </div>
@@ -863,24 +886,26 @@ const OrderDetail: React.FC = () => {
                         {order.specifications?.envelopeImages?.map((img: string, idx: number) => (
                             <div key={idx} className="aspect-square bg-muted rounded-2xl border border-border overflow-hidden relative group/img transition-colors">
                                 <img src={img} className="w-full h-full object-cover transition-transform group-hover/img:scale-110" alt={`Sobre ${idx}`} />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 group-focus-within/img:opacity-100 [@media(hover:none)]:opacity-100 [@media(hover:none)]:bg-transparent transition-opacity flex items-center justify-center [@media(hover:none)]:items-start [@media(hover:none)]:justify-end [@media(hover:none)]:p-2">
                                     <button
                                         onClick={() => handleRemoveEnvelopeImage(idx)}
-                                        className="size-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100"
+                                        aria-label={`Eliminar foto ${idx + 1} del sobre`}
+                                        className="size-11 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100 group-focus-within/img:scale-100 [@media(hover:none)]:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                                     >
-                                        <span className="material-symbols-outlined">delete</span>
+                                        <span className="material-symbols-outlined" aria-hidden="true">delete</span>
                                     </button>
                                 </div>
                             </div>
                         ))}
                         {(!order.specifications?.envelopeImages || order.specifications.envelopeImages.length === 0) && (
-                            <div
+                            <button
+                                type="button"
                                 onClick={() => envelopeFileInputRef.current?.click()}
-                                className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground/30 hover:text-muted-foreground/60 hover:border-indigo-500/30 transition-all cursor-pointer group"
+                                className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                 >
-                                <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">add_a_photo</span>
-                                <span className="text-[8px] font-black uppercase tracking-widest">Sin fotos</span>
-                            </div>
+                                <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform" aria-hidden="true">add_a_photo</span>
+                                <span className="text-[11px] font-black uppercase tracking-widest">Agregar primera foto</span>
+                            </button>
                         )}
                     </div>
                 </section>
@@ -893,40 +918,44 @@ const OrderDetail: React.FC = () => {
                     <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm flex flex-col justify-between min-h-[500px] transition-colors">
                         <div>
                             <div className="flex items-center justify-between mb-8">
-                                <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Estado del Pago</h3>
-                                <span className={`px-2 py-0.5 border text-[8px] font-black uppercase tracking-widest rounded transition-colors ${order.paymentProgress >= 100 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-600'}`}>{order.paymentProgress >= 100 ? "Completo" : "Parcial"}</span>
+                                <h3 className="text-foreground text-xs font-black uppercase tracking-widest transition-colors">Estado del Pago</h3>
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] font-black uppercase tracking-widest rounded-full transition-colors ${order.paymentProgress >= 100 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'}`}>
+                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">{order.paymentProgress >= 100 ? 'check_circle' : 'timelapse'}</span>
+                                    {order.paymentProgress >= 100 ? "Completo" : "Parcial"}
+                                </span>
                             </div>
                             <div className="space-y-6">
-                                <div className="h-2 w-full bg-muted rounded-full overflow-hidden p-[1px] transition-colors">
+                                <div role="progressbar" aria-label="Avance de pago" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(order.paymentProgress, 100))} className="h-2.5 w-full bg-muted rounded-full overflow-hidden p-[1px] transition-colors">
                                     <div className={`h-full rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all bg-indigo-500`} style={{ width: `${order.paymentProgress}%` }}></div>
                                 </div>
                                 <div className="space-y-4">
-                                    <div className="flex justify-between text-[11px] font-medium">
+                                    <div className="flex justify-between items-baseline text-xs font-medium">
                                         <span className="text-muted-foreground uppercase tracking-widest transition-colors">Pagado ({Math.round(order.paymentProgress)}%)</span>
-                                        <span className="text-foreground font-black transition-colors">{order.paidAmountFormatted}</span>
+                                        <span className="text-emerald-600 dark:text-emerald-400 text-base font-black tabular-nums transition-colors">{order.paidAmountFormatted}</span>
                                     </div>
-                                    <div className="flex justify-between text-[11px] font-medium">
+                                    <div className="flex justify-between items-baseline text-xs font-medium">
                                         <span className="text-muted-foreground uppercase tracking-widest transition-colors">Pendiente</span>
-                                        <span className="text-foreground font-black transition-colors">{order.pendingAmount}</span>
+                                        <span className="text-foreground text-base font-black tabular-nums transition-colors">{order.pendingAmount}</span>
                                     </div>
                                 </div>
 
                                 {/* Payment List */}
                                 {order.payments && order.payments.length > 0 && (
                                     <div className="space-y-3 mt-8 pt-6 border-t border-border transition-colors">
-                                        <h4 className="text-muted-foreground text-[8px] font-black uppercase tracking-widest transition-colors">Historial de Pagos</h4>
+                                        <h4 className="text-muted-foreground text-[11px] font-black uppercase tracking-widest transition-colors">Historial de Pagos</h4>
                                         <div className="max-h-[150px] overflow-y-auto pr-2 no-scrollbar space-y-2">
                                             {order.payments.map((p: any) => (
                                                 <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border group/payment transition-colors">
                                                     <div>
-                                                        <p className="text-foreground text-[10px] font-black transition-colors">{Number(p.amount).toLocaleString()} MXN</p>
-                                                        <p className="text-muted-foreground text-[8px] font-bold uppercase tracking-widest transition-colors">{p.method} • {new Date(p.recordedAt).toLocaleDateString()}</p>
+                                                        <p className="text-foreground text-sm font-black tabular-nums transition-colors">{Number(p.amount).toLocaleString()} MXN</p>
+                                                        <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest transition-colors">{p.method} • {new Date(p.recordedAt).toLocaleDateString()}</p>
                                                     </div>
                                                     <button
                                                         onClick={() => handleDeletePayment(p.id, Number(p.amount))}
-                                                        className="opacity-0 group-hover/payment:opacity-100 transition-opacity size-7 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white"
+                                                        aria-label={`Eliminar pago de ${Number(p.amount).toLocaleString()} MXN`}
+                                                        className="opacity-0 group-hover/payment:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity size-10 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                                                     >
-                                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                                        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
                                                     </button>
                                                 </div>
                                             ))}
@@ -1132,24 +1161,40 @@ const EditableField: React.FC<{ value: string, onUpdate: (v: string) => void, cl
 };
 
 const StatCard: React.FC<{ label: string, value: string, subtext: string | React.ReactNode, icon: string, color: string, badge?: string, badgeColor?: string, alert?: string, alertColor?: string, border?: string, onUpdate?: (v: string) => void, isDate?: boolean }> = ({ label, value, subtext, icon, color, badge, badgeColor, alert, alertColor, border, onUpdate, isDate }) => (
-    <div className={`bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-900 rounded-3xl p-6 backdrop-blur-sm relative overflow-hidden group hover:border-zinc-400 dark:hover:border-zinc-700 transition-all shadow-sm ${border || ''}`}>
-        <div className="flex justify-between items-start mb-6">
-            <span className="text-zinc-400 dark:text-zinc-600 text-[9px] font-black uppercase tracking-widest">{label}</span>
-            <span className={`material-symbols-outlined ${color} opacity-20 group-hover:opacity-100 transition-opacity text-[24px]`}>{icon}</span>
+    <div className={`bg-card border border-border rounded-3xl p-6 backdrop-blur-sm relative overflow-hidden group hover:border-indigo-500/40 transition-all shadow-sm ${border || ''}`}>
+        <div className="flex justify-between items-start mb-5">
+            <span className="text-muted-foreground text-[11px] font-black uppercase tracking-widest">{label}</span>
+            <span className={`material-symbols-outlined ${color} opacity-60 group-hover:opacity-100 transition-opacity text-[24px]`} aria-hidden="true">{icon}</span>
         </div>
         <div className="space-y-2">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
                 {onUpdate ? (
-                    <EditableField value={value} onUpdate={onUpdate} isDate={isDate} className="text-zinc-900 dark:text-white text-3xl font-black tracking-tight font-display transition-colors" />
+                    <EditableField value={value} onUpdate={onUpdate} isDate={isDate} className="text-foreground text-2xl xl:text-3xl font-black tracking-tight font-display transition-colors" />
                 ) : (
-                    <span className="text-zinc-900 dark:text-white text-3xl font-black tracking-tight font-display transition-colors">{value}</span>
+                    <span className="text-foreground text-2xl xl:text-3xl font-black tracking-tight font-display transition-colors">{value}</span>
                 )}
-                {badge && <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-colors ${badgeColor}`}>{badge}</span>}
+                {badge && <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest transition-colors ${badgeColor}`}>{badge}</span>}
             </div>
             <div className="flex items-center gap-2">
-                {alert && <span className={`material-symbols-outlined ${alertColor} text-[16px]`}>{alert}</span>}
-                <div className="text-zinc-400 dark:text-zinc-500 text-xs font-medium transition-colors">{subtext}</div>
+                {alert && <span className={`material-symbols-outlined ${alertColor} text-[16px]`} aria-hidden="true">{alert}</span>}
+                <div className="text-muted-foreground text-xs font-medium transition-colors">{subtext}</div>
             </div>
+        </div>
+    </div>
+);
+
+const META_TONES = {
+    neutral: { icon: 'text-muted-foreground', value: 'text-foreground' },
+    emerald: { icon: 'text-emerald-600 dark:text-emerald-400', value: 'text-emerald-700 dark:text-emerald-300' },
+    indigo: { icon: 'text-indigo-600 dark:text-indigo-400', value: 'text-indigo-700 dark:text-indigo-300' }
+};
+
+const MetaItem: React.FC<{ icon: string; label: string; value: React.ReactNode; tone?: keyof typeof META_TONES }> = ({ icon, label, value, tone = 'neutral' }) => (
+    <div className="flex items-center gap-3 min-w-0">
+        <span className={`material-symbols-outlined text-[22px] ${META_TONES[tone].icon}`} aria-hidden="true">{icon}</span>
+        <div className="min-w-0">
+            <dt className="text-muted-foreground text-[11px] font-black uppercase tracking-widest">{label}</dt>
+            <dd className={`text-sm font-bold tracking-tight truncate ${META_TONES[tone].value}`}>{value}</dd>
         </div>
     </div>
 );
@@ -1198,14 +1243,14 @@ const FlowStep: React.FC<{ name: string, icon: string, status: 'completed' | 'cu
 const ActivityItem: React.FC<{ user: string, action: string, target: string, time: string, dotColor?: string }> = ({ user, action, target, time, dotColor }) => (
     <div className="flex gap-4 group transition-colors">
         <div className="flex flex-col items-center gap-2">
-            <div className={`size-3 rounded-full mt-1.5 border-2 border-white dark:border-zinc-950 transition-transform group-hover:scale-125 transition-colors ${dotColor || 'bg-zinc-200 dark:bg-zinc-800 text-zinc-800'}`}></div>
-            <div className="w-px flex-1 bg-zinc-100 dark:bg-zinc-900 transition-colors"></div>
+            <div className={`size-3 rounded-full mt-1.5 border-2 border-background transition-transform group-hover:scale-125 ${dotColor || 'bg-muted-foreground/30'}`} aria-hidden="true"></div>
+            <div className="w-px flex-1 bg-border transition-colors"></div>
         </div>
         <div className="pb-2">
-            <p className="text-zinc-900 dark:text-white text-sm font-medium transition-colors">
-                <span className="font-black text-indigo-600 dark:text-indigo-400 transition-colors">{user}</span> {action} <span className="font-black text-zinc-900 dark:text-white transition-colors">{target}</span>
+            <p className="text-foreground text-sm font-medium transition-colors">
+                <span className="font-black text-indigo-600 dark:text-indigo-400 transition-colors">{user}</span> {action} <span className="font-black text-foreground transition-colors">{target}</span>
             </p>
-            <p className="text-zinc-400 dark:text-zinc-600 text-[10px] font-bold uppercase tracking-widest mt-1.5 transition-colors">{time}</p>
+            <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest mt-1.5 transition-colors">{time}</p>
         </div>
     </div>
 );

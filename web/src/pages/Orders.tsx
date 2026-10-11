@@ -364,17 +364,21 @@ const Orders: React.FC = () => {
             };
 
             // Map all pieces in specifications to UPPERCASE
-            const uppercaseItems = (newOrder.specifications?.items || []).map((item: any) => ({
-                item: (item.item || '').toUpperCase().trim(),
-                metal: (item.metal || '').toUpperCase().trim(),
-                color: (item.color || '').toUpperCase().trim(),
-                karats: (item.karats || '').toUpperCase().trim(),
-                weight: (item.weight || '').toUpperCase().trim(),
-                size: (item.size || '').toUpperCase().trim(),
-                thickness: (item.thickness || '').toUpperCase().trim(),
-                itemCode: (item.itemCode || '').toUpperCase().trim(),
-                notes: (item.notes || '').toUpperCase().trim()
-            }));
+            const uppercaseItems = (newOrder.specifications?.items || []).map((item: any) => {
+                const workDesc = (item.description || item.notes || '').toUpperCase().trim();
+                return {
+                    item: (item.item || '').toUpperCase().trim(),
+                    metal: (item.metal || '').toUpperCase().trim(),
+                    color: (item.color || '').toUpperCase().trim(),
+                    karats: (item.karats || '').toUpperCase().trim(),
+                    weight: (item.weight || '').toUpperCase().trim(),
+                    size: (item.size || '').toUpperCase().trim(),
+                    thickness: (item.thickness || '').toUpperCase().trim(),
+                    itemCode: (item.itemCode || '').toUpperCase().trim(),
+                    description: workDesc,
+                    notes: workDesc
+                };
+            });
 
             const firstItem = uppercaseItems[0] || {};
 
@@ -1443,12 +1447,15 @@ const NewOrderDrawer: React.FC<{
                                         <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="ABC-123" />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Observaciones / Notas de la Pieza</label>
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Descripción del Trabajo / Servicio</label>
                                         <textarea
-                                            value={item.notes || ''}
-                                            onChange={(e) => handleItemChange(index, 'notes', e.target.value)}
+                                            value={item.description || item.notes || ''}
+                                            onChange={(e) => {
+                                                handleItemChange(index, 'notes', e.target.value);
+                                                handleItemChange(index, 'description', e.target.value);
+                                            }}
                                             className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none min-h-[80px] resize-none"
-                                            placeholder="Grabado láser, soldadura láser, etc."
+                                            placeholder="Soldar broche, ajuste de medida, grabado láser, pulido, etc."
                                         />
                                     </div>
                                 </div>

@@ -43,7 +43,10 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
     }, []);
 
     // Initialize items from specifications or legacy fields
-    const initialItems = order.specifications?.items || [
+    const initialItems = order.specifications?.items?.map((it: any) => ({
+        ...it,
+        description: it.description || it.notes || it.trabajo || order.description || ''
+    })) || [
         {
             item: order.pieceType || '',
             metal: order.metal || '',
@@ -53,7 +56,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
             size: order.size || '',
             thickness: order.thickness || '',
             itemCode: order.itemCode || '',
-            description: order.description || ''
+            description: order.description || order.notes || ''
         }
     ];
 
@@ -86,7 +89,15 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
             };
 
             // Sync first item to top-level fields for consistency/listing
-            const mainItem = items[0] || {};
+            const syncedItems = items.map((it: any) => {
+                const desc = it.description || it.notes || '';
+                return {
+                    ...it,
+                    description: desc,
+                    notes: desc
+                };
+            });
+            const mainItem = syncedItems[0] || {};
             const submissionData = {
                 ...formData,
                 value: cleanNumber(formData.value),
@@ -97,10 +108,11 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                 promisedAt: formData.promisedDate ? new Date(formData.promisedDate) : undefined,
                 dueDate: formData.promisedDate ? new Date(formData.promisedDate) : (formData.dueDate ? new Date(formData.dueDate) : undefined),
                 ...mainItem, // metal, color, etc.
+                description: mainItem.description || formData.notes || '',
                 pieceType: mainItem.item,
                 specifications: {
                     ...order.specifications,
-                    items,
+                    items: syncedItems,
                     department: (formData.department || 'Cared').toUpperCase().trim(),
                     promisedDate: formData.promisedDate
                 }
