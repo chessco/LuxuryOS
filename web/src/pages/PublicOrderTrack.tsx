@@ -259,6 +259,26 @@ export const PublicOrderTrack: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Digital QR Code Card */}
+                        <div className="p-6 bg-zinc-950/40 border-t border-zinc-800/60 flex flex-col items-center justify-center text-center">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3">
+                                Código QR Oficial de la Orden
+                            </span>
+                            <div className="p-2.5 bg-white rounded-2xl shadow-lg border border-zinc-300 inline-block mb-2">
+                                <img
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(window.location.href)}`}
+                                    alt={`QR ${order.orderCode}`}
+                                    className="size-36 object-contain"
+                                />
+                            </div>
+                            <span className="text-[11px] font-mono font-black tracking-widest text-amber-400">
+                                {order.orderCode}
+                            </span>
+                            <p className="text-[9px] text-zinc-500 mt-1 max-w-xs">
+                                Presenta este código QR en sucursal al momento de recoger tu pieza.
+                            </p>
+                        </div>
+
                         {/* Footer notice inside card */}
                         <div className="p-4 bg-zinc-950/60 border-t border-zinc-800/60 text-center">
                             <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">

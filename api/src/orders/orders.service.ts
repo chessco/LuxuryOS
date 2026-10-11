@@ -680,6 +680,7 @@ ${pieceSummaries}
 🌐 *Ver seguimiento en línea:*
 ${trackingUrl}
 
+📱 *Código QR de seguimiento:*
 ${qrImageUrl}
 
 Gracias por su preferencia. ✨`;
@@ -697,6 +698,7 @@ ${pieceSummaries}
 🌐 *Ver seguimiento en línea:*
 ${trackingUrl}
 
+📱 *Código QR de seguimiento:*
 ${qrImageUrl}
 
 Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;

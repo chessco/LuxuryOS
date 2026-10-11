@@ -129,14 +129,13 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
         // Extract any image URL from content to send as rich media with caption
         const imgMatch = content.match(/(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|webp)|https?:\/\/bwipjs-api[^\s]+|https?:\/\/api\.qrserver[^\s]+)/i);
         const imageUrl = imgMatch ? imgMatch[0] : undefined;
-        const cleanContent = imageUrl ? content.replace(imageUrl, '').replace(/\n{3,}/g, '\n\n').trim() : content;
 
         console.log(`[PitayaCore WA] Requesting ${targetUrl} for ${recipient}, media: ${!!imageUrl}`);
 
         try {
             const payload: any = {
                 to: recipient,
-                content: cleanContent
+                content: content
             };
             if (imageUrl) {
                 payload.imageUrl = imageUrl;
@@ -169,7 +168,7 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
 
                 const retryPayload: any = {
                     to: altRecipient,
-                    content: cleanContent
+                    content: content
                 };
                 if (imageUrl) {
                     retryPayload.imageUrl = imageUrl;
