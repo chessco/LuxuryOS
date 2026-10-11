@@ -196,7 +196,7 @@ export const PublicOrderTrack: React.FC = () => {
                                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
                                     order.statusLabel === 'ENTREGADO'
                                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                                        : order.statusLabel === 'LISTO'
+                                        : (order.statusLabel === 'LISTO' || order.statusLabel === 'TERMINADO')
                                         ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
                                         : order.statusLabel === 'EN TALLER'
                                         ? 'bg-yellow-400 text-black border-yellow-500 font-black'

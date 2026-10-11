@@ -9,7 +9,7 @@ interface RepairPanelProps {
 const REPAIR_STEPS = [
     { status: OrderStatus.RECEIVED, label: 'Recibido', icon: 'package_2' },
     { status: OrderStatus.IN_REPAIR, label: 'En Taller', icon: 'handyman' },
-    { status: OrderStatus.REPAIR_COMPLETED, label: 'Listo', icon: 'verified' },
+    { status: OrderStatus.REPAIR_COMPLETED, label: 'Terminado', icon: 'verified' },
     { status: OrderStatus.DELIVERED, label: 'Entregado', icon: 'local_shipping' }
 ];
 
@@ -236,7 +236,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                             onClick={() => onUpdateStatus({ status: OrderStatus.REPAIR_COMPLETED })}
                             className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
                         >
-                            Marcar como Listo
+                            Marcar como Terminado
                         </button>
                     )}
                 </div>

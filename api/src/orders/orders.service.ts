@@ -593,7 +593,7 @@ export class OrdersService {
             if ([
                 'REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'READY', 'COMPLETED', 
                 'TERMINADO', 'LISTO', 'LISTO_ENTREGA'
-            ].includes(s)) return 'LISTO';
+            ].includes(s)) return 'TERMINADO';
             
             // Entregado
             if (['DELIVERED', 'ENTREGADO', 'ENTREGADO_POSTVENTA'].includes(s)) return 'ENTREGADO';
@@ -612,7 +612,7 @@ export class OrdersService {
 
         const statusLabel = getStatusLabel(order.status);
         const isReceived = statusLabel === 'RECIBIDO';
-        const isReady = statusLabel === 'LISTO';
+        const isReady = statusLabel === 'TERMINADO' || statusLabel === 'LISTO';
         const isDelivered = statusLabel === 'ENTREGADO';
 
         const trackToken = generateTrackToken(order.id);

@@ -50,7 +50,7 @@ const REPAIR_COLUMNS: Column[] = [
     { id: 'QUOTE_SENT', name: 'Presupuesto', color: 'bg-indigo-400' },
     { id: 'APPROVED', name: 'Aprobado', color: 'bg-emerald-400' },
     { id: 'IN_REPAIR', name: 'En Reparación', color: 'bg-white', focus: true },
-    { id: 'REPAIR_COMPLETED', name: 'Listo', color: 'bg-purple-400' },
+    { id: 'REPAIR_COMPLETED', name: 'Terminado', color: 'bg-purple-400' },
 ];
 
 const MANUFACTURE_COLUMNS: Column[] = [
@@ -58,7 +58,7 @@ const MANUFACTURE_COLUMNS: Column[] = [
     { id: 'MATERIALS_PENDING', name: 'Materiales', color: 'bg-amber-400' },
     { id: 'IN_PRODUCTION', name: 'Producción', color: 'bg-white', focus: true },
     { id: 'QUALITY_CHECK', name: 'Control Calidad', color: 'bg-purple-400' },
-    { id: 'READY_FOR_PICKUP', name: 'Listo', color: 'bg-emerald-400' },
+    { id: 'READY_FOR_PICKUP', name: 'Terminado', color: 'bg-emerald-400' },
 ];
 
 const LAYAWAY_COLUMNS: Column[] = [

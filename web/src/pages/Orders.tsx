@@ -49,13 +49,13 @@ const STANDARD_COLUMNS: Column[] = [
 const REPAIR_COLUMNS: Column[] = [
     { id: 'RECEIVED', name: 'Recibido', color: 'bg-zinc-500' },
     { id: 'IN_REPAIR', name: 'En Taller', color: 'bg-white', focus: true },
-    { id: 'REPAIR_COMPLETED', name: 'Listo', color: 'bg-emerald-400' },
+    { id: 'REPAIR_COMPLETED', name: 'Terminado', color: 'bg-emerald-400' },
 ];
 
 const MANUFACTURE_COLUMNS: Column[] = [
     { id: 'RECEIVED', name: 'Recibido', color: 'bg-zinc-500' },
     { id: 'IN_PRODUCTION', name: 'En Taller', color: 'bg-white', focus: true },
-    { id: 'READY_FOR_PICKUP', name: 'Listo', color: 'bg-emerald-400' },
+    { id: 'READY_FOR_PICKUP', name: 'Terminado', color: 'bg-emerald-400' },
 ];
 
 const LAYAWAY_COLUMNS: Column[] = [
@@ -67,8 +67,8 @@ export const SPANISH_STATUS_MAP: Record<string, string> = {
     'DELIVERED': 'ENTREGADO',
     'RECEIVED': 'RECIBIDO',
     'IN_REPAIR': 'EN TALLER',
-    'REPAIR_COMPLETED': 'PARA ENTREGA',
-    'READY_FOR_PICKUP': 'PARA ENTREGA',
+    'REPAIR_COMPLETED': 'TERMINADO',
+    'READY_FOR_PICKUP': 'TERMINADO',
     'SPEC_PENDING': 'RECIBIDO',
     'MATERIALS_PENDING': 'EN TALLER',
     'IN_PRODUCTION': 'EN TALLER',
@@ -84,7 +84,9 @@ export const SPANISH_STATUS_MAP: Record<string, string> = {
     'QUOTE_SENT': 'COTIZACIÓN ENVIADA',
     'APPROVED': 'APROBADO',
     'CANCELLED': 'CANCELADO',
-    'READY': 'PARA ENTREGA'
+    'READY': 'TERMINADO',
+    'LISTO': 'TERMINADO',
+    'TERMINADO': 'TERMINADO'
 };
 
 export const getStatusLabel = (stage: string) => {
@@ -547,7 +549,7 @@ const Orders: React.FC = () => {
             } else if (activeFilter === 'Para Entrega') {
                 result = result.filter(o => {
                     const label = (o.statusLabel || '').toUpperCase();
-                    return label === 'PARA ENTREGA' || label === 'LISTO';
+                    return label === 'PARA ENTREGA' || label === 'LISTO' || label === 'TERMINADO';
                 });
             } else if (activeFilter === 'Entregados') {
                 result = result.filter(o => {

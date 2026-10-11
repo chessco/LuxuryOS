@@ -9,12 +9,13 @@ import { PaymentModal } from '../components/orders/PaymentModal';
 import { EditOrderModal } from '../components/orders/EditOrderModal';
 import { RepairPrintView } from '../components/orders/RepairPrintView';
 import { LabelPrintModal } from '../components/orders/LabelPrintModal';
-import { getStatusLabel } from './Orders';
+import { getStatusLabel, formatOrderCode } from './Orders';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const [order, setOrder] = useState<any | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
@@ -37,12 +38,28 @@ const OrderDetail: React.FC = () => {
         const paid = parseFloat(String(foundOrder.paidAmount || '0')) || 0;
         const balance = total - paid;
 
+        const orderCode = foundOrder.orderCode || formatOrderCode(foundOrder);
+
+        const items = foundOrder.specifications?.items;
+        const totalItemsLabor = Array.isArray(items) ? items.reduce((acc: number, it: any) => acc + (parseFloat(it.laborCost) || 0), 0) : 0;
+        const totalItemsCommission = Array.isArray(items) ? items.reduce((acc: number, it: any) => acc + (parseFloat(it.commission) || 0), 0) : 0;
+
+        const laborCost = foundOrder.laborCost !== undefined && foundOrder.laborCost !== null && foundOrder.laborCost !== ''
+            ? parseFloat(String(foundOrder.laborCost))
+            : (totalItemsLabor || parseFloat(String(foundOrder.specifications?.laborCost || foundOrder.value || '0')) || 0);
+        const commission = foundOrder.commission !== undefined && foundOrder.commission !== null && foundOrder.commission !== ''
+            ? parseFloat(String(foundOrder.commission))
+            : (totalItemsCommission || parseFloat(String(foundOrder.specifications?.commission || '0')) || 0);
+
         return {
             ...foundOrder,
+            orderCode: orderCode,
             clientName: clientName,
             totalAmount: total,
             paidAmount: paid,
             balance: balance,
+            laborCost: laborCost,
+            commission: commission,
             initials: clientName.substring(0, 2).toUpperCase() || 'CX',
             initialsColor: 'bg-muted text-muted-foreground',
             date: foundOrder.createdAt ? new Date(foundOrder.createdAt).toLocaleDateString('es-MX', {
@@ -243,6 +260,7 @@ const OrderDetail: React.FC = () => {
     useEffect(() => {
         const fetchOrder = async () => {
             if (id) {
+                setIsLoading(true);
                 try {
                     const foundOrder = await OrdersService.getOrder(id);
                     if (foundOrder) {
@@ -261,8 +279,6 @@ const OrderDetail: React.FC = () => {
                             time: new Date(foundOrder.createdAt).toLocaleString(),
                             dotColor: "bg-muted-foreground/30"
                         });
-
-                        // ...
 
                         // 2. Payments
                         if (foundOrder.payments) {
@@ -287,9 +303,14 @@ const OrderDetail: React.FC = () => {
                         });
 
                         setActivities(acts.reverse()); // Newest first
+                    } else {
+                        setOrder(null);
                     }
                 } catch (error) {
                     console.error("Failed to fetch order", error);
+                    setOrder(null);
+                } finally {
+                    setIsLoading(false);
                 }
             }
         };
@@ -348,7 +369,7 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN';
+    const isAuthorized = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN' || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
 
     const handleStepChange = async (index: number) => {
         if (index === currentStep) return;
@@ -380,8 +401,27 @@ const OrderDetail: React.FC = () => {
         }
     };
 
+    if (isLoading) {
+        return (
+            <div className="flex-1 flex items-center justify-center p-20 min-h-[400px]">
+                <div className="flex items-center gap-3 text-zinc-400 dark:text-zinc-500 text-xs font-black uppercase tracking-widest animate-pulse">
+                    <span className="material-symbols-outlined animate-spin text-[22px] text-indigo-500">sync</span>
+                    <span>Cargando detalle del pedido...</span>
+                </div>
+            </div>
+        );
+    }
+
     if (!order) {
-        return <div className="p-10 text-foreground font-black uppercase tracking-widest transition-colors">Pedido no encontrado</div>;
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-20 min-h-[400px] text-center">
+                <span className="material-symbols-outlined text-[48px] text-zinc-300 dark:text-zinc-600 mb-3">search_off</span>
+                <p className="text-zinc-400 text-xs font-black uppercase tracking-widest">Pedido no encontrado</p>
+                <Link to="/orders" className="mt-4 px-4 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500 text-indigo-600 hover:text-white border border-indigo-500/20 font-bold text-xs uppercase tracking-wider transition-all">
+                    Volver al listado de pedidos
+                </Link>
+            </div>
+        );
     }
 
     const updateField = async (field: string, value: any) => {
@@ -392,12 +432,21 @@ const OrderDetail: React.FC = () => {
 
             // For numbers
             let processedValue = value;
-            if (field === 'value' || field === 'cost' || field === 'laborCost' || field === 'materialCost' || field === 'totalAmount') {
+            if (field === 'value' || field === 'cost' || field === 'laborCost' || field === 'materialCost' || field === 'totalAmount' || field === 'commission') {
                 const str = String(value || '0').replace(/[^0-9.-]/g, '');
                 processedValue = parseFloat(str) || 0;
             }
 
-            await OrdersService.updateOrder(order.id, { [apiField]: processedValue });
+            if (field === 'commission') {
+                await OrdersService.updateOrder(order.id, {
+                    specifications: {
+                        ...order.specifications,
+                        commission: processedValue
+                    }
+                });
+            } else {
+                await OrdersService.updateOrder(order.id, { [apiField]: processedValue });
+            }
 
             // Re-fetch to get recalculated values (totalAmount, balance, etc.)
             const updated = await OrdersService.getOrder(order.id);
@@ -429,13 +478,13 @@ const OrderDetail: React.FC = () => {
                     <span className="material-symbols-outlined text-[14px]">chevron_right</span>
                     <Link to="/orders" className="hover:text-foreground transition-colors">Pedidos</Link>
                     <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <span className="text-muted-foreground/60 transition-colors">Pedido #ORD-{order.id.substring(0, 8)}</span>
+                    <span className="text-muted-foreground/60 transition-colors">Pedido #{order.orderCode || formatOrderCode(order)}</span>
                 </nav>
 
                 <div className="flex flex-wrap justify-between items-end gap-6">
                     <div className="space-y-4">
                         <div className="flex items-center gap-4">
-                            <h1 className="text-foreground text-5xl font-black tracking-tighter font-display transition-colors">Pedido #ORD-{order.id.substring(0, 8)}</h1>
+                            <h1 className="text-foreground text-5xl font-black tracking-tighter font-display transition-colors">Pedido #{order.orderCode || formatOrderCode(order)}</h1>
                             <span className={`px-3 py-1 bg-muted border border-border text-[9px] font-black uppercase tracking-widest rounded-full transition-colors ${order.statusType === 'urgent' ? 'text-red-600 border-red-500/20 bg-red-500/5' :
                                 order.statusType === 'success' ? 'text-emerald-600 border-emerald-500/20 bg-emerald-500/5' :
                                     'text-indigo-600 border-indigo-500/20 bg-indigo-500/5'
@@ -449,6 +498,14 @@ const OrderDetail: React.FC = () => {
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-[18px]">history</span>
                                 <span>Recibido: {order.date}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                                <span className="material-symbols-outlined text-[16px]">store</span>
+                                <span>Depto: <strong className="text-foreground">{order.specifications?.department || order.department || 'CARED'}</strong></span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                                <span className="material-symbols-outlined text-[16px]">event</span>
+                                <span>Entrega: <strong className="text-foreground">{order.promisedAt ? new Date(order.promisedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : (order.specifications?.promisedDate || (order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Sin fecha'))}</strong></span>
                             </div>
                             {(order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || ((order.status === 'DELIVERED' || order.status === 'REPAIR_COMPLETED' || order.status === 'READY_FOR_PICKUP') && (order.type === 'REPAIR' || order.type === 'MANUFACTURE') ? 'Joyero' : null)) && (
                                 <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
@@ -526,148 +583,153 @@ const OrderDetail: React.FC = () => {
                                 <span>Listo para Entrega</span>
                             </button>
                         )}
-                        <button onClick={handleAdvanceStatus} className="flex items-center gap-2 px-8 py-3 rounded-xl bg-foreground text-background transition-all text-[10px] font-black uppercase tracking-widest shadow-xl">
-                            <span className="material-symbols-outlined text-[20px]">sync</span>
-                            <span>Actualizar Estado</span>
-                        </button>
                     </div>
                 </div>
             </header>
 
-            {/* Stats Grid */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${user.role === 'VENDEDOR' ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4 mb-10`}>
-                <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('totalAmount', v) : undefined} subtext="Venta" icon="payments" color="text-foreground" />
-                <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
-                <StatCard 
-                    label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
-                    value={Math.abs(Number(order.balance || 0)).toLocaleString() + ' MXN'} 
-                    subtext={order.balance < 0 ? "Cliente tiene crédito" : "Pendiente de liquidar"} 
-                    icon={order.balance < 0 ? "account_balance" : "pending_actions"} 
-                    color={order.balance < 0 ? "text-emerald-500" : "text-amber-500"} 
-                    alert={order.balance > 0 ? "priority_high" : undefined} 
-                    alertColor="text-amber-500" 
-                />
-                {user.role !== 'VENDEDOR' && (
-                    <>
-                        <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
-                        <StatCard label="Margen" value={(parseValue(order.totalAmount) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
-                    </>
-                )}
-                <StatCard
-                    label="Entrega"
-                    value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
-                    onUpdate={canModifyOrderDetails ? (v) => updateField('dueDate', v) : undefined}
-                    isDate
-                    subtext={order.dueDate ? (
-                        (() => {
-                            const days = Math.ceil((new Date(order.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                            return days > 0 ? `Quedan ${days} días` : days === 0 ? "Entrega hoy" : `Atrasa ${Math.abs(days)} días`;
-                        })()
-                    ) : "Sin fecha"}
-                    icon="event"
-                    color="text-foreground"
-                    alert={order.dueDate && new Date(order.dueDate) < new Date() ? "priority_high" : undefined}
-                    alertColor="text-red-500"
-                    border={order.dueDate && new Date(order.dueDate) < new Date() ? "border-l-4 border-l-red-500" : ""}
-                />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                {/* Left Column: Details & Client */}
-                <div className="lg:col-span-4 space-y-10">
-                    {/* Piece Details - Multiple Support */}
-                    <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
-                        <div className="flex items-center justify-between mb-8">
-                            <div className="flex items-center gap-3">
-                                <span className="material-symbols-outlined text-indigo-600 transition-colors">diamond</span>
-                                <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Ficha Técnica de Piezas</h3>
-                            </div>
-                            <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest bg-muted px-2 py-1 rounded-lg border border-border transition-colors">
-                                {order.specifications?.items?.length || 1} {order.specifications?.items?.length > 1 ? 'Piezas' : 'Pieza'}
-                            </span>
+            {/* 1. Detalle de Piezas (Maestro - Detalle Horizontal) */}
+            <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors mb-10">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-[22px] transition-colors">diamond</span>
+                        <div>
+                            <h3 className="text-foreground text-xs font-black uppercase tracking-widest transition-colors">Detalle de Piezas del Pedido</h3>
+                            <p className="text-muted-foreground text-[10px] font-medium tracking-wide">Renglones y especificaciones técnicas de la orden</p>
                         </div>
+                    </div>
+                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest bg-muted px-3 py-1.5 rounded-xl border border-border transition-colors">
+                        {(order.specifications?.items?.length || 1)} {(order.specifications?.items?.length || 1) > 1 ? 'Piezas' : 'Pieza'}
+                    </span>
+                </div>
 
-                        <div className="space-y-12">
-                            {(order.specifications?.items || [{
-                                item: order.pieceType || order.item,
-                                metal: order.metal,
-                                color: order.color,
-                                karats: order.karats,
-                                weight: order.weight,
-                                size: order.size,
-                                itemCode: order.itemCode
-                            }]).map((piece: any, idx: number) => (
-                                <div key={idx} className="space-y-6 relative">
-                                    {order.specifications?.items?.length > 1 && (
-                                        <div className="flex items-center gap-4 mb-4">
-                                            <div className="h-px flex-1 bg-zinc-900"></div>
-                                            <span className="text-zinc-700 text-[8px] font-black uppercase tracking-[0.3em]">Pieza #{idx + 1}</span>
-                                            <div className="h-px flex-1 bg-zinc-900"></div>
+                <div className="space-y-4">
+                    {(order.specifications?.items || [{
+                        item: order.pieceType || order.item || (order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería'),
+                        metal: order.metal || order.specifications?.metal,
+                        color: order.color || order.specifications?.color,
+                        karats: order.karats || order.specifications?.karats,
+                        weight: order.weight || order.specifications?.weight,
+                        size: order.size || order.specifications?.size,
+                        thickness: order.thickness || order.specifications?.thickness,
+                        itemCode: order.itemCode || order.specifications?.itemCode,
+                        laborCost: order.laborCost || order.specifications?.laborCost,
+                        commission: order.commission || order.specifications?.commission,
+                        materialCost: order.materialCost || order.specifications?.materialCost,
+                        description: order.description || order.specifications?.diagnosis || order.specifications?.description || order.notes
+                    }]).map((piece: any, idx: number) => (
+                        <div key={idx} className="bg-muted/30 hover:bg-muted/50 border border-border rounded-2xl p-5 transition-all">
+                            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
+                                {/* Thumbnail & Image actions */}
+                                <div className="size-24 sm:size-28 rounded-2xl bg-muted border border-border flex-shrink-0 overflow-hidden relative group/img transition-colors">
+                                    {order.imageUrl ? (
+                                        <img src={order.imageUrl} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700" alt="Pieza" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <span className="material-symbols-outlined text-muted-foreground/30 text-3xl">image</span>
                                         </div>
                                     )}
-                                    <div className="aspect-square bg-muted rounded-2xl border border-border flex items-center justify-center overflow-hidden group/img relative transition-colors">
-                                        {order.imageUrl ? (
-                                            <img src={order.imageUrl} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700" alt="Pieza" />
-                                        ) : (
-                                            <div className="size-16 bg-muted/50 rounded-full flex items-center justify-center group-hover/img:scale-110 transition-transform duration-500">
-                                                <span className="material-symbols-outlined text-muted-foreground/30 text-3xl transition-colors">image</span>
-                                            </div>
-                                        )}
-
-                                        {/* Image Overlay Controls */}
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-all flex flex-col items-center justify-center gap-4 backdrop-blur-sm">
-                                            <button
-                                                onClick={() => fileInputRef.current?.click()}
-                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-[9px] font-black uppercase tracking-widest hover:bg-muted transition-all"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">upload</span> Subir Foto
-                                            </button>
-                                            <button
-                                                onClick={handleGenerateAIImage}
-                                                disabled={isGeneratingImage}
-                                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50"
-                                            >
-                                                <span className={`material-symbols-outlined text-[18px] ${isGeneratingImage ? 'animate-spin' : ''}`}>{isGeneratingImage ? 'sync' : 'auto_awesome'}</span> {isGeneratingImage ? 'Generando...' : 'Generar IA'}
-                                            </button>
-                                            <input
-                                                type="file"
-                                                ref={fileInputRef}
-                                                onChange={handleImageUpload}
-                                                className="hidden"
-                                                accept="image/*"
-                                            />
-                                        </div>
-
-                                        <div className="absolute bottom-4 left-4 right-4 text-center">
-                                            <p className="text-white text-xs font-black uppercase tracking-widest truncate drop-shadow-lg">{piece.item || 'Sin nombre'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <DetailRow label="Metal" value={piece.metal || '-'} />
-                                        <DetailRow label="Color" value={piece.color || '-'} />
-                                        <DetailRow label="Kilataje" value={piece.karats || '-'} />
-                                        <DetailRow label="Peso" value={piece.weight ? `${piece.weight} gr` : '-'} />
-                                        <DetailRow label="Medida" value={piece.size || '-'} />
-                                        <DetailRow label="Grosor" value={piece.thickness || '-'} />
-                                        <DetailRow label="Código" value={piece.itemCode || '-'} />
-                                        {(piece.laborCost || piece.materialCost) && (
-                                            <div className="pt-4 border-t border-border/50 space-y-4">
-                                                <DetailRow label="Mano de Obra" value={piece.laborCost ? `${Number(piece.laborCost).toLocaleString()} MXN` : '-'} />
-                                                <DetailRow label="Material" value={piece.materialCost ? `${Number(piece.materialCost).toLocaleString()} MXN` : '-'} />
-                                            </div>
-                                        )}
-                                        {piece.description && (
-                                            <div className="pt-4 border-t border-border/50">
-                                                <span className="text-zinc-400 dark:text-zinc-600 text-[8px] font-black uppercase tracking-widest block mb-2 transition-colors">Descripción / Trabajo</span>
-                                                <p className="text-foreground text-[11px] font-medium leading-relaxed bg-muted/50 p-3 rounded-xl border border-border/50 transition-colors">{piece.description}</p>
-                                            </div>
-                                        )}
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-all flex flex-col items-center justify-center gap-2 backdrop-blur-sm p-2">
+                                        <button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-black text-[8px] font-black uppercase tracking-widest hover:bg-muted transition-all"
+                                        >
+                                            <span className="material-symbols-outlined text-[14px]">upload</span> Subir
+                                        </button>
+                                        <button
+                                            onClick={handleGenerateAIImage}
+                                            disabled={isGeneratingImage}
+                                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[8px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50"
+                                        >
+                                            <span className={`material-symbols-outlined text-[14px] ${isGeneratingImage ? 'animate-spin' : ''}`}>{isGeneratingImage ? 'sync' : 'auto_awesome'}</span> IA
+                                        </button>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </section>
 
+                                {/* Main Technical Specs (Horizontal) */}
+                                <div className="flex-1 min-w-0 space-y-3 w-full">
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                            Pieza #{idx + 1}
+                                        </span>
+                                        <h4 className="text-foreground text-sm font-black uppercase tracking-wide truncate">
+                                            {piece.item || (order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
+                                        </h4>
+                                        {piece.itemCode && (
+                                            <span className="text-muted-foreground text-[10px] font-mono font-bold bg-muted px-2 py-0.5 rounded border border-border">
+                                                {piece.itemCode}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Horizontal Specs Badges */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                                        <SpecBadge label="Metal" value={piece.metal} />
+                                        <SpecBadge label="Color" value={piece.color} />
+                                        <SpecBadge label="Kilataje" value={piece.karats} />
+                                        <SpecBadge label="Peso" value={piece.weight ? `${piece.weight} gr` : undefined} />
+                                        <SpecBadge label="Medida" value={piece.size} />
+                                        <SpecBadge label="Grosor" value={piece.thickness} />
+                                    </div>
+
+                                    {/* Description / Work / Diagnosis */}
+                                    {(piece.description || order.specifications?.diagnosis || order.specifications?.partsNeeded) && (
+                                        <div className="text-[11px] font-medium leading-relaxed bg-muted/60 p-3 rounded-xl border border-border/60 text-foreground space-y-1">
+                                            {piece.description && (
+                                                <div>
+                                                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest mr-2">Trabajo:</span>
+                                                    {piece.description}
+                                                </div>
+                                            )}
+                                            {order.specifications?.diagnosis && order.specifications?.diagnosis !== piece.description && (
+                                                <div>
+                                                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest mr-2">Diagnóstico:</span>
+                                                    {order.specifications.diagnosis}
+                                                </div>
+                                            )}
+                                            {order.specifications?.partsNeeded && (
+                                                <div>
+                                                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest mr-2">Refacciones:</span>
+                                                    {order.specifications.partsNeeded}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Costs & Commission */}
+                                <div className="w-full lg:w-auto lg:min-w-[170px] flex lg:flex-col justify-between lg:justify-center items-end gap-2 pt-3 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border/60 lg:pl-6 flex-shrink-0">
+                                    <div className="text-right">
+                                        <span className="text-muted-foreground text-[8px] font-black uppercase tracking-widest block">Mano de Obra</span>
+                                        <span className="text-foreground text-sm font-black tracking-tight">
+                                            {piece.laborCost ? `${Number(piece.laborCost).toLocaleString()} MXN` : (order.laborCost ? `${Number(order.laborCost).toLocaleString()} MXN` : '—')}
+                                        </span>
+                                    </div>
+                                    {(piece.commission !== undefined || order.commission !== undefined) && (
+                                        <div className="text-right">
+                                            <span className="text-muted-foreground text-[8px] font-black uppercase tracking-widest block">Comisión</span>
+                                            <span className="text-emerald-600 dark:text-emerald-400 text-sm font-black tracking-tight">
+                                                {Number(piece.commission || order.commission || 0).toLocaleString()} MXN
+                                            </span>
+                                        </div>
+                                    )}
+                                    {!isJoyero && piece.materialCost && (
+                                        <div className="text-right">
+                                            <span className="text-muted-foreground text-[8px] font-black uppercase tracking-widest block">Material</span>
+                                            <span className="text-muted-foreground text-xs font-bold tracking-tight">
+                                                {Number(piece.materialCost).toLocaleString()} MXN
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                {/* Left Column: Client Info & Payment Status */}
+                <div className="lg:col-span-4 space-y-10">
                     {/* Client Info */}
                     <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                         <div className="flex items-center justify-between mb-8">
@@ -704,67 +766,73 @@ const OrderDetail: React.FC = () => {
                         )}
                     </section>
 
-                    {/* Payment Status */}
-                    <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Estado del Pago</h3>
-                            <span className={`px-2 py-0.5 border text-[8px] font-black uppercase tracking-widest rounded transition-colors ${order.paymentProgress >= 100 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-600'}`}>{order.paymentProgress >= 100 ? "Completo" : "Parcial"}</span>
-                        </div>
-                        <div className="space-y-6">
-                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden p-[1px] transition-colors">
-                                <div className={`h-full rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all bg-indigo-500`} style={{ width: `${order.paymentProgress}%` }}></div>
+                    {/* Payment Status (Hidden for Joyeros) */}
+                    {!isJoyero && (
+                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
+                            <div className="flex items-center justify-between mb-8">
+                                <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Estado del Pago</h3>
+                                <span className={`px-2 py-0.5 border text-[8px] font-black uppercase tracking-widest rounded transition-colors ${order.paymentProgress >= 100 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-600'}`}>{order.paymentProgress >= 100 ? "Completo" : "Parcial"}</span>
                             </div>
-                            <div className="space-y-4">
-                                <div className="flex justify-between text-[11px] font-medium">
-                                    <span className="text-muted-foreground uppercase tracking-widest transition-colors">Pagado ({Math.round(order.paymentProgress)}%)</span>
-                                    <span className="text-foreground font-black transition-colors">{order.paidAmountFormatted}</span>
+                            <div className="space-y-6">
+                                <div className="h-2 w-full bg-muted rounded-full overflow-hidden p-[1px] transition-colors">
+                                    <div className={`h-full rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all bg-indigo-500`} style={{ width: `${order.paymentProgress}%` }}></div>
                                 </div>
-                                <div className="flex justify-between text-[11px] font-medium">
-                                    <span className="text-muted-foreground uppercase tracking-widest transition-colors">Pendiente</span>
-                                    <span className="text-foreground font-black transition-colors">{order.pendingAmount}</span>
-                                </div>
-                            </div>
-
-                            {/* Payment List */}
-                            {order.payments && order.payments.length > 0 && (
-                                <div className="space-y-3 mt-8 pt-6 border-t border-border transition-colors">
-                                    <h4 className="text-muted-foreground text-[8px] font-black uppercase tracking-widest transition-colors">Historial de Pagos</h4>
-                                    <div className="max-h-[150px] overflow-y-auto pr-2 no-scrollbar space-y-2">
-                                        {order.payments.map((p: any) => (
-                                            <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border group/payment transition-colors">
-                                                <div>
-                                                    <p className="text-foreground text-[10px] font-black transition-colors">{Number(p.amount).toLocaleString()} MXN</p>
-                                                    <p className="text-muted-foreground text-[8px] font-bold uppercase tracking-widest transition-colors">{p.method} • {new Date(p.recordedAt).toLocaleDateString()}</p>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleDeletePayment(p.id, Number(p.amount))}
-                                                    className="opacity-0 group-hover/payment:opacity-100 transition-opacity size-7 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white"
-                                                >
-                                                    <span className="material-symbols-outlined text-[16px]">delete</span>
-                                                </button>
-                                            </div>
-                                        ))}
+                                <div className="space-y-4">
+                                    <div className="flex justify-between text-[11px] font-medium">
+                                        <span className="text-muted-foreground uppercase tracking-widest transition-colors">Pagado ({Math.round(order.paymentProgress)}%)</span>
+                                        <span className="text-foreground font-black transition-colors">{order.paidAmountFormatted}</span>
+                                    </div>
+                                    <div className="flex justify-between text-[11px] font-medium">
+                                        <span className="text-muted-foreground uppercase tracking-widest transition-colors">Pendiente</span>
+                                        <span className="text-foreground font-black transition-colors">{order.pendingAmount}</span>
                                     </div>
                                 </div>
-                            )}
 
-                            <button
-                                onClick={() => setIsPaymentModalOpen(true)}
-                                className="w-full py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
-                                Registrar Pago
-                            </button>
-                        </div>
-                    </section>
+                                {/* Payment List */}
+                                {order.payments && order.payments.length > 0 && (
+                                    <div className="space-y-3 mt-8 pt-6 border-t border-border transition-colors">
+                                        <h4 className="text-muted-foreground text-[8px] font-black uppercase tracking-widest transition-colors">Historial de Pagos</h4>
+                                        <div className="max-h-[150px] overflow-y-auto pr-2 no-scrollbar space-y-2">
+                                            {order.payments.map((p: any) => (
+                                                <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border group/payment transition-colors">
+                                                    <div>
+                                                        <p className="text-foreground text-[10px] font-black transition-colors">{Number(p.amount).toLocaleString()} MXN</p>
+                                                        <p className="text-muted-foreground text-[8px] font-bold uppercase tracking-widest transition-colors">{p.method} • {new Date(p.recordedAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleDeletePayment(p.id, Number(p.amount))}
+                                                        className="opacity-0 group-hover/payment:opacity-100 transition-opacity size-7 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => setIsPaymentModalOpen(true)}
+                                    className="w-full py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
+                                    Registrar Pago
+                                </button>
+                            </div>
+                        </section>
+                    )}
                 </div>
 
                 {/* Right Column: Flow, Notes & Activity */}
                 <div className="lg:col-span-8 space-y-10">
-                    {/* Dynamic Operational Panel */}
-                    {order.type === OrderType.REPAIR && (
-                        <RepairPanel order={order} onUpdateStatus={handleSaveDetails} />
-                    )}
-                    {order.type === OrderType.MANUFACTURE && (
-                        <ManufacturePanel order={order} onUpdateStatus={handleSaveDetails} />
+                    {/* Dynamic Operational Panel - Only for System & Admin */}
+                    {isAuthorized && (
+                        <>
+                            {order.type === OrderType.REPAIR && (
+                                <RepairPanel order={order} onUpdateStatus={handleSaveDetails} />
+                            )}
+                            {order.type === OrderType.MANUFACTURE && (
+                                <ManufacturePanel order={order} onUpdateStatus={handleSaveDetails} />
+                            )}
+                        </>
                     )}
 
                     {/* Envelope / Reference Photos Section */}
@@ -809,7 +877,7 @@ const OrderDetail: React.FC = () => {
                                     <div
                                         onClick={() => envelopeFileInputRef.current?.click()}
                                         className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground/30 hover:text-muted-foreground/60 hover:border-indigo-500/30 transition-all cursor-pointer group"
-                                    >
+                                        >
                                         <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">add_a_photo</span>
                                         <span className="text-[8px] font-black uppercase tracking-widest">Sin fotos</span>
                                     </div>
@@ -818,7 +886,7 @@ const OrderDetail: React.FC = () => {
                         </section>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className={`grid grid-cols-1 ${isAuthorized ? 'md:grid-cols-2' : ''} gap-10`}>
                         {/* Order Notes */}
                         <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm flex flex-col h-[500px] transition-colors">
                             <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Notas del Pedido</h3>
@@ -835,25 +903,100 @@ const OrderDetail: React.FC = () => {
                             </button>
                         </section>
 
-                        {/* Recent Activity */}
-                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm h-[500px] flex flex-col transition-colors">
-                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Actividad Reciente</h3>
-                            <div className="flex-1 overflow-y-auto no-scrollbar space-y-8 pr-4">
-                                {activities.map((activity, index) => (
-                                    <ActivityItem
-                                        key={index}
-                                        user={activity.user}
-                                        action={activity.action}
-                                        target={activity.target}
-                                        time={activity.time}
-                                        dotColor={activity.dotColor}
-                                    />
-                                ))}
-                            </div>
-                        </section>
+                        {/* Recent Activity - Only for System & Admin */}
+                        {isAuthorized && (
+                            <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm h-[500px] flex flex-col transition-colors">
+                                <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Actividad Reciente</h3>
+                                <div className="flex-1 overflow-y-auto no-scrollbar space-y-8 pr-4">
+                                    {activities.map((activity, index) => (
+                                        <ActivityItem
+                                            key={index}
+                                            user={activity.user}
+                                            action={activity.action}
+                                            target={activity.target}
+                                            time={activity.time}
+                                            dotColor={activity.dotColor}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Stats Grid */}
+            {isJoyero ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10 mb-10">
+                    <StatCard 
+                        label="Mano de Obra" 
+                        value={Number(order.laborCost || 0).toLocaleString() + ' MXN'} 
+                        subtext="Trabajo de Taller" 
+                        icon="handyman" 
+                        color="text-amber-500" 
+                    />
+                    <StatCard 
+                        label="Comisión" 
+                        value={Number(order.commission || 0).toLocaleString() + ' MXN'} 
+                        subtext="Comisión asignada" 
+                        icon="paid" 
+                        color="text-emerald-500" 
+                    />
+                    <StatCard
+                        label="Entrega"
+                        value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
+                        isDate
+                        subtext={order.dueDate ? (
+                            (() => {
+                                const days = Math.ceil((new Date(order.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                return days > 0 ? `Quedan ${days} días` : days === 0 ? "Entrega hoy" : `Atrasa ${Math.abs(days)} días`;
+                            })()
+                        ) : "Sin fecha"}
+                        icon="event"
+                        color="text-foreground"
+                        alert={order.dueDate && new Date(order.dueDate) < new Date() ? "priority_high" : undefined}
+                        alertColor="text-red-500"
+                        border={order.dueDate && new Date(order.dueDate) < new Date() ? "border-l-4 border-l-red-500" : ""}
+                    />
+                </div>
+            ) : (
+                <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${user.role === 'VENDEDOR' ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4 mt-10 mb-10`}>
+                    <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('totalAmount', v) : undefined} subtext="Venta" icon="payments" color="text-foreground" />
+                    <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
+                    <StatCard 
+                        label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
+                        value={Math.abs(Number(order.balance || 0)).toLocaleString() + ' MXN'} 
+                        subtext={order.balance < 0 ? "Cliente tiene crédito" : "Pendiente de liquidar"} 
+                        icon={order.balance < 0 ? "account_balance" : "pending_actions"} 
+                        color={order.balance < 0 ? "text-emerald-500" : "text-amber-500"} 
+                        alert={order.balance > 0 ? "priority_high" : undefined} 
+                        alertColor="text-amber-500" 
+                    />
+                    {user.role !== 'VENDEDOR' && (
+                        <>
+                            <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
+                            <StatCard label="Margen" value={(parseValue(order.totalAmount) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
+                        </>
+                    )}
+                    <StatCard
+                        label="Entrega"
+                        value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
+                        onUpdate={canModifyOrderDetails ? (v) => updateField('dueDate', v) : undefined}
+                        isDate
+                        subtext={order.dueDate ? (
+                            (() => {
+                                const days = Math.ceil((new Date(order.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                return days > 0 ? `Quedan ${days} días` : days === 0 ? "Entrega hoy" : `Atrasa ${Math.abs(days)} días`;
+                            })()
+                        ) : "Sin fecha"}
+                        icon="event"
+                        color="text-foreground"
+                        alert={order.dueDate && new Date(order.dueDate) < new Date() ? "priority_high" : undefined}
+                        alertColor="text-red-500"
+                        border={order.dueDate && new Date(order.dueDate) < new Date() ? "border-l-4 border-l-red-500" : ""}
+                    />
+                </div>
+            )}
 
             <AnimatePresence>
                 {order && isPaymentModalOpen && (
@@ -951,6 +1094,13 @@ const StatCard: React.FC<{ label: string, value: string, subtext: string | React
                 <div className="text-zinc-400 dark:text-zinc-500 text-xs font-medium transition-colors">{subtext}</div>
             </div>
         </div>
+    </div>
+);
+
+const SpecBadge: React.FC<{ label: string; value?: string | number }> = ({ label, value }) => (
+    <div className="bg-muted/50 border border-border/50 rounded-xl px-3 py-2 flex flex-col min-w-[70px]">
+        <span className="text-muted-foreground text-[8px] font-black uppercase tracking-widest">{label}</span>
+        <span className="text-foreground text-xs font-bold truncate mt-0.5">{value || '—'}</span>
     </div>
 );
 

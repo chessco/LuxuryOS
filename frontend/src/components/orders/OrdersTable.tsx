@@ -21,7 +21,7 @@ const getStatusOptions = (orderType: string) => {
         return [
             { value: 'RECEIVED', label: 'RECIBIDO' },
             { value: 'IN_REPAIR', label: 'EN TALLER' },
-            { value: 'REPAIR_COMPLETED', label: 'LISTO' },
+            { value: 'REPAIR_COMPLETED', label: 'TERMINADO' },
             { value: 'DELIVERED', label: 'ENTREGADO' },
             { value: 'CANCELLED', label: 'CANCELADO' }
         ];
@@ -30,7 +30,7 @@ const getStatusOptions = (orderType: string) => {
         return [
             { value: 'RECEIVED', label: 'RECIBIDO' },
             { value: 'IN_PRODUCTION', label: 'EN TALLER' },
-            { value: 'READY_FOR_PICKUP', label: 'LISTO' },
+            { value: 'READY_FOR_PICKUP', label: 'TERMINADO' },
             { value: 'DELIVERED', label: 'ENTREGADO' },
             { value: 'CANCELLED', label: 'CANCELADO' }
         ];
@@ -235,7 +235,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                         const rawStatus = (order.status || order.stage || 'RECEIVED').toUpperCase();
                                         const displayLabel = getStatusLabel(order.statusLabel || rawStatus);
                                         const isDelivered = displayLabel === 'ENTREGADO' || rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA';
-                                        const isReady = displayLabel === 'PARA ENTREGA' || displayLabel === 'LISTO' || rawStatus === 'REPAIR_COMPLETED' || rawStatus === 'READY_FOR_PICKUP' || rawStatus === 'READY';
+                                        const isReady = displayLabel === 'PARA ENTREGA' || displayLabel === 'LISTO' || displayLabel === 'TERMINADO' || rawStatus === 'REPAIR_COMPLETED' || rawStatus === 'READY_FOR_PICKUP' || rawStatus === 'READY';
                                         const isInWorkshop = displayLabel === 'EN TALLER' || displayLabel === 'PRODUCCIÓN' || rawStatus === 'IN_REPAIR' || rawStatus === 'IN_PRODUCTION' || rawStatus === 'EN_PRODUCCION' || rawStatus === 'QUALITY_CHECK';
 
                                         if (isSystemAdmin) {

@@ -220,7 +220,7 @@ export class PublicOrdersController {
             if ([
                 'REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'READY', 'COMPLETED',
                 'TERMINADO', 'LISTO', 'LISTO_ENTREGA', 'PARA ENTREGA'
-            ].includes(s)) return 'LISTO';
+            ].includes(s)) return 'TERMINADO';
             if (['DELIVERED', 'ENTREGADO', 'ENTREGADO_POSTVENTA'].includes(s)) return 'ENTREGADO';
             if (['CANCELLED', 'CANCELADO'].includes(s)) return 'CANCELADO';
             return s.replace(/_/g, ' ');
@@ -229,8 +229,9 @@ export class PublicOrdersController {
         const statusLabel = getStatusLabel(order.status || order.stage || 'RECEIVED');
 
         // Build 4-step workflow timeline
-        const stepOrder = ['RECIBIDO', 'EN TALLER', 'LISTO', 'ENTREGADO'];
-        const currentStepIndex = stepOrder.indexOf(statusLabel);
+        const stepOrder = ['RECIBIDO', 'EN TALLER', 'TERMINADO', 'ENTREGADO'];
+        const normalizedStatus = statusLabel === 'LISTO' ? 'TERMINADO' : statusLabel;
+        const currentStepIndex = stepOrder.indexOf(normalizedStatus);
 
         const steps = [
             {
@@ -253,8 +254,8 @@ export class PublicOrdersController {
             },
             {
                 id: 'READY',
-                label: 'Listo para Entrega',
-                description: 'Pieza lista y disponible para entrega en sucursal',
+                label: 'Terminado',
+                description: 'Pieza terminada y disponible para entrega en sucursal',
                 icon: 'verified',
                 isCompleted: currentStepIndex >= 2,
                 isCurrent: currentStepIndex === 2,

@@ -8,7 +8,7 @@ interface ManufacturePanelProps {
 const DEFAULT_MANUFACTURE_STEPS = [
     { status: 'RECEIVED', label: 'Recibido', icon: 'package_2' },
     { status: 'IN_PRODUCTION', label: 'En Taller', icon: 'handyman' },
-    { status: 'READY_FOR_PICKUP', label: 'Listo', icon: 'verified' },
+    { status: 'READY_FOR_PICKUP', label: 'Terminado', icon: 'verified' },
     { status: 'DELIVERED', label: 'Entregado', icon: 'local_shipping' }
 ];
 
@@ -238,7 +238,7 @@ export const ManufacturePanel: React.FC<ManufacturePanelProps> = ({ order, onUpd
                             onClick={() => handleStepClick('READY_FOR_PICKUP')}
                             className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
                         >
-                            Marcar como Listo
+                            Marcar como Terminado
                         </button>
                     )}
                 </div>

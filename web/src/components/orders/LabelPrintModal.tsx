@@ -25,7 +25,7 @@ const getStatusLabel = (status: string) => {
     if ([
         'REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'READY', 'COMPLETED', 
         'TERMINADO', 'LISTO', 'LISTO_ENTREGA'
-    ].includes(s)) return 'LISTO';
+    ].includes(s)) return 'TERMINADO';
     if (['DELIVERED', 'ENTREGADO', 'ENTREGADO_POSTVENTA'].includes(s)) return 'ENTREGADO';
     if (['CANCELLED', 'CANCELADO'].includes(s)) return 'CANCELADO';
     if (['QUOTE_SENT', 'COTIZACION_ENVIADA'].includes(s)) return 'COTIZACIÓN';
@@ -66,7 +66,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
 
         const statusLabel = getStatusLabel(order.status);
         const isReceived = statusLabel === 'RECIBIDO';
-        const isReady = statusLabel === 'LISTO';
+        const isReady = statusLabel === 'TERMINADO' || statusLabel === 'LISTO';
         const isDelivered = statusLabel === 'ENTREGADO';
         const trackToken = getTrackToken(order.id);
         const trackingUrl = `https://luxuryos.pitayacode.io/track/${trackToken}`;
