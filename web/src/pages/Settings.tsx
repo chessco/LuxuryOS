@@ -76,7 +76,8 @@ const SettingsPage: React.FC = () => {
 
     const sections = [
         { title: 'Perfil del Atelier', icon: 'home_repair_service', description: 'Nombre, dirección e información comercial', path: '/settings/atelier' },
-        { title: 'Usuarios y Permisos', icon: 'manage_accounts', description: 'Gestione su equipo y roles de acceso', path: '/settings/users' },
+        { title: 'Usuarios del Equipo', icon: 'manage_accounts', description: 'Gestione su equipo y cuentas de usuario', path: '/settings/users' },
+        { title: 'Permisos por Rol (RBAC)', icon: 'admin_panel_settings', description: 'Defina qué puede ver y hacer cada rol (Joyero, Vendedor, Admin)', path: '/settings/rbac' },
         { title: 'Procesos y Turnos', icon: 'confirmation_number', description: 'Reglas de asignación y flujo de atención', path: '/settings/queue' },
         { title: 'Notificaciones', icon: 'notifications_active', description: 'Alertas de pedidos y actualizaciones de inventario', path: '/settings/notifications' },
         { title: 'Integraciones', icon: 'api', description: 'Conecte su CRM, Webshop o pasarelas de pago', path: '/settings/integrations' },

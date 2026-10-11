@@ -10,10 +10,11 @@ import { EditOrderModal } from '../components/orders/EditOrderModal';
 import { RepairPrintView } from '../components/orders/RepairPrintView';
 import { LabelPrintModal } from '../components/orders/LabelPrintModal';
 import { getStatusLabel, formatOrderCode } from './Orders';
+import { RBACService } from '../services/rbac.service';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = RBACService.getCurrentUser();
     const [order, setOrder] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -464,16 +465,19 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    const isJoyero = 
-        user.role === 'JOYERO' || 
-        String(user.role || '').toUpperCase() === 'JOYERO' ||
-        String(user.email || '').toLowerCase().includes('joyero') ||
-        String(user.name || '').toLowerCase().includes('joyero');
+    const isJoyero = RBACService.getEffectiveRole(user) === 'JOYERO';
+    const canViewPayments = !isJoyero && RBACService.hasPermission('view_payments', user);
+    const canRegisterPayments = !isJoyero && RBACService.hasPermission('register_payments', user);
+    const canViewLaborCost = RBACService.hasPermission('view_labor_cost', user);
+    const canViewCostsMargins = RBACService.hasPermission('view_costs_margins', user);
+    const canViewClientContact = !isJoyero && RBACService.hasPermission('view_client_contact', user);
+    const canViewEnvelope = RBACService.hasPermission('view_envelope_photos', user);
+
     const statusUpper = String(order.status || order.orderStatus || '').toUpperCase();
     const stageUpper = String(order.stage || '').toUpperCase();
     const isReceived = (!statusUpper || statusUpper === 'RECEIVED' || statusUpper === 'RECIBIDO' || statusUpper === 'DRAFT' || statusUpper === 'SPEC_PENDING') &&
                        (!stageUpper || stageUpper === 'RECEIVED' || stageUpper === 'RECIBIDO' || stageUpper === 'INTERES_LEAD');
-    const canModifyOrderDetails = isAuthorized || (!isJoyero && isReceived);
+    const canModifyOrderDetails = isAuthorized || (!isJoyero && RBACService.hasPermission('modify_order_details', user) && isReceived);
 
     return (
         <div className="flex-1 flex flex-col h-full">
@@ -639,26 +643,28 @@ const OrderDetail: React.FC = () => {
 
                     {/* Mano de Obra y Comisión de la orden (aplica para toda la orden) + Acciones del Cliente */}
                     <div className="flex flex-wrap items-center gap-4 sm:gap-6 w-full lg:w-auto justify-between lg:justify-end">
-                        <div className="flex items-center gap-6 bg-muted/40 border border-border rounded-2xl px-6 py-3.5 shadow-sm">
-                            <div className="text-left sm:text-right">
-                                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Mano de Obra</span>
-                                <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
-                                    {(order.laborCost && Number(order.laborCost) > 0)
-                                        ? `${Number(order.laborCost).toLocaleString()} MXN`
-                                        : (order.value && Number(order.value) > 0 ? `${Number(order.value).toLocaleString()} MXN` : '—')}
-                                </span>
-                            </div>
-                            {(order.commission !== undefined && order.commission !== null) && (
-                                <div className="text-left sm:text-right border-l border-border pl-6">
-                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Comisión</span>
-                                    <span className="text-emerald-600 dark:text-emerald-400 text-xl sm:text-2xl font-black tracking-tight font-display">
-                                        {Number(order.commission || 0).toLocaleString()} MXN
+                        {canViewLaborCost && (
+                            <div className="flex items-center gap-6 bg-muted/40 border border-border rounded-2xl px-6 py-3.5 shadow-sm">
+                                <div className="text-left sm:text-right">
+                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Mano de Obra</span>
+                                    <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
+                                        {(order.laborCost && Number(order.laborCost) > 0)
+                                            ? `${Number(order.laborCost).toLocaleString()} MXN`
+                                            : (order.value && Number(order.value) > 0 ? `${Number(order.value).toLocaleString()} MXN` : '—')}
                                     </span>
                                 </div>
-                            )}
-                        </div>
+                                {(order.commission !== undefined && order.commission !== null) && (
+                                    <div className="text-left sm:text-right border-l border-border pl-6">
+                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Comisión</span>
+                                        <span className="text-emerald-600 dark:text-emerald-400 text-xl sm:text-2xl font-black tracking-tight font-display">
+                                            {Number(order.commission || 0).toLocaleString()} MXN
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
-                        {!isJoyero && (
+                        {canViewClientContact && (
                             <div className="flex flex-wrap items-center gap-3">
                                 {order.client?.phone && (
                                     <a
@@ -900,9 +906,9 @@ const OrderDetail: React.FC = () => {
             )}
 
             {/* Bottom Row: Estado del Pago (izquierda), Notas del Pedido (centro), Actividad Reciente (derecha) */}
-            <div className={`grid grid-cols-1 ${!isJoyero && isAuthorized ? 'lg:grid-cols-3' : (!isJoyero || isAuthorized ? 'lg:grid-cols-2' : 'lg:grid-cols-1')} gap-10`}>
-                {/* 1. Estado del Pago (A la izquierda de Notas de Pedido, oculto para Joyeros) */}
-                {!isJoyero && (
+            <div className={`grid grid-cols-1 ${canViewPayments && isAuthorized ? 'lg:grid-cols-3' : (canViewPayments || isAuthorized ? 'lg:grid-cols-2' : 'lg:grid-cols-1')} gap-10`}>
+                {/* 1. Estado del Pago (Oculto para Joyeros y roles sin permiso de pagos) */}
+                {canViewPayments && (
                     <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm flex flex-col justify-between min-h-[500px] transition-colors">
                         <div>
                             <div className="flex items-center justify-between mb-8">
@@ -935,12 +941,14 @@ const OrderDetail: React.FC = () => {
                                                         <p className="text-foreground text-[10px] font-black transition-colors">{Number(p.amount).toLocaleString()} MXN</p>
                                                         <p className="text-muted-foreground text-[8px] font-bold uppercase tracking-widest transition-colors">{p.method} • {new Date(p.recordedAt).toLocaleDateString()}</p>
                                                     </div>
-                                                    <button
-                                                        onClick={() => handleDeletePayment(p.id, Number(p.amount))}
-                                                        className="opacity-0 group-hover/payment:opacity-100 transition-opacity size-7 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[16px]">delete</span>
-                                                    </button>
+                                                    {canRegisterPayments && (
+                                                        <button
+                                                            onClick={() => handleDeletePayment(p.id, Number(p.amount))}
+                                                            className="opacity-0 group-hover/payment:opacity-100 transition-opacity size-7 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -949,11 +957,13 @@ const OrderDetail: React.FC = () => {
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => setIsPaymentModalOpen(true)}
-                            className="w-full mt-6 py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
-                            Registrar Pago
-                        </button>
+                        {canRegisterPayments && (
+                            <button
+                                onClick={() => setIsPaymentModalOpen(true)}
+                                className="w-full mt-6 py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
+                                Registrar Pago
+                            </button>
+                        )}
                     </section>
                 )}
 

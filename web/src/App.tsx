@@ -22,6 +22,7 @@ import Reports from './pages/Reports';
 import Sidebar from './components/Sidebar';
 import PublicOrderTrack from './pages/PublicOrderTrack';
 import PublicQueueTrack from './pages/PublicQueueTrack';
+import RBACSettings from './pages/RBACSettings';
 import { ThemeProvider } from './context/ThemeContext';
 
 const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.ReactNode, allowedRoles: string[], redirectTo: string }) => {
@@ -102,6 +103,11 @@ function App() {
                         <Route path="/settings/users" element={
                             <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
                                 <Users />
+                            </RoleRedirect>
+                        } />
+                        <Route path="/settings/rbac" element={
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
+                                <RBACSettings />
                             </RoleRedirect>
                         } />
                         <Route path="/settings/queue" element={

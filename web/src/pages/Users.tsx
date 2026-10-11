@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { UsersService, User } from '../services/users.service';
 
 export default function UsersPage() {
@@ -98,13 +99,22 @@ export default function UsersPage() {
                         type="text"
                     />
                 </div>
-                <button
-                    onClick={() => openModal()}
-                    className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
-                >
-                    <span className="material-symbols-outlined text-[20px]">person_add</span>
-                    <span>Nuevo Miembro</span>
-                </button>
+                <div className="flex items-center gap-3">
+                    <Link
+                        to="/settings/rbac"
+                        className="flex items-center gap-2 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-500/20 transition-all shadow-sm"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+                        <span>Matriz RBAC</span>
+                    </Link>
+                    <button
+                        onClick={() => openModal()}
+                        className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">person_add</span>
+                        <span>Nuevo Miembro</span>
+                    </button>
+                </div>
             </div>
 
             <div className="bg-card border border-border rounded-[32px] overflow-hidden backdrop-blur-sm shadow-sm transition-colors">
