@@ -380,16 +380,16 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             </div>
 
                             {/* Barcode or QR Code Container */}
-                            <div className="my-2.5 flex flex-col items-center justify-center w-full">
+                            <div className="my-2 flex flex-col items-center justify-center w-full">
                                 {labelCodeType === 'QR' ? (
-                                    <div className="flex flex-col items-center gap-1">
+                                    <div className="flex flex-col items-center gap-0.5">
                                         <div className="p-1 bg-white border border-black rounded">
                                             <QRCodeSVG 
                                                 value={isTurnOrder ? (order.queueTicket?.qrToken || order.queueTicket?.code) : orderCode} 
-                                                size={80} 
+                                                size={60} 
                                                 bgColor="#ffffff" 
                                                 fgColor="#000000" 
-                                                level="H" 
+                                                level="M" 
                                             />
                                         </div>
                                         <span className="text-[7.5px] font-black tracking-widest uppercase mt-0.5 leading-none">
@@ -425,7 +425,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             left: 0 !important;
                             top: 0 !important;
                             width: 58mm !important;
-                            min-height: 60mm !important;
+                            min-height: 48mm !important;
                             height: auto !important;
                             margin: 0 !important;
                             padding: 2.5mm !important;
