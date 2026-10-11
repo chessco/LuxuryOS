@@ -36,7 +36,7 @@ async function main() {
     // Tenant Admin
     await prisma.user.create({
         data: {
-            email: 'admin@pitayacode.io',
+            email: 'admin@cared.mx',
             passwordHash,
             tenantId: tenant.id,
             role: 'TENANT_ADMIN',

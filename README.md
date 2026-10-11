@@ -35,7 +35,7 @@ npm run dev
 
 ## Demo Credentials (Development)
 - **URL:** `http://localhost:3000/login`
-- **Email:** `admin@pitayacode.io`
+- **Email:** `admin@cared.mx`
 - **Password:** la definida en `SEED_PASSWORD` al ejecutar el seed
 
 ## Deployment to Production (Hetzner)

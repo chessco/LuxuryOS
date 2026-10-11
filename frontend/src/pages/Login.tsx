@@ -5,7 +5,7 @@ import api from '../services/api';
 export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [email, setEmail] = useState('admin@pitayacode.io');
+    const [email, setEmail] = useState('admin@cared.mx');
     const [password, setPassword] = useState('');
     const navigate = useNavigate();
 

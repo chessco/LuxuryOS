@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-    const email = 'admin@pitayacode.io';
+    const email = 'admin@cared.mx';
     const password = process.env.NEW_PASSWORD || (() => { throw new Error('Define NEW_PASSWORD en el entorno'); })();
     const saltRounds = 10;
 
