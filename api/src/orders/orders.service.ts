@@ -561,7 +561,7 @@ export class OrdersService {
             return { success: false, reason: 'El cliente no tiene teléfono configurado' };
         }
 
-        const prefix = order.type === 'REPAIR' ? 'REP' : (order.type === 'MANUFACTURE' ? 'FAB' : (order.type === 'LAYAWAY' ? 'APT' : 'PED'));
+        const prefix = order.type === 'REPAIR' ? 'REP' : (order.type === 'MANUFACTURE' ? 'FAB' : (order.type === 'DESIGN' ? 'DIS' : (order.type === 'LASER' ? 'LAS' : (order.type === 'LAYAWAY' ? 'APT' : 'PED'))));
         const orderCode = specs.orderCode || `${prefix}-${order.id.substring(0, 6).toUpperCase()}`;
         const clientName = (order.client?.name || specs.clientName || 'Cliente').toUpperCase();
         const formatDate = (date?: Date | string | null) => {
@@ -636,6 +636,35 @@ export class OrdersService {
         // En WhatsApp siempre enviamos el código QR para escaneo directo y seguimiento
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`;
 
+        const pieceItems: any[] = (specs.items && specs.items.length > 0)
+            ? specs.items
+            : [{
+                item: order.pieceType || 'PIEZA',
+                metal: order.metal,
+                color: order.color,
+                karats: order.karats,
+                weight: order.weight,
+                size: order.size,
+                thickness: order.thickness,
+                description: order.notes
+            }];
+
+        const pieceSummaries = pieceItems.map((p, idx) => {
+            const title = (p.item || p.pieceType || `Pieza ${idx + 1}`).toUpperCase();
+            const details: string[] = [];
+            const metalParts = [p.metal, p.karats, p.color].filter(v => v && v !== '-');
+            if (metalParts.length > 0) details.push(metalParts.join(' '));
+            if (p.weight && p.weight !== '-') details.push(`${p.weight}g`);
+            if (p.size && p.size !== '-') details.push(`Med: ${p.size}`);
+            if (p.thickness && p.thickness !== '-') details.push(`Gr: ${p.thickness}`);
+            const note = p.description || p.notes || p.trabajo || p.work || ((!specs.items || specs.items.length <= 1 || idx === 0) ? order.notes : '');
+
+            let res = `• *${title}*`;
+            if (details.length > 0) res += ` (${details.join(', ')})`;
+            if (note) res += `\n  _Nota: ${note}_`;
+            return res;
+        }).join('\n');
+
         let message = '';
         if (isReceived) {
             message = `🔔 *CARED* 🔔
@@ -644,7 +673,9 @@ export class OrdersService {
 *Cliente:* ${clientName}
 *No. Orden:* ${orderCode}
 *Concepto:* ${getConcepto(order.type)}
-*Status:* ${statusLabel}
+
+📋 *Detalle de la Orden:*
+${pieceSummaries}
 
 🌐 *Ver seguimiento en línea:*
 ${trackingUrl}
@@ -659,7 +690,9 @@ Gracias por su preferencia. ✨`;
 *Cliente:* ${clientName}
 *No. Orden:* ${orderCode}
 *Concepto:* ${getConcepto(order.type)}
-*Status:* ${statusLabel}
+
+📋 *Detalle de la Orden:*
+${pieceSummaries}
 
 🌐 *Ver seguimiento en línea:*
 ${trackingUrl}
