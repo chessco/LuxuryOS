@@ -588,21 +588,23 @@ const OrderDetail: React.FC = () => {
             </header>
 
             {/* 1. Detalle de Piezas (Maestro - Detalle Horizontal) */}
-            <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors mb-10">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-indigo-600 dark:text-indigo-400 text-[22px] transition-colors">diamond</span>
+            <section className="bg-card border border-border rounded-[36px] p-8 sm:p-10 backdrop-blur-sm shadow-sm transition-colors mb-10">
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="size-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                            <span className="material-symbols-outlined text-[28px]">diamond</span>
+                        </div>
                         <div>
-                            <h3 className="text-foreground text-xs font-black uppercase tracking-widest transition-colors">Detalle de Piezas del Pedido</h3>
-                            <p className="text-muted-foreground text-[10px] font-medium tracking-wide">Renglones y especificaciones técnicas de la orden</p>
+                            <h3 className="text-foreground text-base sm:text-lg font-black uppercase tracking-wider transition-colors">Detalle de Piezas del Pedido</h3>
+                            <p className="text-muted-foreground text-xs font-medium tracking-wide">Renglones y especificaciones técnicas de la orden</p>
                         </div>
                     </div>
-                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest bg-muted px-3 py-1.5 rounded-xl border border-border transition-colors">
+                    <span className="text-muted-foreground text-xs font-black uppercase tracking-widest bg-muted px-4 py-2 rounded-2xl border border-border transition-colors">
                         {(order.specifications?.items?.length || 1)} {(order.specifications?.items?.length || 1) > 1 ? 'Piezas' : 'Pieza'}
                     </span>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
                     {(order.specifications?.items || [{
                         item: order.pieceType || order.item || (order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería'),
                         metal: order.metal || order.specifications?.metal,
@@ -616,114 +618,124 @@ const OrderDetail: React.FC = () => {
                         commission: order.commission || order.specifications?.commission,
                         materialCost: order.materialCost || order.specifications?.materialCost,
                         description: order.description || order.specifications?.diagnosis || order.specifications?.description || order.notes
-                    }]).map((piece: any, idx: number) => (
-                        <div key={idx} className="bg-muted/30 hover:bg-muted/50 border border-border rounded-2xl p-5 transition-all">
-                            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
-                                {/* Thumbnail & Image actions */}
-                                <div className="size-24 sm:size-28 rounded-2xl bg-muted border border-border flex-shrink-0 overflow-hidden relative group/img transition-colors">
-                                    {order.imageUrl ? (
-                                        <img src={order.imageUrl} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700" alt="Pieza" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                            <span className="material-symbols-outlined text-muted-foreground/30 text-3xl">image</span>
-                                        </div>
-                                    )}
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-all flex flex-col items-center justify-center gap-2 backdrop-blur-sm p-2">
-                                        <button
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-black text-[8px] font-black uppercase tracking-widest hover:bg-muted transition-all"
-                                        >
-                                            <span className="material-symbols-outlined text-[14px]">upload</span> Subir
-                                        </button>
-                                        <button
-                                            onClick={handleGenerateAIImage}
-                                            disabled={isGeneratingImage}
-                                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[8px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50"
-                                        >
-                                            <span className={`material-symbols-outlined text-[14px] ${isGeneratingImage ? 'animate-spin' : ''}`}>{isGeneratingImage ? 'sync' : 'auto_awesome'}</span> IA
-                                        </button>
-                                    </div>
-                                </div>
+                    }]).map((piece: any, idx: number) => {
+                        const formatSpecVal = (v: any, suffix: string) => {
+                            if (!v && v !== 0) return undefined;
+                            const str = String(v).trim();
+                            if (str.toLowerCase().includes(suffix.toLowerCase().trim())) return str;
+                            return `${str} ${suffix}`;
+                        };
 
-                                {/* Main Technical Specs (Horizontal) */}
-                                <div className="flex-1 min-w-0 space-y-3 w-full">
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                                            Pieza #{idx + 1}
-                                        </span>
-                                        <h4 className="text-foreground text-sm font-black uppercase tracking-wide truncate">
-                                            {piece.item || (order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
-                                        </h4>
-                                        {piece.itemCode && (
-                                            <span className="text-muted-foreground text-[10px] font-mono font-bold bg-muted px-2 py-0.5 rounded border border-border">
-                                                {piece.itemCode}
+                        return (
+                            <div key={idx} className="bg-muted/30 hover:bg-muted/50 border border-border rounded-[28px] p-6 sm:p-8 transition-all shadow-sm">
+                                <div className="flex flex-col xl:flex-row items-start xl:items-center gap-8">
+                                    {/* Thumbnail & Image actions */}
+                                    <div className="size-36 sm:size-44 rounded-3xl bg-muted border border-border flex-shrink-0 overflow-hidden relative group/img transition-colors shadow-inner">
+                                        {order.imageUrl ? (
+                                            <img src={order.imageUrl} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700" alt="Pieza" />
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                                                <span className="material-symbols-outlined text-muted-foreground/30 text-5xl">image</span>
+                                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Sin foto</span>
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 transition-all flex flex-col items-center justify-center gap-2.5 backdrop-blur-sm p-3">
+                                            <button
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-muted transition-all shadow-md"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">upload</span> Subir Foto
+                                            </button>
+                                            <button
+                                                onClick={handleGenerateAIImage}
+                                                disabled={isGeneratingImage}
+                                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-md"
+                                            >
+                                                <span className={`material-symbols-outlined text-[16px] ${isGeneratingImage ? 'animate-spin' : ''}`}>{isGeneratingImage ? 'sync' : 'auto_awesome'}</span> Generar IA
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Main Technical Specs (Horizontal) */}
+                                    <div className="flex-1 min-w-0 space-y-4 w-full">
+                                        <div className="flex flex-wrap items-center gap-3.5">
+                                            <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                                Pieza #{idx + 1}
                                             </span>
+                                            <h4 className="text-foreground text-xl sm:text-2xl font-black uppercase tracking-tight truncate font-display">
+                                                {piece.item || (order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
+                                            </h4>
+                                            {piece.itemCode && (
+                                                <span className="text-muted-foreground text-xs font-mono font-bold bg-muted px-2.5 py-1 rounded-lg border border-border">
+                                                    {piece.itemCode}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Horizontal Specs Badges */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                                            <SpecBadge label="Metal" value={piece.metal} />
+                                            <SpecBadge label="Color" value={piece.color} />
+                                            <SpecBadge label="Kilataje" value={piece.karats} />
+                                            <SpecBadge label="Peso" value={formatSpecVal(piece.weight, 'gr')} />
+                                            <SpecBadge label="Medida" value={formatSpecVal(piece.size, 'cm')} />
+                                            <SpecBadge label="Grosor" value={formatSpecVal(piece.thickness, 'mm')} />
+                                        </div>
+
+                                        {/* Description / Work / Diagnosis */}
+                                        {(piece.description || order.specifications?.diagnosis || order.specifications?.partsNeeded) && (
+                                            <div className="text-xs sm:text-sm font-medium leading-relaxed bg-muted/60 p-4 sm:p-5 rounded-2xl border border-border/80 text-foreground space-y-1.5 shadow-inner">
+                                                {piece.description && (
+                                                    <div>
+                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Trabajo:</span>
+                                                        {piece.description}
+                                                    </div>
+                                                )}
+                                                {order.specifications?.diagnosis && order.specifications?.diagnosis !== piece.description && (
+                                                    <div>
+                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Diagnóstico:</span>
+                                                        {order.specifications.diagnosis}
+                                                    </div>
+                                                )}
+                                                {order.specifications?.partsNeeded && (
+                                                    <div>
+                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Refacciones:</span>
+                                                        {order.specifications.partsNeeded}
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
 
-                                    {/* Horizontal Specs Badges */}
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
-                                        <SpecBadge label="Metal" value={piece.metal} />
-                                        <SpecBadge label="Color" value={piece.color} />
-                                        <SpecBadge label="Kilataje" value={piece.karats} />
-                                        <SpecBadge label="Peso" value={piece.weight ? `${piece.weight} gr` : undefined} />
-                                        <SpecBadge label="Medida" value={piece.size} />
-                                        <SpecBadge label="Grosor" value={piece.thickness} />
-                                    </div>
-
-                                    {/* Description / Work / Diagnosis */}
-                                    {(piece.description || order.specifications?.diagnosis || order.specifications?.partsNeeded) && (
-                                        <div className="text-[11px] font-medium leading-relaxed bg-muted/60 p-3 rounded-xl border border-border/60 text-foreground space-y-1">
-                                            {piece.description && (
-                                                <div>
-                                                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest mr-2">Trabajo:</span>
-                                                    {piece.description}
-                                                </div>
-                                            )}
-                                            {order.specifications?.diagnosis && order.specifications?.diagnosis !== piece.description && (
-                                                <div>
-                                                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest mr-2">Diagnóstico:</span>
-                                                    {order.specifications.diagnosis}
-                                                </div>
-                                            )}
-                                            {order.specifications?.partsNeeded && (
-                                                <div>
-                                                    <span className="text-muted-foreground text-[9px] font-black uppercase tracking-widest mr-2">Refacciones:</span>
-                                                    {order.specifications.partsNeeded}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Costs & Commission */}
-                                <div className="w-full lg:w-auto lg:min-w-[170px] flex lg:flex-col justify-between lg:justify-center items-end gap-2 pt-3 lg:pt-0 border-t lg:border-t-0 lg:border-l border-border/60 lg:pl-6 flex-shrink-0">
-                                    <div className="text-right">
-                                        <span className="text-muted-foreground text-[8px] font-black uppercase tracking-widest block">Mano de Obra</span>
-                                        <span className="text-foreground text-sm font-black tracking-tight">
-                                            {piece.laborCost ? `${Number(piece.laborCost).toLocaleString()} MXN` : (order.laborCost ? `${Number(order.laborCost).toLocaleString()} MXN` : '—')}
-                                        </span>
-                                    </div>
-                                    {(piece.commission !== undefined || order.commission !== undefined) && (
+                                    {/* Costs & Commission */}
+                                    <div className="w-full xl:w-auto xl:min-w-[200px] flex xl:flex-col justify-between xl:justify-center items-end gap-3 pt-4 xl:pt-0 border-t xl:border-t-0 xl:border-l border-border xl:pl-8 flex-shrink-0">
                                         <div className="text-right">
-                                            <span className="text-muted-foreground text-[8px] font-black uppercase tracking-widest block">Comisión</span>
-                                            <span className="text-emerald-600 dark:text-emerald-400 text-sm font-black tracking-tight">
-                                                {Number(piece.commission || order.commission || 0).toLocaleString()} MXN
+                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Mano de Obra</span>
+                                            <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
+                                                {piece.laborCost ? `${Number(piece.laborCost).toLocaleString()} MXN` : (order.laborCost ? `${Number(order.laborCost).toLocaleString()} MXN` : '—')}
                                             </span>
                                         </div>
-                                    )}
-                                    {!isJoyero && piece.materialCost && (
-                                        <div className="text-right">
-                                            <span className="text-muted-foreground text-[8px] font-black uppercase tracking-widest block">Material</span>
-                                            <span className="text-muted-foreground text-xs font-bold tracking-tight">
-                                                {Number(piece.materialCost).toLocaleString()} MXN
-                                            </span>
-                                        </div>
-                                    )}
+                                        {(piece.commission !== undefined || order.commission !== undefined) && (
+                                            <div className="text-right">
+                                                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Comisión</span>
+                                                <span className="text-emerald-600 dark:text-emerald-400 text-xl sm:text-2xl font-black tracking-tight font-display">
+                                                    {Number(piece.commission || order.commission || 0).toLocaleString()} MXN
+                                                </span>
+                                            </div>
+                                        )}
+                                        {!isJoyero && piece.materialCost && (
+                                            <div className="text-right">
+                                                <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Material</span>
+                                                <span className="text-muted-foreground text-sm font-bold tracking-tight">
+                                                    {Number(piece.materialCost).toLocaleString()} MXN
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </section>
 
@@ -1098,9 +1110,9 @@ const StatCard: React.FC<{ label: string, value: string, subtext: string | React
 );
 
 const SpecBadge: React.FC<{ label: string; value?: string | number }> = ({ label, value }) => (
-    <div className="bg-muted/50 border border-border/50 rounded-xl px-3 py-2 flex flex-col min-w-[70px]">
-        <span className="text-muted-foreground text-[8px] font-black uppercase tracking-widest">{label}</span>
-        <span className="text-foreground text-xs font-bold truncate mt-0.5">{value || '—'}</span>
+    <div className="bg-card border border-border rounded-2xl px-4 py-3 sm:py-3.5 flex flex-col min-w-[95px] shadow-sm">
+        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider">{label}</span>
+        <span className="text-foreground text-sm sm:text-base font-black truncate mt-1 tracking-tight">{value || '—'}</span>
     </div>
 );
 
