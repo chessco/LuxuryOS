@@ -823,11 +823,75 @@ const OrderDetail: React.FC = () => {
                 </div>
             </section>
 
-            <div className={!isJoyero ? "grid grid-cols-1 lg:grid-cols-12 gap-10" : "space-y-10"}>
-                {/* Left Column: Payment Status (Hidden for Joyeros) */}
+            {/* Dynamic Operational Panel - Only for System & Admin */}
+            {isAuthorized && (
+                <div className="space-y-10 mb-10">
+                    {order.type === OrderType.REPAIR && (
+                        <RepairPanel order={order} onUpdateStatus={handleSaveDetails} />
+                    )}
+                    {order.type === OrderType.MANUFACTURE && (
+                        <ManufacturePanel order={order} onUpdateStatus={handleSaveDetails} />
+                    )}
+                </div>
+            )}
+
+            {/* Envelope / Reference Photos Section */}
+            {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && (
+                <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors mb-10">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-3">
+                            <span className="material-symbols-outlined text-amber-600 dark:text-amber-500 transition-colors">photo_library</span>
+                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Fotos del Sobre y Referencia</h3>
+                        </div>
+                        <button
+                            onClick={() => envelopeFileInputRef.current?.click()}
+                            className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
+                            Agregar Foto
+                        </button>
+                        <input
+                            type="file"
+                            ref={envelopeFileInputRef}
+                            onChange={handleEnvelopeImageUpload}
+                            className="hidden"
+                            accept="image/*"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                        {order.specifications?.envelopeImages?.map((img: string, idx: number) => (
+                            <div key={idx} className="aspect-square bg-muted rounded-2xl border border-border overflow-hidden relative group/img transition-colors">
+                                <img src={img} className="w-full h-full object-cover transition-transform group-hover/img:scale-110" alt={`Sobre ${idx}`} />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                    <button
+                                        onClick={() => handleRemoveEnvelopeImage(idx)}
+                                        className="size-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100"
+                                    >
+                                        <span className="material-symbols-outlined">delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        {(!order.specifications?.envelopeImages || order.specifications.envelopeImages.length === 0) && (
+                            <div
+                                onClick={() => envelopeFileInputRef.current?.click()}
+                                className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground/30 hover:text-muted-foreground/60 hover:border-indigo-500/30 transition-all cursor-pointer group"
+                                >
+                                <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">add_a_photo</span>
+                                <span className="text-[8px] font-black uppercase tracking-widest">Sin fotos</span>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {/* Bottom Row: Estado del Pago (izquierda), Notas del Pedido (centro), Actividad Reciente (derecha) */}
+            <div className={`grid grid-cols-1 ${!isJoyero && isAuthorized ? 'lg:grid-cols-3' : (!isJoyero || isAuthorized ? 'lg:grid-cols-2' : 'lg:grid-cols-1')} gap-10`}>
+                {/* 1. Estado del Pago (A la izquierda de Notas de Pedido, oculto para Joyeros) */}
                 {!isJoyero && (
-                    <div className="lg:col-span-4 space-y-10">
-                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
+                    <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm flex flex-col justify-between min-h-[500px] transition-colors">
+                        <div>
                             <div className="flex items-center justify-between mb-8">
                                 <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Estado del Pago</h3>
                                 <span className={`px-2 py-0.5 border text-[8px] font-black uppercase tracking-widest rounded transition-colors ${order.paymentProgress >= 100 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-600'}`}>{order.paymentProgress >= 100 ? "Completo" : "Parcial"}</span>
@@ -869,119 +933,53 @@ const OrderDetail: React.FC = () => {
                                         </div>
                                     </div>
                                 )}
-
-                                <button
-                                    onClick={() => setIsPaymentModalOpen(true)}
-                                    className="w-full py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
-                                    Registrar Pago
-                                </button>
                             </div>
-                        </section>
-                    </div>
+                        </div>
+
+                        <button
+                            onClick={() => setIsPaymentModalOpen(true)}
+                            className="w-full mt-6 py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
+                            Registrar Pago
+                        </button>
+                    </section>
                 )}
 
-                {/* Right Column: Flow, Notes & Activity */}
-                <div className="lg:col-span-8 space-y-10">
-                    {/* Dynamic Operational Panel - Only for System & Admin */}
-                    {isAuthorized && (
-                        <>
-                            {order.type === OrderType.REPAIR && (
-                                <RepairPanel order={order} onUpdateStatus={handleSaveDetails} />
-                            )}
-                            {order.type === OrderType.MANUFACTURE && (
-                                <ManufacturePanel order={order} onUpdateStatus={handleSaveDetails} />
-                            )}
-                        </>
-                    )}
-
-                    {/* Envelope / Reference Photos Section */}
-                    {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && (
-                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
-                            <div className="flex items-center justify-between mb-8">
-                                <div className="flex items-center gap-3">
-                                    <span className="material-symbols-outlined text-amber-600 dark:text-amber-500 transition-colors">photo_library</span>
-                                    <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Fotos del Sobre y Referencia</h3>
-                                </div>
-                                <button
-                                    onClick={() => envelopeFileInputRef.current?.click()}
-                                    className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
-                                    Agregar Foto
-                                </button>
-                                <input
-                                    type="file"
-                                    ref={envelopeFileInputRef}
-                                    onChange={handleEnvelopeImageUpload}
-                                    className="hidden"
-                                    accept="image/*"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                                {order.specifications?.envelopeImages?.map((img: string, idx: number) => (
-                                    <div key={idx} className="aspect-square bg-muted rounded-2xl border border-border overflow-hidden relative group/img transition-colors">
-                                        <img src={img} className="w-full h-full object-cover transition-transform group-hover/img:scale-110" alt={`Sobre ${idx}`} />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                            <button
-                                                onClick={() => handleRemoveEnvelopeImage(idx)}
-                                                className="size-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100"
-                                            >
-                                                <span className="material-symbols-outlined">delete</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                                {(!order.specifications?.envelopeImages || order.specifications.envelopeImages.length === 0) && (
-                                    <div
-                                        onClick={() => envelopeFileInputRef.current?.click()}
-                                        className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground/30 hover:text-muted-foreground/60 hover:border-indigo-500/30 transition-all cursor-pointer group"
-                                        >
-                                        <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">add_a_photo</span>
-                                        <span className="text-[8px] font-black uppercase tracking-widest">Sin fotos</span>
-                                    </div>
-                                )}
-                            </div>
-                        </section>
-                    )}
-
-                    <div className={`grid grid-cols-1 ${isAuthorized ? 'md:grid-cols-2' : ''} gap-10`}>
-                        {/* Order Notes */}
-                        <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm flex flex-col h-[500px] transition-colors">
-                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Notas del Pedido</h3>
-                            <textarea
-                                value={notesBuffer}
-                                onChange={(e) => setNotesBuffer(e.target.value)}
-                                className="flex-1 bg-muted rounded-2xl border border-border p-6 text-foreground text-sm leading-relaxed font-medium italic mb-6 resize-none outline-none focus:border-indigo-500/30 transition-all shadow-inner"
-                                placeholder="Escribe aquí notas adicionales del pedido..."
-                            />
-                            <button
-                                onClick={() => updateField('notes', notesBuffer)}
-                                className="w-full py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
-                                Guardar Notas
-                            </button>
-                        </section>
-
-                        {/* Recent Activity - Only for System & Admin */}
-                        {isAuthorized && (
-                            <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm h-[500px] flex flex-col transition-colors">
-                                <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Actividad Reciente</h3>
-                                <div className="flex-1 overflow-y-auto no-scrollbar space-y-8 pr-4">
-                                    {activities.map((activity, index) => (
-                                        <ActivityItem
-                                            key={index}
-                                            user={activity.user}
-                                            action={activity.action}
-                                            target={activity.target}
-                                            time={activity.time}
-                                            dotColor={activity.dotColor}
-                                        />
-                                    ))}
-                                </div>
-                            </section>
-                        )}
+                {/* 2. Notas del Pedido */}
+                <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm flex flex-col justify-between min-h-[500px] transition-colors">
+                    <div className="flex-1 flex flex-col">
+                        <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Notas del Pedido</h3>
+                        <textarea
+                            value={notesBuffer}
+                            onChange={(e) => setNotesBuffer(e.target.value)}
+                            className="flex-1 w-full bg-muted rounded-2xl border border-border p-6 text-foreground text-sm leading-relaxed font-medium italic mb-6 resize-none outline-none focus:border-indigo-500/30 transition-all shadow-inner"
+                            placeholder="Escribe aquí notas adicionales del pedido..."
+                        />
                     </div>
-                </div>
+                    <button
+                        onClick={() => updateField('notes', notesBuffer)}
+                        className="w-full py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
+                        Guardar Notas
+                    </button>
+                </section>
+
+                {/* 3. Actividad Reciente - Solo para System & Admin */}
+                {isAuthorized && (
+                    <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm min-h-[500px] flex flex-col transition-colors">
+                        <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Actividad Reciente</h3>
+                        <div className="flex-1 overflow-y-auto no-scrollbar space-y-8 pr-4 max-h-[380px]">
+                            {activities.map((activity, index) => (
+                                <ActivityItem
+                                    key={index}
+                                    user={activity.user}
+                                    action={activity.action}
+                                    target={activity.target}
+                                    time={activity.time}
+                                    dotColor={activity.dotColor}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                )}
             </div>
 
             {/* Stats Grid */}
