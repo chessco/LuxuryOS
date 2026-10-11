@@ -55,6 +55,21 @@ async function main() {
 
     console.log('User created:', user.email);
 
+    // Joyeros
+    for (const j of ['joyero1@cared.mx', 'joyero2@cared.mx', 'joyero3@cared.mx']) {
+        const joyeroHash = await bcrypt.hash('cared123', 10);
+        await prisma.user.create({
+            data: {
+                email: j,
+                name: j.split('@')[0].toUpperCase(),
+                passwordHash: joyeroHash,
+                tenantId: tenant.id,
+                role: 'JOYERO',
+            },
+        });
+        console.log('Joyero created:', j);
+    }
+
     // 3. Create Clients
     const clientNames = [
         'Sofía Villalobos',

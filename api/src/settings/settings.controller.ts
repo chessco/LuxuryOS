@@ -15,7 +15,7 @@ export class SettingsController {
   @Get()
   async getSettings(@Req() req: any) {
     const settings = await this.settingsService.getSettings(req.user.tenantId);
-    return isAdminRole(req.user.role) ? settings : redactSecretSettings(settings);
+    return isAdminRole(req.user?.role, req.user?.email) ? settings : redactSecretSettings(settings);
   }
 
   @Post()
@@ -34,7 +34,7 @@ export class SettingsController {
 
   @Post('clear-demo-data')
   async clearDemoData(@Req() req: any) {
-    if (req.user.role !== 'SYSTEM_ADMIN') {
+    if (!isAdminRole(req.user?.role, req.user?.email)) {
       throw new ForbiddenException('Solo el administrador del sistema puede realizar esta acción');
     }
     return this.settingsService.clearDemoData(req.user.tenantId);

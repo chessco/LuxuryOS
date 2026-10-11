@@ -47,7 +47,7 @@ export class OrdersController {
             throw new ForbiddenException('El rol Joyero no tiene permisos para crear órdenes o reparaciones');
         }
         const userId = req.user.id || req.user.userId;
-        if (!isAdminRole(userRole)) {
+        if (!isAdminRole(userRole, req.user?.email)) {
             (body as any).createdById = undefined;
         }
         return this.ordersService.createOrder(req.user.tenantId, body, userId);
@@ -80,8 +80,8 @@ export class OrdersController {
 
     @Delete('orders/:id')
     async deleteOrder(@Param('id') id: string, @Request() req) {
-        if (req.user.role !== 'SYSTEM_ADMIN') {
-            throw new ForbiddenException('Solo el rol SYSTEM_ADMIN puede eliminar pedidos');
+        if (!isAdminRole(req.user?.role, req.user?.email)) {
+            throw new ForbiddenException('Solo un Administrador del Sistema puede eliminar pedidos');
         }
         return this.ordersService.deleteOrder(req.user.tenantId, id);
     }

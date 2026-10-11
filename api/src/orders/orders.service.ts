@@ -95,7 +95,7 @@ export class OrdersService {
             throw new BadRequestException('Estado destino inválido');
         }
 
-        if (user && !isAdminRole(user.role)) {
+        if (user && !isAdminRole(user.role, user.email)) {
             const currentIdx = STATUS_ORDER[String((usesStatus ? order.status : order.stage) || '').toUpperCase()];
             const targetIdx = STATUS_ORDER[toStage.toUpperCase()];
             if (currentIdx !== undefined && targetIdx !== undefined && targetIdx < currentIdx) {
@@ -201,6 +201,13 @@ export class OrdersService {
                 queueTicket: true,
             }
         });
+
+        // Trigger automatic WhatsApp notification on order creation (Recibido con QR)
+        try {
+            await this.notifyOrderWorkflowStatus(tenantId, created.id);
+        } catch (error) {
+            console.error('[Create Order WhatsApp Notification Error]', error);
+        }
 
         return created;
     }
@@ -348,7 +355,7 @@ export class OrdersService {
         if (!order) throw new NotFoundException('Order not found');
 
         const userRole = currentUser?.role;
-        const isAuthorized = isAdminRole(userRole);
+        const isAuthorized = isAdminRole(userRole, currentUser?.email);
 
         const currentStatusUpper = String(order.status || '').toUpperCase();
         const currentStageUpper = String(order.stage || '').toUpperCase();
@@ -547,15 +554,16 @@ export class OrdersService {
             throw new NotFoundException('Pedido no encontrado');
         }
 
-        const phone = order.client?.phone;
+        const specs = (order.specifications as any) || {};
+        const phone = order.client?.phone || specs.clientPhone || specs.phone;
         if (!phone) {
+            console.warn(`[sendOrderWhatsApp] Order ${id} has no client phone.`);
             return { success: false, reason: 'El cliente no tiene teléfono configurado' };
         }
 
-        const specs = (order.specifications as any) || {};
         const prefix = order.type === 'REPAIR' ? 'REP' : (order.type === 'MANUFACTURE' ? 'FAB' : (order.type === 'LAYAWAY' ? 'APT' : 'PED'));
         const orderCode = specs.orderCode || `${prefix}-${order.id.substring(0, 6).toUpperCase()}`;
-        const clientName = (order.client?.name || 'Cliente').toUpperCase();
+        const clientName = (order.client?.name || specs.clientName || 'Cliente').toUpperCase();
         const formatDate = (date?: Date | string | null) => {
             const d = date ? new Date(date) : new Date();
             return d.toLocaleDateString('es-MX', {
@@ -610,24 +618,24 @@ export class OrdersService {
             return s.replace(/_/g, ' ');
         };
 
-        const statusLabel = getStatusLabel(order.status);
+        const rawStatus = order.status || (order as any).stage || 'RECIBIDO';
+        const statusLabel = getStatusLabel(rawStatus);
         const isReceived = statusLabel === 'RECIBIDO';
         const isReady = statusLabel === 'TERMINADO' || statusLabel === 'LISTO';
-        const isDelivered = statusLabel === 'ENTREGADO';
+
+        // Regla: Solo los estatus RECIBIDO y TERMINADO envían WhatsApp
+        if (!isReceived && !isReady) {
+            console.log(`[sendOrderWhatsApp] Omitido: solo los estatus RECIBIDO y TERMINADO envían WhatsApp. Estatus actual: ${statusLabel}`);
+            return { success: false, reason: 'Solo los estatus RECIBIDO y TERMINADO envían WhatsApp' };
+        }
 
         const trackToken = generateTrackToken(order.id);
         const trackingUrl = `https://luxuryos.pitayacode.io/track/${trackToken}`;
+        // En WhatsApp siempre enviamos el código QR para escaneo directo y seguimiento
+        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`;
 
         let message = '';
         if (isReceived) {
-            const settings = await this.prisma.setting.findMany({ where: { tenantId } });
-            const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
-            const codeType = map['label_code_type'] || 'BARCODE';
-
-            const codeImageUrl = codeType === 'QR'
-                ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
-                : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
-
             message = `🔔 *CARED* 🔔
 
 *Fecha:* ${dateStr}
@@ -639,18 +647,10 @@ export class OrdersService {
 🌐 *Ver seguimiento en línea:*
 ${trackingUrl}
 
-${codeImageUrl}
+${qrImageUrl}
 
 Gracias por su preferencia. ✨`;
         } else if (isReady) {
-            const settings = await this.prisma.setting.findMany({ where: { tenantId } });
-            const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
-            const codeType = map['label_code_type'] || 'BARCODE';
-
-            const codeImageUrl = codeType === 'QR'
-                ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
-                : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
-
             message = `🔔 *CARED* 🔔
 
 *Fecha:* ${dateStr}
@@ -659,32 +659,17 @@ Gracias por su preferencia. ✨`;
 *Concepto:* ${getConcepto(order.type)}
 *Status:* ${statusLabel}
 
-${codeImageUrl}
+🌐 *Ver seguimiento en línea:*
+${trackingUrl}
 
-Gracias por su preferencia. ✨`;
-        } else if (isDelivered) {
-            const deliveryDateStr = formatDate(order.deliveredAt);
+${qrImageUrl}
 
-            message = `🔔 *CARED* 🔔
-
-*Fecha:* ${dateStr}
-*Cliente:* ${clientName}
-*No. Orden:* ${orderCode}
-*Concepto:* ${getConcepto(order.type)}
-*Status:* ${statusLabel}
-*Fecha Entrega:* ${deliveryDateStr}
-
-Gracias por su preferencia. ✨`;
-        } else {
-            // Intermediate/Other statuses (e.g. EN TALLER)
-            message = `🔔 *CARED* 🔔
-
-*No. Orden:* ${orderCode}
-*Concepto:* ${getConcepto(order.type)}
-*Status:* ${statusLabel}`;
+Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
         }
 
-        const success = await this.notificationService.sendCustomMessage(tenantId, phone, message);
-        return { success };
+        console.log(`[sendOrderWhatsApp] Sending WhatsApp notification for ${orderCode} to ${phone}`);
+        const result = await this.notificationService.sendCustomMessage(tenantId, phone, message);
+        console.log(`[sendOrderWhatsApp] Result for ${orderCode}:`, result);
+        return result;
     }
 }

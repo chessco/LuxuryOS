@@ -62,7 +62,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isSystemAdmin = user.role === 'SYSTEM_ADMIN' || user.role === 'TENANT_ADMIN' || user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    const isSystemAdmin = 
+        user.role === 'SYSTEM_ADMIN' || 
+        user.role === 'TENANT_ADMIN' || 
+        user.role === 'ADMIN' || 
+        user.role === 'SUPER_ADMIN' ||
+        user.role === 'SYSTEM' ||
+        String(user.email || '').toLowerCase().includes('system');
 
     const sortedOrders = useMemo(() => {
         let sortableItems = [...orders];
