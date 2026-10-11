@@ -854,57 +854,6 @@ const OrderDetail: React.FC = () => {
                 </div>
             )}
 
-            {/* Envelope / Reference Photos Section */}
-            {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && (
-                <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors mb-10">
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-3">
-                            <span className="material-symbols-outlined text-amber-600 dark:text-amber-500 transition-colors">photo_library</span>
-                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Fotos del Sobre y Referencia</h3>
-                        </div>
-                        <button
-                            onClick={() => envelopeFileInputRef.current?.click()}
-                            className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm"
-                        >
-                            <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
-                            Agregar Foto
-                        </button>
-                        <input
-                            type="file"
-                            ref={envelopeFileInputRef}
-                            onChange={handleEnvelopeImageUpload}
-                            className="hidden"
-                            accept="image/*"
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                        {order.specifications?.envelopeImages?.map((img: string, idx: number) => (
-                            <div key={idx} className="aspect-square bg-muted rounded-2xl border border-border overflow-hidden relative group/img transition-colors">
-                                <img src={img} className="w-full h-full object-cover transition-transform group-hover/img:scale-110" alt={`Sobre ${idx}`} />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                    <button
-                                        onClick={() => handleRemoveEnvelopeImage(idx)}
-                                        className="size-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100"
-                                    >
-                                        <span className="material-symbols-outlined">delete</span>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                        {(!order.specifications?.envelopeImages || order.specifications.envelopeImages.length === 0) && (
-                            <div
-                                onClick={() => envelopeFileInputRef.current?.click()}
-                                className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground/30 hover:text-muted-foreground/60 hover:border-indigo-500/30 transition-all cursor-pointer group"
-                                >
-                                <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">add_a_photo</span>
-                                <span className="text-[8px] font-black uppercase tracking-widest">Sin fotos</span>
-                            </div>
-                        )}
-                    </div>
-                </section>
-            )}
-
             {/* Bottom Row: Estado del Pago (izquierda), Notas del Pedido (centro), Actividad Reciente (derecha) */}
             <div className={`grid grid-cols-1 ${canViewPayments && isAuthorized ? 'lg:grid-cols-3' : (canViewPayments || isAuthorized ? 'lg:grid-cols-2' : 'lg:grid-cols-1')} gap-10`}>
                 {/* 1. Estado del Pago (Oculto para Joyeros y roles sin permiso de pagos) */}
@@ -1004,6 +953,57 @@ const OrderDetail: React.FC = () => {
                     </section>
                 )}
             </div>
+
+            {/* Envelope / Reference Photos Section */}
+            {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && (
+                <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors mt-10">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-3">
+                            <span className="material-symbols-outlined text-amber-600 dark:text-amber-500 transition-colors">photo_library</span>
+                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Fotos del Sobre y Referencia</h3>
+                        </div>
+                        <button
+                            onClick={() => envelopeFileInputRef.current?.click()}
+                            className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
+                            Agregar Foto
+                        </button>
+                        <input
+                            type="file"
+                            ref={envelopeFileInputRef}
+                            onChange={handleEnvelopeImageUpload}
+                            className="hidden"
+                            accept="image/*"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                        {order.specifications?.envelopeImages?.map((img: string, idx: number) => (
+                            <div key={idx} className="aspect-square bg-muted rounded-2xl border border-border overflow-hidden relative group/img transition-colors">
+                                <img src={img} className="w-full h-full object-cover transition-transform group-hover/img:scale-110" alt={`Sobre ${idx}`} />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                    <button
+                                        onClick={() => handleRemoveEnvelopeImage(idx)}
+                                        className="size-10 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100"
+                                    >
+                                        <span className="material-symbols-outlined">delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        {(!order.specifications?.envelopeImages || order.specifications.envelopeImages.length === 0) && (
+                            <div
+                                onClick={() => envelopeFileInputRef.current?.click()}
+                                className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground/30 hover:text-muted-foreground/60 hover:border-indigo-500/30 transition-all cursor-pointer group"
+                                >
+                                <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform">add_a_photo</span>
+                                <span className="text-[8px] font-black uppercase tracking-widest">Sin fotos</span>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
 
             {/* Stats Grid */}
             {isJoyero ? (
