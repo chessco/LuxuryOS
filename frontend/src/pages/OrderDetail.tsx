@@ -14,7 +14,16 @@ import { RBACService } from '../services/rbac.service';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const user = RBACService.getCurrentUser();
+    const user = React.useMemo(() => {
+        try {
+            const raw = localStorage.getItem('user');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') return parsed;
+            }
+        } catch {}
+        return RBACService.getCurrentUser();
+    }, []);
     const [order, setOrder] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -465,13 +474,24 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    const isJoyero = RBACService.getEffectiveRole(user) === 'JOYERO';
+    const userRoleUpper = String(user?.role || '').toUpperCase();
+    const userEmailLower = String(user?.email || '').toLowerCase();
+    const userNameLower = String(user?.name || '').toLowerCase();
+
+    const isJoyero =
+        userRoleUpper === 'JOYERO' ||
+        userRoleUpper.includes('JOYER') ||
+        userEmailLower.includes('joyero') ||
+        userNameLower.includes('joyero') ||
+        RBACService.getEffectiveRole(user) === 'JOYERO';
+
     const canViewPayments = !isJoyero && RBACService.hasPermission('view_payments', user);
     const canRegisterPayments = !isJoyero && RBACService.hasPermission('register_payments', user);
     const canViewLaborCost = RBACService.hasPermission('view_labor_cost', user);
-    const canViewCostsMargins = RBACService.hasPermission('view_costs_margins', user);
+    const canViewCostsMargins = !isJoyero && RBACService.hasPermission('view_costs_margins', user);
     const canViewClientContact = !isJoyero && RBACService.hasPermission('view_client_contact', user);
     const canViewEnvelope = RBACService.hasPermission('view_envelope_photos', user);
+    const canViewTotals = !isJoyero && canViewPayments;
 
     const statusUpper = String(order.status || order.orderStatus || '').toUpperCase();
     const stageUpper = String(order.stage || '').toUpperCase();
@@ -1006,22 +1026,26 @@ const OrderDetail: React.FC = () => {
             )}
 
             {/* Stats Grid */}
-            {isJoyero ? (
+            {(isJoyero || !canViewTotals) ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10 mb-10">
-                    <StatCard 
-                        label="Mano de Obra" 
-                        value={Number(order.laborCost || 0).toLocaleString() + ' MXN'} 
-                        subtext="Trabajo de Taller" 
-                        icon="handyman" 
-                        color="text-amber-500" 
-                    />
-                    <StatCard 
-                        label="Comisión" 
-                        value={Number(order.commission || 0).toLocaleString() + ' MXN'} 
-                        subtext="Comisión asignada" 
-                        icon="paid" 
-                        color="text-emerald-500" 
-                    />
+                    {canViewLaborCost && (
+                        <>
+                            <StatCard 
+                                label="Mano de Obra" 
+                                value={Number(order.laborCost || 0).toLocaleString() + ' MXN'} 
+                                subtext="Trabajo de Taller" 
+                                icon="handyman" 
+                                color="text-amber-500" 
+                            />
+                            <StatCard 
+                                label="Comisión" 
+                                value={Number(order.commission || 0).toLocaleString() + ' MXN'} 
+                                subtext="Comisión asignada" 
+                                icon="paid" 
+                                color="text-emerald-500" 
+                            />
+                        </>
+                    )}
                     <StatCard
                         label="Entrega"
                         value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
@@ -1041,18 +1065,22 @@ const OrderDetail: React.FC = () => {
                 </div>
             ) : (
                 <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${user.role === 'VENDEDOR' ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4 mt-10 mb-10`}>
-                    <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('totalAmount', v) : undefined} subtext="Venta" icon="payments" color="text-foreground" />
-                    <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
-                    <StatCard 
-                        label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
-                        value={Math.abs(Number(order.balance || 0)).toLocaleString() + ' MXN'} 
-                        subtext={order.balance < 0 ? "Cliente tiene crédito" : "Pendiente de liquidar"} 
-                        icon={order.balance < 0 ? "account_balance" : "pending_actions"} 
-                        color={order.balance < 0 ? "text-emerald-500" : "text-amber-500"} 
-                        alert={order.balance > 0 ? "priority_high" : undefined} 
-                        alertColor="text-amber-500" 
-                    />
-                    {user.role !== 'VENDEDOR' && (
+                    {canViewTotals && (
+                        <>
+                            <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('totalAmount', v) : undefined} subtext="Venta" icon="payments" color="text-foreground" />
+                            <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
+                            <StatCard 
+                                label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
+                                value={Math.abs(Number(order.balance || 0)).toLocaleString() + ' MXN'} 
+                                subtext={order.balance < 0 ? "Cliente tiene crédito" : "Pendiente de liquidar"} 
+                                icon={order.balance < 0 ? "account_balance" : "pending_actions"} 
+                                color={order.balance < 0 ? "text-emerald-500" : "text-amber-500"} 
+                                alert={order.balance > 0 ? "priority_high" : undefined} 
+                                alertColor="text-amber-500" 
+                            />
+                        </>
+                    )}
+                    {user.role !== 'VENDEDOR' && canViewCostsMargins && (
                         <>
                             <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
                             <StatCard label="Margen" value={(parseValue(order.totalAmount) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />

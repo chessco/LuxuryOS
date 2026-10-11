@@ -155,7 +155,7 @@ export class RBACService {
         if (role === 'TENANT_ADMIN' || role === 'ADMIN' || email.includes('admin@')) {
             return 'TENANT_ADMIN';
         }
-        if (role === 'JOYERO' || email.includes('joyero') || name.includes('joyero')) {
+        if (role === 'JOYERO' || role.includes('JOYER') || email.includes('joyero') || name.includes('joyero')) {
             return 'JOYERO';
         }
         if (role === 'VENDEDOR' || email.includes('ventas') || email.includes('vendedor')) {
@@ -167,7 +167,10 @@ export class RBACService {
     static getCurrentUser(): any {
         try {
             const raw = localStorage.getItem('user');
-            if (raw) return JSON.parse(raw);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') return parsed;
+            }
         } catch {}
         try {
             const token = localStorage.getItem('token');
