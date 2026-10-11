@@ -80,7 +80,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         const dateStr = formatDate(order.createdAt);
 
         const statusLabel = getStatusLabel(order.status);
-        const isReceived = statusLabel === 'RECIBIDO';
+        const isReceived = statusLabel === 'RECIBIDO' || statusLabel === 'APARTADO';
         const isReady = statusLabel === 'TERMINADO' || statusLabel === 'LISTO';
         const isDelivered = statusLabel === 'ENTREGADO';
         const trackToken = getTrackToken(order.id);

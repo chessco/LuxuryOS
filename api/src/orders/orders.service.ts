@@ -622,13 +622,13 @@ export class OrdersService {
 
         const rawStatus = order.status || (order as any).stage || 'RECIBIDO';
         const statusLabel = getStatusLabel(rawStatus);
-        const isReceived = statusLabel === 'RECIBIDO';
+        const isReceived = statusLabel === 'RECIBIDO' || statusLabel === 'APARTADO';
         const isReady = statusLabel === 'TERMINADO' || statusLabel === 'LISTO';
 
-        // Regla: Solo los estatus RECIBIDO y TERMINADO envían WhatsApp
+        // Regla: Solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp
         if (!isReceived && !isReady) {
-            console.log(`[sendOrderWhatsApp] Omitido: solo los estatus RECIBIDO y TERMINADO envían WhatsApp. Estatus actual: ${statusLabel}`);
-            return { success: false, reason: 'Solo los estatus RECIBIDO y TERMINADO envían WhatsApp' };
+            console.log(`[sendOrderWhatsApp] Omitido: solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp. Estatus actual: ${statusLabel}`);
+            return { success: false, reason: 'Solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp' };
         }
 
         const trackToken = generateTrackToken(order.id);
