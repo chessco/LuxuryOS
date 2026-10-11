@@ -637,9 +637,9 @@ export class OrdersService {
         const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
         const codeType = map['label_code_type'] || 'BARCODE';
 
-        // Usamos el código de orden o tracking para el código visual
+        // Usamos el enlace de tracking para el QR (para que al escanear abra el portal) y orderCode para barcode
         const qrImageUrl = codeType === 'QR'
-            ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
+            ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`
             : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
         const pieceItems: any[] = (specs.items && specs.items.length > 0)
