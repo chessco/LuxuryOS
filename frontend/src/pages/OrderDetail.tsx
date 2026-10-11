@@ -587,7 +587,85 @@ const OrderDetail: React.FC = () => {
                 </div>
             </header>
 
-            {/* 1. Detalle de Piezas (Maestro - Detalle Horizontal) */}
+            {/* 1. Información del Cliente (Maestro de la Orden) */}
+            <section className="bg-card border border-border rounded-[36px] p-6 sm:p-8 backdrop-blur-sm shadow-sm transition-colors mb-8">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-5">
+                        {order.avatar ? (
+                            <img src={order.avatar} className="size-20 rounded-3xl object-cover border border-border shadow-md" alt="Client" />
+                        ) : (
+                            <div className={`size-20 rounded-3xl flex items-center justify-center text-xl font-black border border-border shadow-md transition-colors ${order.initialsColor}`}>
+                                {order.initials}
+                            </div>
+                        )}
+                        <div className="space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2.5">
+                                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                    Cliente / Titular
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                    {order.client?.status || 'Activo'}
+                                </span>
+                            </div>
+                            <h2 className="text-foreground text-2xl sm:text-3xl font-black tracking-tight font-display transition-colors">
+                                {order.clientName}
+                            </h2>
+                            <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-muted-foreground">
+                                {order.client?.phone && (
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="material-symbols-outlined text-[16px] text-foreground">call</span>
+                                        {order.client.phone}
+                                    </span>
+                                )}
+                                {order.client?.email && (
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="material-symbols-outlined text-[16px] text-foreground">mail</span>
+                                        {order.client.email}
+                                    </span>
+                                )}
+                                <span className="flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-[16px] text-foreground">location_on</span>
+                                    {order.client?.location || 'México'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {!isJoyero && (
+                        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+                            {order.client?.phone && (
+                                <a
+                                    href={`https://wa.me/${String(order.client.phone).replace(/[^0-9]/g, '')}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">chat</span>
+                                    <span>WhatsApp</span>
+                                </a>
+                            )}
+                            {order.client?.phone && (
+                                <a
+                                    href={`tel:${order.client.phone}`}
+                                    className="flex items-center gap-2 bg-muted border border-border rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">call</span>
+                                    <span>Llamar</span>
+                                </a>
+                            )}
+                            <Link
+                                to={`/clients?search=${encodeURIComponent(order.clientName)}`}
+                                className="flex items-center gap-2 bg-foreground text-background rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
+                            >
+                                <span>Ver Perfil</span>
+                                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                            </Link>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* 2. Detalle de Piezas (El Detalle de la Orden) */}
             <section className="bg-card border border-border rounded-[36px] p-8 sm:p-10 backdrop-blur-sm shadow-sm transition-colors mb-10">
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
@@ -739,47 +817,10 @@ const OrderDetail: React.FC = () => {
                 </div>
             </section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                {/* Left Column: Client Info & Payment Status */}
-                <div className="lg:col-span-4 space-y-10">
-                    {/* Client Info */}
-                    <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Cliente</h3>
-                            {!isJoyero && (
-                                <Link
-                                    to={`/clients?search=${encodeURIComponent(order.clientName)}`}
-                                    className="text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:underline transition-colors"
-                                >
-                                    Ver Perfil <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                                </Link>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-4 mb-8">
-                            {order.avatar ? (
-                                <img src={order.avatar} className="size-16 rounded-2xl object-cover grayscale opacity-80" alt="Client" />
-                            ) : (
-                                <div className={`size-16 rounded-2xl flex items-center justify-center text-xs font-black border border-border shadow-lg transition-colors ${order.initialsColor}`}>{order.initials}</div>
-                            )}
-                            <div>
-                                <h4 className="text-foreground font-bold text-lg transition-colors">{order.clientName}</h4>
-                                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1 transition-colors">{order.client?.status || 'Activo'} • {order.client?.location || 'MÉXICO'}</p>
-                            </div>
-                        </div>
-                        {!isJoyero && (
-                            <div className="grid grid-cols-2 gap-3">
-                                <button className="flex items-center justify-center gap-2 bg-muted border border-border rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm transition-colors">
-                                    <span className="material-symbols-outlined text-[18px]">mail</span> Email
-                                </button>
-                                <button className="flex items-center justify-center gap-2 bg-muted border border-border rounded-xl py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm transition-colors">
-                                    <span className="material-symbols-outlined text-[18px]">call</span> Llamar
-                                </button>
-                            </div>
-                        )}
-                    </section>
-
-                    {/* Payment Status (Hidden for Joyeros) */}
-                    {!isJoyero && (
+            <div className={!isJoyero ? "grid grid-cols-1 lg:grid-cols-12 gap-10" : "space-y-10"}>
+                {/* Left Column: Payment Status (Hidden for Joyeros) */}
+                {!isJoyero && (
+                    <div className="lg:col-span-4 space-y-10">
                         <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors">
                             <div className="flex items-center justify-between mb-8">
                                 <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Estado del Pago</h3>
@@ -830,8 +871,8 @@ const OrderDetail: React.FC = () => {
                                 </button>
                             </div>
                         </section>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Right Column: Flow, Notes & Activity */}
                 <div className="lg:col-span-8 space-y-10">
