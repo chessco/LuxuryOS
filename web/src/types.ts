@@ -14,6 +14,8 @@ export enum OrderType {
     STANDARD = 'STANDARD',
     REPAIR = 'REPAIR',
     MANUFACTURE = 'MANUFACTURE',
+    DESIGN = 'DESIGN',
+    LASER = 'LASER',
     LAYAWAY = 'LAYAWAY'
 }
 

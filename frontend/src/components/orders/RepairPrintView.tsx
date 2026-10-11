@@ -69,7 +69,9 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                         <div className="flex justify-between items-start mb-8 border-b-2 border-zinc-300 pb-4">
                             <div className="flex-1"></div>
                             <div className="flex-1 text-center">
-                                <h2 className="text-2xl font-black uppercase tracking-[0.2em]">REPARACIÓN</h2>
+                                <h2 className="text-2xl font-black uppercase tracking-[0.2em]">
+                                    {order.type === 'MANUFACTURE' ? 'FABRICACIÓN' : order.type === 'DESIGN' ? 'DISEÑO' : order.type === 'LASER' ? 'LÁSER' : 'REPARACIÓN'}
+                                </h2>
                             </div>
                             <div className="flex-1 text-right flex items-end justify-end gap-2">
                                 <span className="text-sm font-bold">Fecha</span>

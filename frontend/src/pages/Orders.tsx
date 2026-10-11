@@ -74,8 +74,9 @@ const Orders: React.FC = () => {
 
     const boardColumns = orderType === 'REPAIR' ? REPAIR_COLUMNS :
         orderType === 'MANUFACTURE' ? MANUFACTURE_COLUMNS :
-            orderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
-                STANDARD_COLUMNS;
+            (orderType === 'DESIGN' || orderType === 'LASER') ? REPAIR_COLUMNS :
+                orderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
+                    STANDARD_COLUMNS;
 
     const user = React.useMemo(() => {
         try {
@@ -267,7 +268,14 @@ const Orders: React.FC = () => {
                 <div className="flex flex-col gap-6">
                     <div className="flex flex-wrap justify-between items-center gap-4">
                         <div className="flex flex-col gap-1">
-                            <h2 className="text-foreground text-3xl font-black tracking-tight font-display transition-colors">Tablero de Pedidos (MXN)</h2>
+                            <h2 className="text-foreground text-3xl font-black tracking-tight font-display transition-colors">
+                                {orderType === 'REPAIR' ? 'Tablero de Reparaciones (MXN)' :
+                                    orderType === 'MANUFACTURE' ? 'Tablero de Fabricación (MXN)' :
+                                        orderType === 'DESIGN' ? 'Tablero de Diseño (MXN)' :
+                                            orderType === 'LASER' ? 'Tablero de Láser (MXN)' :
+                                                orderType === 'LAYAWAY' ? 'Tablero de Sistema de Apartado (MXN)' :
+                                                    'Tablero de Pedidos (MXN)'}
+                            </h2>
                             <p className="text-muted-foreground text-sm transition-colors">Gestión visual del flujo de producción y ventas</p>
                         </div>
                         <div className="flex items-center gap-4">
@@ -294,7 +302,14 @@ const Orders: React.FC = () => {
                                 className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
                             >
                                 <span className="material-symbols-outlined text-[20px]">add</span>
-                                <span>Nuevo Pedido</span>
+                                <span>
+                                    {orderType === 'REPAIR' ? 'Nueva Reparación' :
+                                        orderType === 'MANUFACTURE' ? 'Nueva Fabricación' :
+                                            orderType === 'DESIGN' ? 'Nuevo Diseño' :
+                                                orderType === 'LASER' ? 'Nuevo Láser' :
+                                                    orderType === 'LAYAWAY' ? 'Nuevo Apartado' :
+                                                        'Nuevo Pedido'}
+                                </span>
                             </button>
                         </div>
                     </div>

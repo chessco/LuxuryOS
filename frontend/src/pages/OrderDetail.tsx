@@ -606,7 +606,7 @@ const OrderDetail: React.FC = () => {
                             <span className="material-symbols-outlined text-[20px]">print</span>
                             <span>Visualizar Sobre</span>
                         </button>
-                        {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && order.status !== 'REPAIR_COMPLETED' && order.status !== 'READY_FOR_PICKUP' && order.status !== 'DELIVERED' && (
+                        {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === OrderType.DESIGN || order.type === OrderType.LASER || order.type === 'DESIGN' || order.type === 'LASER' || order.type === 'MANUFACTURE') && order.status !== 'REPAIR_COMPLETED' && order.status !== 'READY_FOR_PICKUP' && order.status !== 'DELIVERED' && (
                             <button
                                 onClick={() => handleSaveDetails({ status: (order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED' })}
                                 className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
@@ -739,7 +739,7 @@ const OrderDetail: React.FC = () => {
 
                 <div className="space-y-6">
                     {(order.specifications?.items || [{
-                        item: order.pieceType || order.item || (order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería'),
+                        item: order.pieceType || order.item || (order.type === 'DESIGN' ? 'Diseño de Joya' : order.type === 'LASER' ? 'Grabado / Corte Láser' : order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería'),
                         metal: order.metal || order.specifications?.metal,
                         color: order.color || order.specifications?.color,
                         karats: order.karats || order.specifications?.karats,
@@ -796,7 +796,7 @@ const OrderDetail: React.FC = () => {
                                                 Pieza #{idx + 1}
                                             </span>
                                             <h4 className="text-foreground text-xl sm:text-2xl font-black uppercase tracking-tight truncate font-display">
-                                                {piece.item || (order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
+                                                {piece.item || (order.type === 'DESIGN' ? 'Diseño de Joya' : order.type === 'LASER' ? 'Grabado / Corte Láser' : order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
                                             </h4>
                                             {piece.itemCode && (
                                                 <span className="text-muted-foreground text-xs font-mono font-bold bg-muted px-2.5 py-1 rounded-lg border border-border">
@@ -866,7 +866,7 @@ const OrderDetail: React.FC = () => {
             {/* Dynamic Operational Panel - Only for System & Admin */}
             {isAuthorized && (
                 <div className="space-y-10 mb-10">
-                    {order.type === OrderType.REPAIR && (
+                    {(order.type === OrderType.REPAIR || order.type === OrderType.DESIGN || order.type === OrderType.LASER || order.type === 'DESIGN' || order.type === 'LASER') && (
                         <RepairPanel order={order} onUpdateStatus={handleSaveDetails} />
                     )}
                     {order.type === OrderType.MANUFACTURE && (
@@ -976,7 +976,7 @@ const OrderDetail: React.FC = () => {
             </div>
 
             {/* Envelope / Reference Photos Section */}
-            {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && (
+            {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === OrderType.DESIGN || order.type === OrderType.LASER || order.type === 'DESIGN' || order.type === 'LASER' || order.type === 'MANUFACTURE') && (
                 <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors mt-10">
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center gap-3">

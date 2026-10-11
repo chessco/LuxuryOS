@@ -18,7 +18,7 @@ type SortConfig = {
 const getStatusOptions = (orderType: string, currentStatus?: string) => {
     const type = (orderType || 'STANDARD').toUpperCase();
     let opts: { value: string; label: string }[] = [];
-    if (type === 'REPAIR') {
+    if (type === 'REPAIR' || type === 'DESIGN' || type === 'LASER') {
         opts = [
             { value: 'RECEIVED', label: 'RECIBIDO' },
             { value: 'IN_REPAIR', label: 'EN TALLER' },

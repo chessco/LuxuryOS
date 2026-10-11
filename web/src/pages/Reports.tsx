@@ -42,7 +42,7 @@ interface OrderItem {
 }
 
 type DateFilterPreset = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
-type OrderTypeFilter = 'ALL' | 'REPAIR' | 'MANUFACTURE' | 'LAYAWAY';
+type OrderTypeFilter = 'ALL' | 'REPAIR' | 'MANUFACTURE' | 'DESIGN' | 'LASER' | 'LAYAWAY';
 
 // Helper to get local date in YYYY-MM-DD format (prevents UTC timezone shift bug)
 const getLocalDateString = (d: Date = new Date()): string => {
@@ -427,7 +427,9 @@ export const Reports: React.FC = () => {
                             {[
                                 { id: 'ALL', label: 'Todas las Órdenes' },
                                 { id: 'REPAIR', label: 'Reparaciones' },
-                                { id: 'MANUFACTURE', label: 'Fabricación' }
+                                { id: 'MANUFACTURE', label: 'Fabricación' },
+                                { id: 'DESIGN', label: 'Diseño' },
+                                { id: 'LASER', label: 'Láser' }
                             ].map(tab => (
                                 <button
                                     key={tab.id}

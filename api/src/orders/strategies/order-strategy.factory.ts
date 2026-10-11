@@ -18,6 +18,8 @@ export class OrderStrategyFactory {
     getStrategy(type: OrderType): OrderStrategy {
         switch (type) {
             case OrderType.REPAIR:
+            case OrderType.DESIGN:
+            case OrderType.LASER:
                 return this.repairStrategy;
             case OrderType.MANUFACTURE:
                 return this.manufactureStrategy;

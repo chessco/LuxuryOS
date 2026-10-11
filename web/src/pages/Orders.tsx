@@ -107,6 +107,8 @@ export const formatOrderCode = (order: any, seqIndex?: number) => {
     let prefix = 'PED';
     if (t === 'REPAIR') prefix = 'REP';
     else if (t === 'MANUFACTURE') prefix = 'FAB';
+    else if (t === 'DESIGN') prefix = 'DIS';
+    else if (t === 'LASER') prefix = 'LAS';
     else if (t === 'LAYAWAY') prefix = 'APT';
 
     let rawCode = order.orderCode || order.specifications?.orderCode || '';
@@ -141,6 +143,7 @@ const Orders: React.FC = () => {
     const boardColumns = React.useMemo(() => {
         let base = orderType === 'REPAIR' ? REPAIR_COLUMNS :
             orderType === 'MANUFACTURE' ? MANUFACTURE_COLUMNS :
+            (orderType === 'DESIGN' || orderType === 'LASER') ? REPAIR_COLUMNS :
                 orderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
                     STANDARD_COLUMNS;
         if (activeFilter === 'Entregados') {
@@ -219,7 +222,7 @@ const Orders: React.FC = () => {
             rawOrders.forEach(o => {
                 const t = (o.type || 'STANDARD').toUpperCase();
                 typeCounters[t] = (typeCounters[t] || 0) + 1;
-                const prefix = t === 'REPAIR' ? 'REP' : (t === 'MANUFACTURE' ? 'FAB' : (t === 'LAYAWAY' ? 'APT' : 'PED'));
+                const prefix = t === 'REPAIR' ? 'REP' : (t === 'MANUFACTURE' ? 'FAB' : (t === 'DESIGN' ? 'DIS' : (t === 'LASER' ? 'LAS' : (t === 'LAYAWAY' ? 'APT' : 'PED'))));
                 const seqNum = typeCounters[t];
 
                 let existingCode = o.specifications?.orderCode || o.orderCode;
@@ -390,7 +393,7 @@ const Orders: React.FC = () => {
                 margin: 0,
                 priority: newOrder.priority === 'Alta' ? 'ALTA' : (newOrder.priority === 'Baja' ? 'BAJA' : 'MEDIA'),
                 clientId: selectedClient.id,
-                stage: (orderType === 'REPAIR' || orderType === 'MANUFACTURE') ? 'RECEIVED' : 'INTERES_LEAD',
+                stage: (orderType === 'REPAIR' || orderType === 'MANUFACTURE' || orderType === 'DESIGN' || orderType === 'LASER') ? 'RECEIVED' : 'INTERES_LEAD',
                 type: (orderType || 'STANDARD').toUpperCase() as any,
                 promisedAt: newOrder.promisedDate ? new Date(newOrder.promisedDate) : undefined,
                 // New Fields in UPPERCASE
@@ -596,6 +599,10 @@ const Orders: React.FC = () => {
         ? 'Tablero de Reparaciones'
         : orderType === 'MANUFACTURE'
         ? 'Tablero de Fabricación'
+        : orderType === 'DESIGN'
+        ? 'Tablero de Diseño'
+        : orderType === 'LASER'
+        ? 'Tablero de Láser'
         : orderType === 'LAYAWAY'
         ? 'Tablero de Apartados'
         : 'Tablero de Pedidos';
@@ -604,6 +611,10 @@ const Orders: React.FC = () => {
         ? 'Gestión visual del flujo de reparación y servicio'
         : orderType === 'MANUFACTURE'
         ? 'Gestión visual del flujo de fabricación personalizada'
+        : orderType === 'DESIGN'
+        ? 'Gestión visual del flujo de modelado y diseño personalizado'
+        : orderType === 'LASER'
+        ? 'Gestión visual del flujo de grabado y corte láser'
         : orderType === 'LAYAWAY'
         ? 'Gestión visual del flujo de apartados y liquidación'
         : 'Gestión visual del flujo de producción y ventas';
@@ -612,6 +623,10 @@ const Orders: React.FC = () => {
         ? 'Nueva Reparación'
         : orderType === 'MANUFACTURE'
         ? 'Nueva Fabricación'
+        : orderType === 'DESIGN'
+        ? 'Nuevo Diseño'
+        : orderType === 'LASER'
+        ? 'Nuevo Láser'
         : 'Nuevo Pedido';
 
     return (
@@ -1002,7 +1017,7 @@ const NewOrderDrawer: React.FC<{
                     <div>
                         <div className="flex items-center gap-2">
                             <h2 className="text-foreground text-xl font-black uppercase tracking-widest font-display">
-                                {orderType === 'REPAIR' ? 'Nueva Reparación' : orderType === 'MANUFACTURE' ? 'Nueva Fabricación' : 'Nuevo Pedido'}
+                                {orderType === 'REPAIR' ? 'Nueva Reparación' : orderType === 'MANUFACTURE' ? 'Nueva Fabricación' : orderType === 'DESIGN' ? 'Nuevo Diseño' : orderType === 'LASER' ? 'Nuevo Láser' : 'Nuevo Pedido'}
                             </h2>
                             {ticketCode && (
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
@@ -1011,7 +1026,7 @@ const NewOrderDrawer: React.FC<{
                             )}
                         </div>
                         <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest mt-1.5">
-                            {orderType === 'REPAIR' ? 'Alta Técnica de Reparación' : orderType === 'MANUFACTURE' ? 'Alta Técnica de Fabricación' : 'Registro Técnico de Joyería'}
+                            {orderType === 'REPAIR' ? 'Alta Técnica de Reparación' : orderType === 'MANUFACTURE' ? 'Alta Técnica de Fabricación' : orderType === 'DESIGN' ? 'Alta Técnica de Diseño' : orderType === 'LASER' ? 'Alta Técnica de Grabado Láser' : 'Registro Técnico de Joyería'}
                         </p>
                     </div>
                 </div>
@@ -1558,7 +1573,7 @@ const NewOrderDrawer: React.FC<{
                         onClick={() => setShouldPrintLabel(false)}
                         className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95"
                     >
-                        {orderType === 'REPAIR' ? 'Registrar Reparación' : orderType === 'MANUFACTURE' ? 'Registrar Fabricación' : 'Crear Pedido'}
+                        {orderType === 'REPAIR' ? 'Registrar Reparación' : orderType === 'MANUFACTURE' ? 'Registrar Fabricación' : orderType === 'DESIGN' ? 'Registrar Diseño' : orderType === 'LASER' ? 'Registrar Láser' : 'Crear Pedido'}
                     </button>
                 </div>
             </motion.div>

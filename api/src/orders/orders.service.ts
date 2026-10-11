@@ -89,7 +89,7 @@ export class OrdersService {
         if (!order) throw new NotFoundException('Pedido no encontrado');
         if (order.tenantId !== tenantId) throw new ForbiddenException('No tienes permiso para mover este pedido');
 
-        const usesStatus = order.type === 'REPAIR' || order.type === 'MANUFACTURE' || order.type === 'LAYAWAY';
+        const usesStatus = order.type === 'REPAIR' || order.type === 'MANUFACTURE' || (order.type as string) === 'DESIGN' || (order.type as string) === 'LASER' || order.type === 'LAYAWAY';
         const validTargets: string[] = usesStatus ? Object.values(OrderStatus) : Object.values(OrderStage);
         if (typeof toStage !== 'string' || !validTargets.includes(toStage)) {
             throw new BadRequestException('Estado destino inválido');
@@ -175,7 +175,7 @@ export class OrdersService {
             where: { tenantId, type }
         });
         const sequence = count + 1;
-        const prefix = type === 'REPAIR' ? 'REP' : (type === 'MANUFACTURE' ? 'FAB' : (type === 'LAYAWAY' ? 'APT' : 'PED'));
+        const prefix = type === 'REPAIR' ? 'REP' : (type === 'MANUFACTURE' ? 'FAB' : (type === 'DESIGN' ? 'DIS' : (type === 'LASER' ? 'LAS' : (type === 'LAYAWAY' ? 'APT' : 'PED'))));
         const orderCode = `${prefix}-${sequence}`;
 
         const specifications = {
@@ -580,6 +580,8 @@ export class OrdersService {
             const t = (type || '').toUpperCase();
             if (t === 'REPAIR') return 'REPARACIÓN';
             if (t === 'MANUFACTURE') return 'FABRICACIÓN';
+            if (t === 'DESIGN') return 'DISEÑO';
+            if (t === 'LASER') return 'LÁSER';
             if (t === 'LAYAWAY') return 'APARTADO';
             return 'VENTA';
         };

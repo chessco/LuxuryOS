@@ -17,7 +17,7 @@ type SortConfig = {
 
 const getStatusOptions = (orderType: string) => {
     const type = (orderType || 'STANDARD').toUpperCase();
-    if (type === 'REPAIR') {
+    if (type === 'REPAIR' || type === 'DESIGN' || type === 'LASER') {
         return [
             { value: 'RECEIVED', label: 'RECIBIDO' },
             { value: 'IN_REPAIR', label: 'EN TALLER' },

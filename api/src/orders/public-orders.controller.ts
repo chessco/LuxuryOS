@@ -204,6 +204,8 @@ export class PublicOrdersController {
             const t = (type || '').toUpperCase();
             if (t === 'REPAIR') return 'REPARACIÓN';
             if (t === 'MANUFACTURE') return 'FABRICACIÓN';
+            if (t === 'DESIGN') return 'DISEÑO';
+            if (t === 'LASER') return 'LÁSER';
             if (t === 'LAYAWAY') return 'APARTADO';
             return 'VENTA';
         };

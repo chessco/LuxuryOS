@@ -509,7 +509,7 @@ const OrderDetail: React.FC = () => {
     const promisedLabel = order.promisedAt
         ? fmtDate(order.promisedAt)
         : (order.specifications?.promisedDate || (order.dueDate ? fmtDate(order.dueDate) : 'Sin fecha'));
-    const isWorkshopOrder = order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE';
+    const isWorkshopOrder = order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === OrderType.DESIGN || order.type === OrderType.LASER || order.type === 'DESIGN' || order.type === 'LASER' || order.type === 'MANUFACTURE';
     const isFinishedStatus = ['DELIVERED', 'REPAIR_COMPLETED', 'READY_FOR_PICKUP'].includes(order.status);
     const readyByLabel = order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName
         || (isFinishedStatus && isWorkshopOrder ? 'Joyero' : null);
@@ -749,7 +749,7 @@ const OrderDetail: React.FC = () => {
 
                 <div className="space-y-6">
                     {(order.specifications?.items || [{
-                        item: order.pieceType || order.item || (order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería'),
+                        item: order.pieceType || order.item || (order.type === 'DESIGN' ? 'Diseño de Joya' : order.type === 'LASER' ? 'Grabado / Corte Láser' : order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería'),
                         metal: order.metal || order.specifications?.metal,
                         color: order.color || order.specifications?.color,
                         karats: order.karats || order.specifications?.karats,
@@ -806,7 +806,7 @@ const OrderDetail: React.FC = () => {
                                                 Pieza #{idx + 1}
                                             </span>
                                             <h4 className="text-foreground text-xl sm:text-2xl font-black uppercase tracking-tight truncate font-display">
-                                                {piece.item || (order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
+                                                {piece.item || (order.type === 'DESIGN' ? 'Diseño de Joya' : order.type === 'LASER' ? 'Grabado / Corte Láser' : order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
                                             </h4>
                                             {piece.itemCode && (
                                                 <span className="text-muted-foreground text-xs font-mono font-bold bg-muted px-2.5 py-1 rounded-lg border border-border">
@@ -876,7 +876,7 @@ const OrderDetail: React.FC = () => {
             {/* Dynamic Operational Panel - Only for System & Admin */}
             {isAuthorized && (
                 <div className="space-y-10 mb-10">
-                    {order.type === OrderType.REPAIR && (
+                    {(order.type === OrderType.REPAIR || order.type === OrderType.DESIGN || order.type === OrderType.LASER || order.type === 'DESIGN' || order.type === 'LASER') && (
                         <RepairPanel order={order} onUpdateStatus={handleSaveDetails} />
                     )}
                     {order.type === OrderType.MANUFACTURE && (
@@ -990,7 +990,7 @@ const OrderDetail: React.FC = () => {
             </div>
 
             {/* Envelope / Reference Photos Section */}
-            {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') && (
+            {(order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === OrderType.DESIGN || order.type === OrderType.LASER || order.type === 'DESIGN' || order.type === 'LASER' || order.type === 'MANUFACTURE') && (
                 <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm transition-colors mt-10">
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center gap-3">

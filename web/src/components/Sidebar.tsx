@@ -38,6 +38,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
             items: [
                 { name: 'Reparaciones', icon: 'handyman', path: '/orders?type=REPAIR' },
                 { name: 'Fabricación', icon: 'diamond', path: '/orders?type=MANUFACTURE' },
+                { name: 'Diseño', icon: 'draw', path: '/orders?type=DESIGN' },
+                { name: 'Laser', icon: 'flare', path: '/orders?type=LASER' },
                 { name: 'Apartados', icon: 'loyalty', path: '/orders?type=LAYAWAY' },
                 { name: 'Pedidos', icon: 'receipt_long', path: '/orders' },
                 { name: 'Inventario', icon: 'precision_manufacturing', path: '/inventory' },
@@ -156,7 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
 
                                     const inactiveClass = 'text-sidebar-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground';
 
-                                    const isBoardItem = item.path.includes('type=REPAIR') || item.path.includes('type=MANUFACTURE');
+                                    const isBoardItem = item.path.includes('type=REPAIR') || item.path.includes('type=MANUFACTURE') || item.path.includes('type=DESIGN') || item.path.includes('type=LASER');
 
                                     return (
                                         <div key={item.path} className="flex items-center gap-1 group/item">
@@ -184,7 +186,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                                                 <Link
                                                     to={`${item.path}&newOrder=true`}
                                                     onClick={() => onClose()}
-                                                    title={item.path.includes('type=REPAIR') ? "Alta de Reparación" : "Alta de Fabricación"}
+                                                    title={
+                                                        item.path.includes('type=REPAIR') ? "Alta de Reparación" :
+                                                        item.path.includes('type=MANUFACTURE') ? "Alta de Fabricación" :
+                                                        item.path.includes('type=DESIGN') ? "Alta de Diseño" :
+                                                        item.path.includes('type=LASER') ? "Alta de Láser" : "Crear Pedido"
+                                                    }
                                                     className="size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all shrink-0 active:scale-95"
                                                 >
                                                     <span className="material-symbols-outlined text-[18px]">add</span>
