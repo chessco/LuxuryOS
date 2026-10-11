@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ClientsService } from '../services/clients.service';
 import { useLocation } from 'react-router-dom';
+import { RBACService } from '../services/rbac.service';
 
 // Adapting Client interface for the view
 export interface Client {
@@ -25,6 +26,27 @@ export default function ClientsPage() {
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const location = useLocation();
+
+    const user = useMemo(() => {
+        try {
+            const raw = localStorage.getItem('user');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') return parsed;
+            }
+        } catch {}
+        return RBACService.getCurrentUser();
+    }, []);
+
+    const role = RBACService.getEffectiveRole(user);
+    const canViewTotalSpent = Boolean(
+        role === 'SYSTEM_ADMIN' ||
+        role === 'TENANT_ADMIN' ||
+        user?.role === 'SYSTEM_ADMIN' ||
+        user?.role === 'TENANT_ADMIN' ||
+        String(user?.email || '').toLowerCase().includes('admin') ||
+        String(user?.email || '').toLowerCase().includes('system')
+    );
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -142,13 +164,15 @@ export default function ClientsPage() {
                                 <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Cliente</th>
                                 <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Status</th>
                                 <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Ubicación / Contacto</th>
-                                <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Gastado</th>
+                                {canViewTotalSpent && (
+                                    <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Gastado</th>
+                                )}
                                 <th className="py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                             {isLoading ? (
-                                <tr><td colSpan={5} className="py-10 text-center text-muted-foreground">Cargando clientes...</td></tr>
+                                <tr><td colSpan={canViewTotalSpent ? 5 : 4} className="py-10 text-center text-muted-foreground">Cargando clientes...</td></tr>
                             ) : clients
                                 .filter(c =>
                                     (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -177,10 +201,12 @@ export default function ClientsPage() {
                                                 <span className="text-muted-foreground text-[10px] font-bold">{client.phone}</span>
                                             </div>
                                         </td>
-                                        <td className="py-4 px-6">
-                                            <p className="text-foreground font-bold text-sm">{client.totalSpent}</p>
-                                            <p className="text-muted-foreground text-[10px]">Última: {client.lastOrder}</p>
-                                        </td>
+                                        {canViewTotalSpent && (
+                                            <td className="py-4 px-6">
+                                                <p className="text-foreground font-bold text-sm">{client.totalSpent || '0 MXN'}</p>
+                                                <p className="text-muted-foreground text-[10px]">Última: {client.lastOrder || '—'}</p>
+                                            </td>
+                                        )}
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
@@ -203,7 +229,7 @@ export default function ClientsPage() {
                                 ))}
                             {!isLoading && clients.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="py-10 text-center text-muted-foreground text-sm font-medium">
+                                    <td colSpan={canViewTotalSpent ? 5 : 4} className="py-10 text-center text-muted-foreground text-sm font-medium">
                                         No hay clientes registrados.
                                     </td>
                                 </tr>

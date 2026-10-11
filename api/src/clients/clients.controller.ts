@@ -12,7 +12,7 @@ export class ClientsController {
 
     @Get()
     async getClients(@Request() req) {
-        return this.clientsService.findAll(req.user.tenantId);
+        return this.clientsService.findAll(req.user.tenantId, req.user);
     }
 
     @Post()
