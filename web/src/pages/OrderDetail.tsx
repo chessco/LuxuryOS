@@ -9,6 +9,7 @@ import { PaymentModal } from '../components/orders/PaymentModal';
 import { EditOrderModal } from '../components/orders/EditOrderModal';
 import { RepairPrintView } from '../components/orders/RepairPrintView';
 import { LabelPrintModal } from '../components/orders/LabelPrintModal';
+import { ClientWhatsAppModal } from '../components/orders/ClientWhatsAppModal';
 import { getStatusLabel, formatOrderCode } from './Orders';
 import { RBACService } from '../services/rbac.service';
 
@@ -30,6 +31,7 @@ const OrderDetail: React.FC = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
     const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
+    const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(2);
     const [notesBuffer, setNotesBuffer] = useState('');
     const [activities, setActivities] = useState<any[]>([]);
@@ -697,15 +699,14 @@ const OrderDetail: React.FC = () => {
                         {canViewClientContact && (
                             <div className="flex flex-wrap items-center gap-3">
                                 {order.client?.phone && (
-                                    <a
-                                        href={`https://wa.me/${String(order.client.phone).replace(/[^0-9]/g, '')}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsWhatsAppModalOpen(true)}
+                                        className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm cursor-pointer"
                                     >
                                         <span className="material-symbols-outlined text-[18px]">chat</span>
                                         <span>WhatsApp</span>
-                                    </a>
+                                    </button>
                                 )}
                                 {order.client?.phone && (
                                     <a
@@ -1155,6 +1156,13 @@ const OrderDetail: React.FC = () => {
                 isOpen={isLabelPrintOpen}
                 onClose={() => setIsLabelPrintOpen(false)}
                 order={order}
+            />
+
+            <ClientWhatsAppModal
+                isOpen={isWhatsAppModalOpen}
+                onClose={() => setIsWhatsAppModalOpen(false)}
+                client={order?.client}
+                orderCode={order?.orderCode}
             />
         </div>
     );
