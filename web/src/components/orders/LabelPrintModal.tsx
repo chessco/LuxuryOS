@@ -47,6 +47,19 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
     const barcodeRef = useRef<SVGSVGElement>(null);
     const [sending, setSending] = useState(false);
 
+    const pieces: any[] = order?.specifications?.items && order.specifications.items.length > 0
+        ? order.specifications.items
+        : [{
+            item: order?.pieceType || order?.item || 'PIEZA',
+            metal: order?.metal || '-',
+            color: order?.color || '-',
+            karats: order?.karats || '-',
+            weight: order?.weight || '-',
+            size: order?.size || '-',
+            thickness: order?.thickness || '-',
+            description: order?.notes || order?.description || ''
+        }];
+
     // --- Shared helper: build phone + encoded message for wa.me links ---
     const buildWhatsAppData = () => {
         const phone = order?.client?.phone || (order as any)?.clientPhone || '';
@@ -77,6 +90,22 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
             : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
+        const pieceSummaries = pieces.map((p, idx) => {
+            const itemTitle = (p.item || p.pieceType || `Pieza ${idx + 1}`).toUpperCase();
+            const specs: string[] = [];
+            const metalParts = [p.metal, p.karats, p.color].filter(v => v && v !== '-');
+            if (metalParts.length > 0) specs.push(metalParts.join(' '));
+            if (p.weight && p.weight !== '-') specs.push(`${p.weight}g`);
+            if (p.size && p.size !== '-') specs.push(`Med: ${p.size}`);
+            if (p.thickness && p.thickness !== '-') specs.push(`Gr: ${p.thickness}`);
+            const itemNote = p.description || p.notes || p.trabajo || p.work || ((!order.specifications?.items || order.specifications.items.length <= 1 || idx === 0) ? order.notes : '');
+
+            let res = `• *${itemTitle}*`;
+            if (specs.length > 0) res += ` (${specs.join(', ')})`;
+            if (itemNote) res += `\n  _Nota: ${itemNote}_`;
+            return res;
+        }).join('\n');
+
         let message = '';
         if (isReceived) {
             message = [
@@ -86,7 +115,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*Cliente:* ${clientName}`,
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
-                `*Status:* ${statusLabel}`,
+                ``,
+                `📋 *Detalle de la Orden:*`,
+                pieceSummaries,
                 ``,
                 `🌐 *Ver seguimiento en línea:*`,
                 `${trackingUrl}`,
@@ -103,7 +134,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*Cliente:* ${clientName}`,
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
-                `*Status:* ${statusLabel}`,
+                ``,
+                `📋 *Detalle de la Orden:*`,
+                pieceSummaries,
                 ``,
                 codeImageUrl,
                 ``,
@@ -119,8 +152,10 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*Cliente:* ${clientName}`,
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
-                `*Status:* ${statusLabel}`,
                 `*Fecha Entrega:* ${deliveryDateStr}`,
+                ``,
+                `📋 *Detalle de la Orden:*`,
+                pieceSummaries,
                 ``,
                 `Gracias por su preferencia. ✨`,
             ].join('\n');
@@ -130,7 +165,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 ``,
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
-                `*Status:* ${statusLabel}`,
+                ``,
+                `📋 *Detalle de la Orden:*`,
+                pieceSummaries,
             ].join('\n');
         }
 
@@ -294,15 +331,53 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                                         <span className="text-zinc-500">CONCEPTO: </span>
                                         <span className="font-black text-black">{getConcepto(order.type)}</span>
                                     </div>
-                                    <div className="border-b border-zinc-100 pb-0.5">
-                                        <span className="text-zinc-500">STATUS: </span>
-                                        <span className="font-black text-black">{getStatusLabel(order.status)}</span>
+
+                                    {/* DETALLE DE LA ORDEN: ORO, GRAMOS, MEDIDA, GROSOR Y NOTAS POR ITEM */}
+                                    <div className="pt-1 mt-1 border-t border-dashed border-zinc-300">
+                                        <div className="text-[7.5px] font-black text-zinc-500 tracking-wider mb-1">
+                                            DETALLE DE LA ORDEN:
+                                        </div>
+                                        <div className="space-y-1">
+                                            {pieces.map((p, idx) => {
+                                                const itemTitle = (p.item || p.pieceType || `Pieza ${idx + 1}`).toUpperCase();
+                                                const specs: string[] = [];
+                                                const metalParts = [p.metal, p.karats, p.color].filter(v => v && v !== '-');
+                                                if (metalParts.length > 0) specs.push(metalParts.join(' '));
+                                                if (p.weight && p.weight !== '-') specs.push(`${p.weight}g`);
+                                                if (p.size && p.size !== '-') specs.push(`Med: ${p.size}`);
+                                                if (p.thickness && p.thickness !== '-') specs.push(`Gr: ${p.thickness}`);
+
+                                                const itemNote = p.description || p.notes || p.trabajo || p.work || ((!order.specifications?.items || order.specifications.items.length <= 1 || idx === 0) ? order.notes : '');
+
+                                                return (
+                                                    <div key={idx} className="bg-zinc-50 p-1.5 rounded border border-zinc-200 text-[8px] space-y-0.5 text-left">
+                                                        <div className="font-black text-black flex justify-between items-center leading-tight">
+                                                            <span>{itemTitle}</span>
+                                                            {pieces.length > 1 && (
+                                                                <span className="text-zinc-400 text-[7px] font-bold">#{idx + 1}</span>
+                                                            )}
+                                                        </div>
+                                                        {specs.length > 0 && (
+                                                            <div className="text-zinc-700 font-bold leading-tight">
+                                                                {specs.join(' • ')}
+                                                            </div>
+                                                        )}
+                                                        {itemNote && (
+                                                            <div className="text-zinc-600 font-normal italic text-[7.5px] leading-tight pt-0.5 border-t border-zinc-200/60">
+                                                                <span className="font-bold not-italic text-zinc-800">Nota: </span>
+                                                                {itemNote}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Barcode or QR Code Container */}
-                            <div className="my-3 flex flex-col items-center justify-center w-full">
+                            <div className="my-2.5 flex flex-col items-center justify-center w-full">
                                 {labelCodeType === 'QR' ? (
                                     <div className="flex flex-col items-center gap-1">
                                         <div className="p-1 bg-white border border-black rounded">
@@ -347,13 +422,14 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             left: 0 !important;
                             top: 0 !important;
                             width: 58mm !important;
-                            height: 60mm !important;
+                            min-height: 60mm !important;
+                            height: auto !important;
                             margin: 0 !important;
-                            padding: 3mm !important;
+                            padding: 2.5mm !important;
                             box-sizing: border-box !important;
                             display: flex !important;
                             flex-direction: column !important;
-                            justify-content: space-between !important;
+                            justify-content: flex-start !important;
                             align-items: center !important;
                             background: white !important;
                             color: black !important;
@@ -363,7 +439,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             border-color: black !important;
                         }
                         @page {
-                            size: 58mm 60mm;
+                            size: 58mm auto;
                             margin: 0;
                         }
                     }
