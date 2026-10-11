@@ -633,8 +633,14 @@ export class OrdersService {
 
         const trackToken = generateTrackToken(order.id);
         const trackingUrl = `https://luxuryos.pitayacode.io/track/${trackToken}`;
-        // En WhatsApp siempre enviamos el código QR para escaneo directo y seguimiento
-        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`;
+        const settings = await this.prisma.setting.findMany({ where: { tenantId } });
+        const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
+        const codeType = map['label_code_type'] || 'BARCODE';
+
+        // Usamos el código de orden o tracking para el código visual
+        const qrImageUrl = codeType === 'QR'
+            ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
+            : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
         const pieceItems: any[] = (specs.items && specs.items.length > 0)
             ? specs.items
@@ -677,11 +683,10 @@ export class OrdersService {
 📋 *Detalle de la Orden:*
 ${pieceSummaries}
 
+${qrImageUrl}
+
 🌐 *Ver seguimiento en línea:*
 ${trackingUrl}
-
-📱 *Código QR de seguimiento:*
-${qrImageUrl}
 
 Gracias por su preferencia. ✨`;
         } else if (isReady) {
@@ -695,11 +700,10 @@ Gracias por su preferencia. ✨`;
 📋 *Detalle de la Orden:*
 ${pieceSummaries}
 
+${qrImageUrl}
+
 🌐 *Ver seguimiento en línea:*
 ${trackingUrl}
-
-📱 *Código QR de seguimiento:*
-${qrImageUrl}
 
 Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
         }

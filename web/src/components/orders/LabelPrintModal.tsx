@@ -119,11 +119,10 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `📋 *Detalle de la Orden:*`,
                 pieceSummaries,
                 ``,
+                codeImageUrl,
+                ``,
                 `🌐 *Ver seguimiento en línea:*`,
                 `${trackingUrl}`,
-                ``,
-                `📱 *Código QR de seguimiento:*`,
-                codeImageUrl,
                 ``,
                 `Gracias por su preferencia. ✨`,
             ].join('\n');
@@ -139,13 +138,12 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `📋 *Detalle de la Orden:*`,
                 pieceSummaries,
                 ``,
+                codeImageUrl,
+                ``,
                 `🌐 *Ver seguimiento en línea:*`,
                 `${trackingUrl}`,
                 ``,
-                `📱 *Código QR de seguimiento:*`,
-                codeImageUrl,
-                ``,
-                `Gracias por su preferencia. ✨`,
+                `Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`,
             ].join('\n');
         } else if (isDelivered) {
             const deliveryDateStr = formatDate(order.deliveredAt);
