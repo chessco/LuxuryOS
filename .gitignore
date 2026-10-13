@@ -77,3 +77,5 @@ _legacy/
 deploy.tar.gz
 deploy_api_only.tar.gz
 temp_ssh/
+tmp/
+output/

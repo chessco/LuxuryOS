@@ -13,6 +13,7 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
     { name: 'Fabricación', icon: 'diamond', path: '/orders?type=MANUFACTURE', type: 'MANUFACTURE' },
     { name: 'Diseño', icon: 'draw', path: '/orders?type=DESIGN', type: 'DESIGN' },
     { name: 'Laser', icon: 'flare', path: '/orders?type=LASER', type: 'LASER' },
+    { name: 'Cotización', icon: 'request_quote', path: '/orders?type=QUOTE', type: 'QUOTE' },
     { name: 'Reportes', icon: 'analytics', path: '/reports' },
 ];
 

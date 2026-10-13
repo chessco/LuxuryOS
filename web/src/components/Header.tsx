@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import QRScannerModal from './orders/QRScannerModal';
 
 interface HeaderProps {
     onToggleMenu: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
+    const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userName = user.name || user.email || 'Usuario';
     const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
@@ -52,6 +54,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
 
             {/* Right Actions */}
             <div className="flex items-center gap-3 ml-auto">
+                <button
+                    onClick={() => setIsQRScannerOpen(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md shrink-0 cursor-pointer"
+                    title="Lector QR / Código de Barras para iPad"
+                >
+                    <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
+                    <span className="hidden sm:inline">Lector QR</span>
+                </button>
+
                 <div className="flex items-center gap-3 mr-2">
                     <button className="relative flex size-10 items-center justify-center rounded-xl hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-all group">
                         <span className="material-symbols-outlined text-[22px]">notifications</span>
@@ -87,6 +98,11 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                     </button>
                 </div>
             </div>
+
+            <QRScannerModal
+                isOpen={isQRScannerOpen}
+                onClose={() => setIsQRScannerOpen(false)}
+            />
         </header>
     );
 };

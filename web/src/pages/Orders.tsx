@@ -282,8 +282,8 @@ const Orders: React.FC = () => {
                 });
             });
 
-            // Default sort flattenOrders numerically by sequence number (1, 2, 3, 4, 5...)
-            flattenOrders.sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
+            // Default sort flattenOrders numerically by sequence number descending so newest is at the top
+            flattenOrders.sort((a, b) => (b.sequenceNumber || 0) - (a.sequenceNumber || 0));
 
             setOrders(flattenOrders);
         } catch (error) {
@@ -406,10 +406,11 @@ const Orders: React.FC = () => {
                 itemCode: firstItem.itemCode || '',
                 laborCost: cleanNumber(newOrder.value || newOrder.laborCost),
                 materialCost: cleanNumber(newOrder.materialCost || newOrder.cost),
-                notes: firstItem.notes || '',
+                notes: newOrder.notes || '',
+                imageUrl: newOrder.imageUrl || undefined,
                 specifications: {
                     items: uppercaseItems,
-                    department: (newOrder.department || 'Cared').toUpperCase().trim(),
+                    department: (newOrder.department || 'Taller Cared').trim(),
                     promisedDate: newOrder.promisedDate || ''
                 }
             };
@@ -827,8 +828,10 @@ const NewOrderDrawer: React.FC<{
         value: '',
         cost: '',
         priority: 'Media',
-        department: 'Cared',
+        department: 'Taller Cared',
         promisedDate: '',
+        notes: '',
+        imageUrl: '',
     });
 
     useEffect(() => {
@@ -967,6 +970,11 @@ const NewOrderDrawer: React.FC<{
             }
         }
 
+        if (!formData.promisedDate) {
+            alert('Por favor, especifica la Fecha Compromiso de Entrega para poder guardar la orden.');
+            return;
+        }
+
         // Sync first item to top-level fields for backward compatibility
         const mainItem = items[0] || {};
         const submissionData = {
@@ -977,7 +985,7 @@ const NewOrderDrawer: React.FC<{
             newClientEmail: newClientData.email,
             ...mainItem,
             pieceType: mainItem.item,
-            notes: mainItem.notes || '', // Map first item notes to top-level order notes
+            notes: formData.notes || '', // Independent order notes
             specifications: { items },
             shouldPrintLabel: shouldPrintLabel // Flag to open print label preview
         };
@@ -1501,24 +1509,37 @@ const NewOrderDrawer: React.FC<{
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Departamento / Localización</label>
                                 <select
                                     name="department"
-                                    value={formData.department || 'Cared'}
+                                    value={formData.department || 'Taller Cared'}
                                     onChange={handleChange as any}
                                     className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none cursor-pointer"
                                 >
-                                    <option value="Cared">Cared</option>
-                                    <option value="Fabiola">Fabiola</option>
-                                    <option value="Taller Principal">Taller Principal</option>
-                                    <option value="Exhibición">Exhibición</option>
+                                    <option value="Taller Cared">Taller Cared</option>
+                                    <option value="Taller Fabiola">Taller Fabiola</option>
+                                    <option value="Relojero">Relojero</option>
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Fecha Compromiso de Entrega</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
+                                    <span>Fecha Compromiso de Entrega</span>
+                                    <span className="text-red-500 font-bold">* Obligatorio</span>
+                                </label>
                                 <input
                                     type="date"
                                     name="promisedDate"
+                                    required
                                     value={formData.promisedDate || ''}
                                     onChange={handleChange}
                                     className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Notas Generales del Pedido</label>
+                                <textarea
+                                    name="notes"
+                                    value={formData.notes || ''}
+                                    onChange={handleChange}
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none min-h-[60px] resize-none"
+                                    placeholder="Notas generales internas de la orden (opcional)..."
                                 />
                             </div>
                             <div className="space-y-2">

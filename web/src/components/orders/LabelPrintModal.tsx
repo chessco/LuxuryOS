@@ -95,10 +95,17 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             const specs: string[] = [];
             const metalParts = [p.metal, p.karats, p.color].filter(v => v && v !== '-');
             if (metalParts.length > 0) specs.push(metalParts.join(' '));
-            if (p.weight && p.weight !== '-') specs.push(`${p.weight}g`);
+            const formatWeight = (w: any) => {
+                const str = String(w || '').trim();
+                if (!str || str === '-') return '';
+                if (/(gr|g|grs|gr\.|g\.)$/i.test(str)) return str;
+                return `${str} GR`;
+            };
+
+            if (p.weight && p.weight !== '-') specs.push(formatWeight(p.weight));
             if (p.size && p.size !== '-') specs.push(`Med: ${p.size}`);
-            if (p.thickness && p.thickness !== '-') specs.push(`Gr: ${p.thickness}`);
-            const itemNote = p.description || p.notes || p.trabajo || p.work || ((!order.specifications?.items || order.specifications.items.length <= 1 || idx === 0) ? order.notes : '');
+            if (p.thickness && p.thickness !== '-') specs.push(`${p.thickness}`);
+            const itemNote = p.description || p.notes || p.trabajo || p.work || '';
 
             let res = `• *${itemTitle}*`;
             if (specs.length > 0) res += ` (${specs.join(', ')})`;
@@ -346,11 +353,18 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                                                 const specs: string[] = [];
                                                 const metalParts = [p.metal, p.karats, p.color].filter(v => v && v !== '-');
                                                 if (metalParts.length > 0) specs.push(metalParts.join(' '));
-                                                if (p.weight && p.weight !== '-') specs.push(`${p.weight}g`);
-                                                if (p.size && p.size !== '-') specs.push(`Med: ${p.size}`);
-                                                if (p.thickness && p.thickness !== '-') specs.push(`Gr: ${p.thickness}`);
+                                                const formatWeight = (w: any) => {
+                                                    const str = String(w || '').trim();
+                                                    if (!str || str === '-') return '';
+                                                    if (/(gr|g|grs|gr\.|g\.)$/i.test(str)) return str;
+                                                    return `${str} GR`;
+                                                };
 
-                                                const itemNote = p.description || p.notes || p.trabajo || p.work || ((!order.specifications?.items || order.specifications.items.length <= 1 || idx === 0) ? order.notes : '');
+                                                if (p.weight && p.weight !== '-') specs.push(formatWeight(p.weight));
+                                                if (p.size && p.size !== '-') specs.push(`Med: ${p.size}`);
+                                                if (p.thickness && p.thickness !== '-') specs.push(`${p.thickness}`);
+
+                                                const itemNote = p.description || p.notes || p.trabajo || p.work || '';
 
                                                 return (
                                                     <div key={idx} className="bg-zinc-50 p-1.5 rounded border border-zinc-200 text-[8px] space-y-0.5 text-left">

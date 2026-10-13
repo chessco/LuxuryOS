@@ -37,7 +37,41 @@ const OrderDetail: React.FC = () => {
     const [activities, setActivities] = useState<any[]>([]);
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const cameraInputRef = React.useRef<HTMLInputElement>(null);
     const envelopeFileInputRef = React.useRef<HTMLInputElement>(null);
+    const envelopeCameraInputRef = React.useRef<HTMLInputElement>(null);
+
+    const compressImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.7): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width *= maxHeight / height;
+                            height = maxHeight;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.src = event.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
 
     const parseValue = (val: any) => {
         if (typeof val === 'number') return val;
@@ -158,70 +192,32 @@ const OrderDetail: React.FC = () => {
         const file = e.target.files?.[0];
         if (!file || !id) return;
 
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-            const base64String = reader.result as string;
-            try {
-                await OrdersService.updateOrder(id, { imageUrl: base64String });
-                setOrder(prev => ({ ...prev, imageUrl: base64String }));
+        try {
+            const compressedBase64 = await compressImageFile(file);
+            await OrdersService.updateOrder(id, { imageUrl: compressedBase64 });
+            setOrder((prev: any) => ({ ...prev, imageUrl: compressedBase64 }));
 
-                setActivities(prev => [{
-                    user: "Tú",
-                    action: "subiste una foto del pedido",
-                    target: "",
-                    time: "Ahora mismo",
-                    dotColor: "bg-indigo-500"
-                }, ...prev]);
-            } catch (error) {
-                console.error(error);
-                alert('Error al subir la imagen');
-            }
-        };
-        reader.readAsDataURL(file);
+            setActivities(prev => [{
+                user: "Tú",
+                action: "subiste una foto de la pieza",
+                target: "",
+                time: "Ahora mismo",
+                dotColor: "bg-indigo-500"
+            }, ...prev]);
+        } catch (error) {
+            console.error(error);
+            alert('Error al subir la imagen');
+        } finally {
+            if (e.target) e.target.value = '';
+        }
     };
 
     const handleEnvelopeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !id) return;
 
-        // Image compression before upload
-        const compressImage = (file: File): Promise<string> => {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 1200;
-                        const MAX_HEIGHT = 1200;
-                        let width = img.width;
-                        let height = img.height;
-
-                        if (width > height) {
-                            if (width > MAX_WIDTH) {
-                                height *= MAX_WIDTH / width;
-                                width = MAX_WIDTH;
-                            }
-                        } else {
-                            if (height > MAX_HEIGHT) {
-                                width *= MAX_HEIGHT / height;
-                                height = MAX_HEIGHT;
-                            }
-                        }
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx?.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% quality
-                    };
-                    img.src = event.target?.result as string;
-                };
-                reader.readAsDataURL(file);
-            });
-        };
-
         try {
-            const compressedBase64 = await compressImage(file);
+            const compressedBase64 = await compressImageFile(file);
             const currentImages = order.specifications?.envelopeImages || [];
             const updatedSpecs = {
                 ...order.specifications,
@@ -500,6 +496,7 @@ const OrderDetail: React.FC = () => {
     const isReceived = (!statusUpper || statusUpper === 'RECEIVED' || statusUpper === 'RECIBIDO' || statusUpper === 'DRAFT' || statusUpper === 'SPEC_PENDING') &&
                        (!stageUpper || stageUpper === 'RECEIVED' || stageUpper === 'RECIBIDO' || stageUpper === 'INTERES_LEAD');
     const canModifyOrderDetails = isAuthorized || (!isJoyero && RBACService.hasPermission('modify_order_details', user) && isReceived);
+    const canEditOrder = isAuthorized || isJoyero || (RBACService.hasPermission('modify_order_details', user) && isReceived);
 
     const fmtDate = (d: any, withTime = false) => new Date(d).toLocaleDateString('es-MX', {
         timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric',
@@ -523,7 +520,6 @@ const OrderDetail: React.FC = () => {
         : order.statusType === 'success'
             ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
             : 'text-indigo-600 dark:text-indigo-400 border-indigo-500/30 bg-indigo-500/10';
-    const canMarkReady = isWorkshopOrder && !isFinishedStatus;
     const headerBtn = 'inline-flex items-center justify-center gap-2 min-h-11 px-4 rounded-xl border text-[11px] font-black uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95';
     const headerBtnNeutral = `${headerBtn} bg-card border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50 shadow-sm`;
 
@@ -552,12 +548,12 @@ const OrderDetail: React.FC = () => {
                             <select
                                 id="order-priority"
                                 value={priorityKey}
-                                disabled={!canModifyOrderDetails}
+                                disabled={!canModifyOrderDetails || isJoyero}
                                 onChange={async (e) => {
                                     await handleSaveDetails({ priority: e.target.value });
                                 }}
                                 className={`min-h-9 px-3.5 py-1 rounded-full text-[11px] font-black uppercase tracking-widest border transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                                    !canModifyOrderDetails ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                                    (!canModifyOrderDetails || isJoyero) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
                                 } ${
                                     priorityKey === 'ALTA'
                                         ? 'bg-amber-400 text-black border-amber-500 shadow-md'
@@ -565,7 +561,7 @@ const OrderDetail: React.FC = () => {
                                         ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20'
                                         : 'bg-muted text-muted-foreground border-border font-medium'
                                 }`}
-                                title={canModifyOrderDetails ? "Haz clic para modificar la prioridad del pedido" : "Solo modificable en estado Recibido o por Administrador"}
+                                title={isJoyero ? "El rol joyero no puede modificar la prioridad" : (canModifyOrderDetails ? "Haz clic para modificar la prioridad del pedido" : "Solo modificable en estado Recibido o por Administrador")}
                             >
                                 <option value="BAJA" className="bg-background text-foreground">! BAJA</option>
                                 <option value="MEDIA" className="bg-background text-foreground">! MEDIA</option>
@@ -586,16 +582,7 @@ const OrderDetail: React.FC = () => {
 
                     {/* Actions: one primary, neutral secondary, danger separated */}
                     <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-                        {canMarkReady && (
-                            <button
-                                onClick={() => handleSaveDetails({ status: (order.type === OrderType.MANUFACTURE || order.type === 'MANUFACTURE') ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED' })}
-                                className={`${headerBtn} bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-md`}
-                            >
-                                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">verified</span>
-                                <span>Listo para Entrega</span>
-                            </button>
-                        )}
-                        {!isJoyero && canModifyOrderDetails && (
+                        {canEditOrder && (
                             <button onClick={() => setIsEditModalOpen(true)} className={headerBtnNeutral}>
                                 <span className="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
                                 <span>Editar</span>
@@ -760,7 +747,7 @@ const OrderDetail: React.FC = () => {
                         laborCost: order.laborCost || order.specifications?.laborCost,
                         commission: order.commission || order.specifications?.commission,
                         materialCost: order.materialCost || order.specifications?.materialCost,
-                        description: order.description || order.specifications?.diagnosis || order.specifications?.description || order.notes
+                        description: order.description || order.specifications?.diagnosis || order.specifications?.description || ''
                     }]).map((piece: any, idx: number) => {
                         const formatSpecVal = (v: any, suffix: string) => {
                             if (!v && v !== 0) return undefined;
@@ -773,28 +760,45 @@ const OrderDetail: React.FC = () => {
                             <div key={idx} className="bg-muted/30 hover:bg-muted/50 border border-border rounded-[28px] p-6 sm:p-8 transition-all shadow-sm">
                                 <div className="flex flex-col xl:flex-row items-start xl:items-center gap-8">
                                     {/* Thumbnail & Image actions */}
-                                    <div className="size-36 sm:size-44 rounded-3xl bg-muted border border-border flex-shrink-0 overflow-hidden relative group/img transition-colors shadow-inner">
-                                        {order.imageUrl ? (
-                                            <img src={order.imageUrl} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700" alt="Pieza" />
-                                        ) : (
-                                            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                                                <span className="material-symbols-outlined text-muted-foreground/30 text-5xl">image</span>
-                                                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Sin foto</span>
-                                            </div>
-                                        )}
-                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 group-focus-within/img:opacity-100 [@media(hover:none)]:opacity-100 [@media(hover:none)]:bg-black/40 transition-all flex flex-col items-center justify-end sm:justify-center gap-2.5 backdrop-blur-sm p-3">
+                                    <div className="flex flex-col items-center gap-2.5 flex-shrink-0 w-full sm:w-auto">
+                                        <div className="size-36 sm:size-44 rounded-3xl bg-muted border border-border overflow-hidden relative group/img transition-colors shadow-inner mx-auto">
+                                            {order.imageUrl ? (
+                                                <img src={order.imageUrl} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700" alt="Pieza" />
+                                            ) : (
+                                                <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                                                    <span className="material-symbols-outlined text-muted-foreground/30 text-5xl">image</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Sin foto</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {/* Action buttons visible and touch-friendly for iPad */}
+                                        <div className="flex items-center gap-1.5 w-full sm:w-44 justify-center">
                                             <button
-                                                onClick={() => fileInputRef.current?.click()}
-                                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-muted transition-all shadow-md"
+                                                type="button"
+                                                onClick={() => cameraInputRef.current?.click()}
+                                                className="flex-1 flex items-center justify-center gap-1 px-2.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[10px] font-black uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                                                title="Tomar foto con la cámara del iPad"
                                             >
-                                                <span className="material-symbols-outlined text-[16px]">upload</span> Subir Foto
+                                                <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+                                                <span>Cámara</span>
                                             </button>
                                             <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="flex-1 flex items-center justify-center gap-1 px-2.5 py-2 rounded-xl bg-card hover:bg-muted active:scale-95 text-foreground text-[10px] font-black uppercase tracking-wider transition-all border border-border shadow-sm cursor-pointer"
+                                                title="Elegir foto de la galería"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">upload</span>
+                                                <span>Galería</span>
+                                            </button>
+                                            <button
+                                                type="button"
                                                 onClick={handleGenerateAIImage}
                                                 disabled={isGeneratingImage}
-                                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-md"
+                                                className="flex items-center justify-center p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 text-purple-600 dark:text-purple-400 text-[10px] font-black uppercase tracking-wider transition-all border border-purple-500/20 disabled:opacity-50 cursor-pointer"
+                                                title="Generar imagen con IA"
                                             >
-                                                <span className={`material-symbols-outlined text-[16px] ${isGeneratingImage ? 'animate-spin' : ''}`}>{isGeneratingImage ? 'sync' : 'auto_awesome'}</span> Generar IA
+                                                <span className={`material-symbols-outlined text-[16px] ${isGeneratingImage ? 'animate-spin' : ''}`}>{isGeneratingImage ? 'sync' : 'auto_awesome'}</span>
                                             </button>
                                         </div>
                                     </div>
@@ -834,7 +838,7 @@ const OrderDetail: React.FC = () => {
                                                 piece.work || 
                                                 order.specifications?.diagnosis || 
                                                 order.description || 
-                                                ((!order.specifications?.items || order.specifications.items.length <= 1 || idx === 0) ? order.notes : '');
+                                                '';
 
                                             return (
                                                 <div className="text-xs sm:text-sm font-medium leading-relaxed bg-muted/60 p-4 sm:p-5 rounded-2xl border border-border/80 text-foreground space-y-1.5 shadow-inner">
@@ -997,19 +1001,40 @@ const OrderDetail: React.FC = () => {
                             <span className="material-symbols-outlined text-amber-600 dark:text-amber-500 transition-colors">photo_library</span>
                             <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest transition-colors">Fotos del Sobre y Referencia</h3>
                         </div>
-                        <button
-                            onClick={() => envelopeFileInputRef.current?.click()}
-                            className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-sm"
-                        >
-                            <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
-                            Agregar Foto
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => envelopeCameraInputRef.current?.click()}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-black hover:bg-amber-400 active:scale-95 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                                title="Tomar foto con la cámara del iPad"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+                                <span>Cámara</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => envelopeFileInputRef.current?.click()}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-500 hover:bg-amber-500/20 active:scale-95 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                                title="Subir foto desde galería"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">upload</span>
+                                <span>Galería</span>
+                            </button>
+                        </div>
                         <input
                             type="file"
                             ref={envelopeFileInputRef}
                             onChange={handleEnvelopeImageUpload}
                             className="hidden"
                             accept="image/*"
+                        />
+                        <input
+                            type="file"
+                            ref={envelopeCameraInputRef}
+                            onChange={handleEnvelopeImageUpload}
+                            className="hidden"
+                            accept="image/*"
+                            capture="environment"
                         />
                     </div>
 
@@ -1163,6 +1188,22 @@ const OrderDetail: React.FC = () => {
                 onClose={() => setIsWhatsAppModalOpen(false)}
                 client={order?.client}
                 orderCode={order?.orderCode}
+            />
+
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+            />
+            <input
+                type="file"
+                ref={cameraInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
             />
         </div>
     );

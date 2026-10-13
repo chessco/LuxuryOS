@@ -12,6 +12,15 @@ interface EditOrderModalProps {
 }
 
 export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose, order, onSave }) => {
+    const user = React.useMemo(() => {
+        try {
+            const raw = localStorage.getItem('user');
+            if (raw) return JSON.parse(raw);
+        } catch {}
+        return null;
+    }, []);
+    const isJoyero = user?.role === 'JOYERO' || String(user?.email || '').toLowerCase().includes('joyero');
+
     const [formData, setFormData] = useState({
         pieceType: order.pieceType,
         value: order.value,
@@ -20,8 +29,9 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         materialCost: order.materialCost || 0,
         priority: (order.priority || 'MEDIA').toUpperCase(),
         location: order.location || '',
-        department: order.specifications?.department || order.department || 'Cared',
+        department: order.specifications?.department || order.department || 'Taller Cared',
         promisedDate: order.promisedAt ? new Date(order.promisedAt).toISOString().split('T')[0] : (order.specifications?.promisedDate || (order.dueDate ? new Date(order.dueDate).toISOString().split('T')[0] : '')),
+        status: (order.status || order.stage || 'RECEIVED').toUpperCase(),
         notes: order.notes || '',
         dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split('T')[0] : '',
         clientId: order.clientId,
@@ -100,6 +110,9 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
             const mainItem = syncedItems[0] || {};
             const submissionData = {
                 ...formData,
+                status: formData.status,
+                stage: formData.status,
+                priority: isJoyero ? (order.priority || 'MEDIA').toUpperCase() : formData.priority,
                 value: cleanNumber(formData.value),
                 cost: cleanNumber(formData.cost),
                 totalAmount: cleanNumber(formData.value), // Ensure totalAmount is synced
@@ -108,12 +121,13 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                 promisedAt: formData.promisedDate ? new Date(formData.promisedDate) : undefined,
                 dueDate: formData.promisedDate ? new Date(formData.promisedDate) : (formData.dueDate ? new Date(formData.dueDate) : undefined),
                 ...mainItem, // metal, color, etc.
-                description: mainItem.description || formData.notes || '',
+                description: mainItem.description || mainItem.notes || '',
+                notes: formData.notes || '',
                 pieceType: mainItem.item,
                 specifications: {
                     ...order.specifications,
                     items: syncedItems,
-                    department: (formData.department || 'Cared').toUpperCase().trim(),
+                    department: (formData.department || 'Taller Cared').trim(),
                     promisedDate: formData.promisedDate
                 }
             };
@@ -200,11 +214,15 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Prioridad del Joyero / Pedido</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors flex items-center justify-between">
+                                    <span>Prioridad del Pedido</span>
+                                    {isJoyero && <span className="text-amber-500 font-bold">(Solo lectura para Joyero)</span>}
+                                </label>
                                 <select
+                                    disabled={isJoyero}
                                     value={(formData.priority || 'MEDIA').toUpperCase()}
                                     onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm font-bold text-foreground focus:border-indigo-500/50 outline-none appearance-none cursor-pointer transition-colors shadow-inner [color-scheme:light] dark:[color-scheme:dark]"
+                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm font-bold text-foreground focus:border-indigo-500/50 outline-none appearance-none cursor-pointer transition-colors shadow-inner disabled:opacity-60 disabled:cursor-not-allowed [color-scheme:light] dark:[color-scheme:dark]"
                                 >
                                     <option value="BAJA" className="bg-background font-medium">Baja</option>
                                     <option value="MEDIA" className="bg-background font-medium">Media</option>
@@ -212,25 +230,54 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Departamento / Localización</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Estado del Pedido / Flujo</label>
                                 <select
-                                    value={formData.department || 'Cared'}
-                                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                    value={formData.status}
+                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                                     className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm font-bold text-foreground focus:border-indigo-500/50 outline-none appearance-none cursor-pointer transition-colors shadow-inner [color-scheme:light] dark:[color-scheme:dark]"
                                 >
-                                    <option value="Cared" className="bg-background font-medium">Cared</option>
-                                    <option value="Fabiola" className="bg-background font-medium">Fabiola</option>
-                                    <option value="Taller Principal" className="bg-background font-medium">Taller Principal</option>
-                                    <option value="Exhibición" className="bg-background font-medium">Exhibición</option>
+                                    {isJoyero ? (
+                                        <>
+                                            <option value={order.type === 'MANUFACTURE' ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED'}>Terminado</option>
+                                            <option value="RETURNED">Devuelto</option>
+                                            {!['REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'TERMINADO', 'RETURNED'].includes(formData.status) && (
+                                                <option value={formData.status}>{formData.status} (Actual)</option>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <option value="RECEIVED">Recibido</option>
+                                            <option value={order.type === 'MANUFACTURE' ? 'IN_PRODUCTION' : 'IN_REPAIR'}>En Taller</option>
+                                            <option value={order.type === 'MANUFACTURE' ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED'}>Terminado</option>
+                                            <option value="DELIVERED">Entregado</option>
+                                            <option value="RETURNED">Devuelto</option>
+                                        </>
+                                    )}
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Fecha Compromiso de Entrega</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Departamento / Localización</label>
+                                <select
+                                    value={formData.department || 'Taller Cared'}
+                                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm font-bold text-foreground focus:border-indigo-500/50 outline-none appearance-none cursor-pointer transition-colors shadow-inner [color-scheme:light] dark:[color-scheme:dark]"
+                                >
+                                    <option value="Taller Cared" className="bg-background font-medium">Taller Cared</option>
+                                    <option value="Taller Fabiola" className="bg-background font-medium">Taller Fabiola</option>
+                                    <option value="Relojero" className="bg-background font-medium">Relojero</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors flex items-center justify-between">
+                                    <span>Fecha Compromiso de Entrega</span>
+                                    {isJoyero && <span className="text-amber-500 font-bold">(Solo lectura para Joyero)</span>}
+                                </label>
                                 <input
                                     type="date"
+                                    disabled={isJoyero}
                                     value={formData.promisedDate || formData.dueDate}
                                     onChange={(e) => setFormData({ ...formData, promisedDate: e.target.value, dueDate: e.target.value })}
-                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none [color-scheme:light] dark:[color-scheme:dark] shadow-inner"
+                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none [color-scheme:light] dark:[color-scheme:dark] shadow-inner disabled:opacity-60 disabled:cursor-not-allowed"
                                 />
                             </div>
                             <div className="space-y-2">

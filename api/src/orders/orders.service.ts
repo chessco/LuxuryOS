@@ -34,6 +34,9 @@ const STATUS_ORDER: Record<string, number> = {
     'DELIVERED': 3,
     'ENTREGADO': 3,
     'ENTREGADO_POSTVENTA': 3,
+    'RETURNED': 3,
+    'DEVUELTO': 3,
+    'CANCELLED': 4,
 };
 
 @Injectable()
@@ -74,7 +77,9 @@ export class OrdersService {
         }
 
         const columns = Object.values(groupingEnum).reduce((acc: any, key: any) => {
-            acc[key] = orders.filter((o: any) => o[groupingField] === key);
+            acc[key] = orders
+                .filter((o: any) => o[groupingField] === key)
+                .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             return acc;
         }, {});
 
@@ -156,6 +161,9 @@ export class OrdersService {
 
     async createOrder(tenantId: string, data: CreateOrderDto, userId?: string) {
         await this.assertClientInTenant(tenantId, data.clientId);
+        if (!data.promisedAt && !data.dueDate && !data.specifications?.promisedDate) {
+            throw new BadRequestException('La fecha compromiso de entrega es obligatoria para registrar la orden.');
+        }
         const totalAmount = data.totalAmount ?? data.value ?? 0;
         const paidAmount = 0;
         const balance = totalAmount;
@@ -363,6 +371,11 @@ export class OrdersService {
         const stageIdx = STATUS_ORDER[currentStageUpper];
         const currentIdx = Math.max(statusIdx ?? 0, stageIdx ?? 0);
         const isReceived = currentIdx === 0;
+
+        const isJoyeroUser = currentUser?.role === 'JOYERO' || String(currentUser?.email || '').toLowerCase().includes('joyero');
+        if (isJoyeroUser && (data.promisedAt !== undefined || data.dueDate !== undefined)) {
+            throw new ForbiddenException('El rol Joyero no tiene permisos para modificar la fecha de entrega.');
+        }
 
         if (!isAuthorized && currentUser) {
             // 1. Si no es admin/system y la orden ya no está en RECIBIDO, no se pueden modificar campos de detalle
@@ -608,6 +621,9 @@ export class OrdersService {
             // Entregado
             if (['DELIVERED', 'ENTREGADO', 'ENTREGADO_POSTVENTA'].includes(s)) return 'ENTREGADO';
             
+            // Devuelto
+            if (['RETURNED', 'DEVUELTO'].includes(s)) return 'DEVUELTO';
+
             // Cancelado
             if (['CANCELLED', 'CANCELADO'].includes(s)) return 'CANCELADO';
 
@@ -660,10 +676,17 @@ export class OrdersService {
             const details: string[] = [];
             const metalParts = [p.metal, p.karats, p.color].filter(v => v && v !== '-');
             if (metalParts.length > 0) details.push(metalParts.join(' '));
-            if (p.weight && p.weight !== '-') details.push(`${p.weight}g`);
+            const formatWeight = (w: any) => {
+                const str = String(w || '').trim();
+                if (!str || str === '-') return '';
+                if (/(gr|g|grs|gr\.|g\.)$/i.test(str)) return str;
+                return `${str} GR`;
+            };
+
+            if (p.weight && p.weight !== '-') details.push(formatWeight(p.weight));
             if (p.size && p.size !== '-') details.push(`Med: ${p.size}`);
-            if (p.thickness && p.thickness !== '-') details.push(`Gr: ${p.thickness}`);
-            const note = p.description || p.notes || p.trabajo || p.work || ((!specs.items || specs.items.length <= 1 || idx === 0) ? order.notes : '');
+            if (p.thickness && p.thickness !== '-') details.push(`${p.thickness}`);
+            const note = p.description || p.notes || p.trabajo || p.work || '';
 
             let res = `• *${title}*`;
             if (details.length > 0) res += ` (${details.join(', ')})`;

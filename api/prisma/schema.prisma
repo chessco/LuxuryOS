@@ -168,6 +168,7 @@ enum OrderType {
   DESIGN
   LASER
   LAYAWAY
+  QUOTE
 }
 
 enum OrderStatus {
@@ -176,6 +177,7 @@ enum OrderStatus {
   QUOTE_SENT
   APPROVED
   CANCELLED
+  RETURNED
   DELIVERED
 
   // Repair Specific

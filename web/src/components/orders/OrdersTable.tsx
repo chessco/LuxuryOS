@@ -15,8 +15,17 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-const getStatusOptions = (orderType: string, currentStatus?: string) => {
+const getStatusOptions = (orderType: string, currentStatus?: string, isJoyero?: boolean) => {
     const type = (orderType || 'STANDARD').toUpperCase();
+
+    if (isJoyero) {
+        const completedVal = type === 'MANUFACTURE' ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED';
+        return [
+            { value: completedVal, label: 'TERMINADO' },
+            { value: 'RETURNED', label: 'DEVUELTO' }
+        ];
+    }
+
     let opts: { value: string; label: string }[] = [];
     if (type === 'REPAIR' || type === 'DESIGN' || type === 'LASER') {
         opts = [
@@ -24,7 +33,7 @@ const getStatusOptions = (orderType: string, currentStatus?: string) => {
             { value: 'IN_REPAIR', label: 'EN TALLER' },
             { value: 'REPAIR_COMPLETED', label: 'TERMINADO' },
             { value: 'DELIVERED', label: 'ENTREGADO' },
-            { value: 'CANCELLED', label: 'CANCELADO' }
+            { value: 'RETURNED', label: 'DEVUELTO' }
         ];
     } else if (type === 'MANUFACTURE') {
         opts = [
@@ -32,14 +41,14 @@ const getStatusOptions = (orderType: string, currentStatus?: string) => {
             { value: 'IN_PRODUCTION', label: 'EN TALLER' },
             { value: 'READY_FOR_PICKUP', label: 'TERMINADO' },
             { value: 'DELIVERED', label: 'ENTREGADO' },
-            { value: 'CANCELLED', label: 'CANCELADO' }
+            { value: 'RETURNED', label: 'DEVUELTO' }
         ];
     } else if (type === 'LAYAWAY') {
         opts = [
             { value: 'LAYAWAY_OPEN', label: 'APARTADO' },
             { value: 'LAYAWAY_EXPIRED', label: 'VENCIDO' },
             { value: 'DELIVERED', label: 'ENTREGADO' },
-            { value: 'CANCELLED', label: 'CANCELADO' }
+            { value: 'RETURNED', label: 'DEVUELTO' }
         ];
     } else {
         opts = [
@@ -48,8 +57,7 @@ const getStatusOptions = (orderType: string, currentStatus?: string) => {
             { value: 'APROBADO_ANTICIPO', label: 'APROBADO / ANTICIPO' },
             { value: 'EN_PRODUCCION', label: 'EN PRODUCCIÓN' },
             { value: 'CONTROL_CALIDAD', label: 'CONTROL CALIDAD' },
-            { value: 'ENTREGADO_POSTVENTA', label: 'ENTREGADO' },
-            { value: 'CANCELLED', label: 'CANCELADO' }
+            { value: 'ENTREGADO_POSTVENTA', label: 'ENTREGADO' }
         ];
     }
 
@@ -92,14 +100,22 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
     const isDeliveredFilter = activeFilter === 'Entregados' || activeFilter === 'Entregado';
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const isSystemAdmin = 
+    const user = React.useMemo(() => {
+        try {
+            const raw = localStorage.getItem('user');
+            if (raw) return JSON.parse(raw);
+        } catch {}
+        return {};
+    }, []);
+    const isSystemAdmin =
         user.role === 'SYSTEM_ADMIN' || 
         user.role === 'TENANT_ADMIN' || 
         user.role === 'ADMIN' || 
         user.role === 'SUPER_ADMIN' ||
         user.role === 'SYSTEM' ||
         String(user.email || '').toLowerCase().includes('system');
+
+    const isJoyero = user?.role === 'JOYERO' || String(user?.email || '').toLowerCase().includes('joyero');
 
     const sortedOrders = useMemo(() => {
         let sortableItems = [...orders];
@@ -143,7 +159,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                 return dateB - dateA;
             });
         } else {
-            sortableItems.sort((a, b) => getOrderSeq(a) - getOrderSeq(b));
+            sortableItems.sort((a, b) => getOrderSeq(b) - getOrderSeq(a));
         }
         return sortableItems;
     }, [orders, sortConfig, isDeliveredFilter]);
@@ -220,33 +236,43 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                     onTouchEnd={stopPropagationTouch}
                                     onPointerDown={stopPropagationTouch}
                                 >
-                                    <div
-                                        className="relative flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 px-2.5 py-1 rounded-lg border border-emerald-500/20 w-fit transition-all cursor-pointer group/date"
-                                        title="Tocar para cambiar fecha de entrega"
-                                    >
-                                        <span className="material-symbols-outlined text-[13px]">event</span>
-                                        <span className="text-[11px] font-black tracking-tight">{order.promisedDate || order.deliveredDate || '—'}</span>
-                                        <input
-                                            type="date"
-                                            value={getInputValueForPromisedDate(order)}
-                                            onChange={async (e) => {
-                                                const val = e.target.value;
-                                                try {
-                                                    await OrdersService.updateOrder(order.id, { promisedAt: val ? new Date(val + 'T12:00:00.000Z').toISOString() : null });
-                                                    if (onRefresh) onRefresh();
-                                                } catch (err) {
-                                                    console.error("Error updating promisedAt date:", err);
-                                                    alert("Error al cambiar fecha de entrega");
-                                                }
-                                            }}
-                                            onClick={stopPropagationTouch}
-                                            onTouchStart={stopPropagationTouch}
-                                            onTouchEnd={stopPropagationTouch}
-                                            onPointerDown={stopPropagationTouch}
-                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                            title="Cambiar fecha de entrega"
-                                        />
-                                    </div>
+                                    {isJoyero ? (
+                                        <div
+                                            className="relative flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 w-fit"
+                                            title="Fecha de entrega (Solo lectura para rol Joyero)"
+                                        >
+                                            <span className="material-symbols-outlined text-[13px]">event</span>
+                                            <span className="text-[11px] font-black tracking-tight">{order.promisedDate || order.deliveredDate || '—'}</span>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="relative flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-95 px-2.5 py-1 rounded-lg border border-emerald-500/20 w-fit transition-all cursor-pointer group/date"
+                                            title="Tocar para cambiar fecha de entrega"
+                                        >
+                                            <span className="material-symbols-outlined text-[13px]">event</span>
+                                            <span className="text-[11px] font-black tracking-tight">{order.promisedDate || order.deliveredDate || '—'}</span>
+                                            <input
+                                                type="date"
+                                                value={getInputValueForPromisedDate(order)}
+                                                onChange={async (e) => {
+                                                    const val = e.target.value;
+                                                    try {
+                                                        await OrdersService.updateOrder(order.id, { promisedAt: val ? new Date(val + 'T12:00:00.000Z').toISOString() : null });
+                                                        if (onRefresh) onRefresh();
+                                                    } catch (err) {
+                                                        console.error("Error updating promisedAt date:", err);
+                                                        alert("Error al cambiar fecha de entrega");
+                                                    }
+                                                }}
+                                                onClick={stopPropagationTouch}
+                                                onTouchStart={stopPropagationTouch}
+                                                onTouchEnd={stopPropagationTouch}
+                                                onPointerDown={stopPropagationTouch}
+                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                                title="Cambiar fecha de entrega"
+                                            />
+                                        </div>
+                                    )}
                                 </td>
 
                                 {/* 3. Prioridad */}
@@ -322,7 +348,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                         const isReady = displayLabel === 'PARA ENTREGA' || displayLabel === 'LISTO' || displayLabel === 'TERMINADO' || rawStatus === 'REPAIR_COMPLETED' || rawStatus === 'READY_FOR_PICKUP' || rawStatus === 'READY';
                                         const isInWorkshop = displayLabel === 'EN TALLER' || displayLabel === 'PRODUCCIÓN' || rawStatus === 'IN_REPAIR' || rawStatus === 'IN_PRODUCTION' || rawStatus === 'EN_PRODUCCION' || rawStatus === 'QUALITY_CHECK';
 
-                                        const options = getStatusOptions(order.type, rawStatus);
+                                        const options = getStatusOptions(order.type, rawStatus, isJoyero);
 
                                         return (
                                             <select

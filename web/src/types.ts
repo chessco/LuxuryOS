@@ -16,7 +16,8 @@ export enum OrderType {
     MANUFACTURE = 'MANUFACTURE',
     DESIGN = 'DESIGN',
     LASER = 'LASER',
-    LAYAWAY = 'LAYAWAY'
+    LAYAWAY = 'LAYAWAY',
+    QUOTE = 'QUOTE'
 }
 
 export enum OrderStatus {
@@ -25,6 +26,7 @@ export enum OrderStatus {
     QUOTE_SENT = 'QUOTE_SENT',
     APPROVED = 'APPROVED',
     CANCELLED = 'CANCELLED',
+    RETURNED = 'RETURNED',
     DELIVERED = 'DELIVERED',
 
     // Repair Specific
