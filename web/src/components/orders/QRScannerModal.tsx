@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { OrdersService } from '../../services/orders.service';
@@ -251,7 +252,9 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
     const clientName = foundOrder?.client?.name || foundOrder?.client || 'Cliente';
     const pieceName = foundOrder?.pieceType || foundOrder?.item || 'Pieza';
 
-    return (
+    // Portal to body: the Header's backdrop-filter would otherwise act as the
+    // containing block for `fixed` and clip the modal to the header height.
+    return createPortal(
         <AnimatePresence>
             <div
                 onClick={onClose}
@@ -526,7 +529,8 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                     onRegisterPayment={handleRegisterPayment}
                 />
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 };
 
