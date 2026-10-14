@@ -189,6 +189,18 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
         }
     }, []);
 
+    // Close on Escape key press
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+
     useEffect(() => {
         if (isOpen && !foundOrder) {
             startCamera();
@@ -241,40 +253,46 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md">
+            <div
+                onClick={onClose}
+                className="fixed inset-0 z-[120] overflow-y-auto flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md cursor-pointer"
+            >
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="relative w-full max-w-lg bg-card border border-border rounded-[32px] overflow-hidden shadow-2xl flex flex-col text-foreground"
+                    onClick={(e) => e.stopPropagation()}
+                    className="relative w-full max-w-lg max-h-[92vh] my-auto bg-card border border-border rounded-[28px] sm:rounded-[32px] overflow-hidden shadow-2xl flex flex-col text-foreground cursor-default"
                 >
                     {/* Header */}
-                    <div className="p-6 border-b border-border flex items-center justify-between bg-muted/30">
+                    <div className="shrink-0 px-5 py-4 sm:p-5 border-b border-border flex items-center justify-between bg-muted/40">
                         <div className="flex items-center gap-3">
                             <div className="size-10 rounded-2xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/20 shadow-sm">
                                 <span className="material-symbols-outlined text-[22px]">qr_code_scanner</span>
                             </div>
                             <div>
-                                <h3 className="font-black text-base uppercase tracking-tight">Lector QR / Código</h3>
+                                <h3 className="font-black text-sm sm:text-base uppercase tracking-tight">Lector QR / Código</h3>
                                 <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
                                     {isJoyero ? 'Acciones Rápidas Taller' : 'Acciones Rápidas Ventas'}
                                 </p>
                             </div>
                         </div>
                         <button
+                            type="button"
                             onClick={onClose}
-                            className="size-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                            className="size-9 sm:size-10 rounded-xl bg-muted/60 hover:bg-muted text-foreground flex items-center justify-center transition-all cursor-pointer border border-border/50 active:scale-95"
+                            title="Cerrar ventana (Esc)"
                         >
-                            <span className="material-symbols-outlined text-[20px]">close</span>
+                            <span className="material-symbols-outlined text-[22px]">close</span>
                         </button>
                     </div>
 
                     {/* Body */}
-                    <div className="p-6 space-y-6">
+                    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
                         {!foundOrder ? (
                             <>
                                 {/* Camera Viewfinder */}
-                                <div className="relative aspect-square max-h-[320px] w-full rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-border shadow-inner">
+                                <div className="relative aspect-[4/3] sm:aspect-square max-h-[220px] sm:max-h-[280px] w-full rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-border shadow-inner">
                                     <video
                                         ref={videoRef}
                                         className="w-full h-full object-cover"
@@ -284,21 +302,31 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                     <canvas ref={canvasRef} className="hidden" />
 
                                     {/* Scan Frame Overlay */}
-                                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-8">
-                                        <div className="relative size-48 sm:size-56 border-2 border-indigo-400/80 rounded-3xl shadow-[0_0_20px_rgba(99,102,241,0.5)] flex items-center justify-center">
-                                            <div className="absolute top-0 left-0 size-6 border-t-4 border-l-4 border-white rounded-tl-xl -mt-1 -ml-1"></div>
-                                            <div className="absolute top-0 right-0 size-6 border-t-4 border-r-4 border-white rounded-tr-xl -mt-1 -mr-1"></div>
-                                            <div className="absolute bottom-0 left-0 size-6 border-b-4 border-l-4 border-white rounded-bl-xl -mb-1 -ml-1"></div>
-                                            <div className="absolute bottom-0 right-0 size-6 border-b-4 border-r-4 border-white rounded-br-xl -mb-1 -mr-1"></div>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90 bg-black/60 px-3 py-1 rounded-full backdrop-blur-xs">
+                                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-4 sm:p-8">
+                                        <div className="relative size-40 sm:size-52 border-2 border-indigo-400/80 rounded-2xl sm:rounded-3xl shadow-[0_0_20px_rgba(99,102,241,0.5)] flex items-center justify-center">
+                                            <div className="absolute top-0 left-0 size-5 sm:size-6 border-t-4 border-l-4 border-white rounded-tl-xl -mt-1 -ml-1"></div>
+                                            <div className="absolute top-0 right-0 size-5 sm:size-6 border-t-4 border-r-4 border-white rounded-tr-xl -mt-1 -mr-1"></div>
+                                            <div className="absolute bottom-0 left-0 size-5 sm:size-6 border-b-4 border-l-4 border-white rounded-bl-xl -mb-1 -ml-1"></div>
+                                            <div className="absolute bottom-0 right-0 size-5 sm:size-6 border-b-4 border-r-4 border-white rounded-br-xl -mb-1 -mr-1"></div>
+                                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-white/90 bg-black/60 px-3 py-1 rounded-full backdrop-blur-xs">
                                                 Apunta al código QR
                                             </span>
                                         </div>
                                     </div>
 
+                                    {/* Quick floating close on camera view */}
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="absolute top-2.5 right-2.5 size-8 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs transition-all active:scale-95 cursor-pointer z-10"
+                                        title="Cerrar lector"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">close</span>
+                                    </button>
+
                                     {cameraError && (
-                                        <div className="absolute inset-0 bg-background/90 p-6 flex flex-col items-center justify-center text-center gap-3">
-                                            <span className="material-symbols-outlined text-red-500 text-4xl">videocam_off</span>
+                                        <div className="absolute inset-0 bg-background/90 p-4 sm:p-6 flex flex-col items-center justify-center text-center gap-3">
+                                            <span className="material-symbols-outlined text-red-500 text-3xl sm:text-4xl">videocam_off</span>
                                             <p className="text-xs font-bold text-foreground">{cameraError}</p>
                                             <button
                                                 onClick={startCamera}
@@ -318,8 +346,8 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                 </div>
 
                                 {/* Manual Input Fallback */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1 block">
                                         O ingresa el ID / Código manualmente
                                     </label>
                                     <div className="flex gap-2">
@@ -334,17 +362,27 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                                 }
                                             }}
                                             placeholder="Ej: REP-28 o código de barras"
-                                            className="flex-1 bg-muted/50 border border-border rounded-xl px-4 py-3 text-sm text-foreground outline-none focus:border-indigo-500 transition-all font-mono uppercase"
+                                            className="flex-1 bg-muted/50 border border-border rounded-xl px-4 py-2.5 sm:py-3 text-sm text-foreground outline-none focus:border-indigo-500 transition-all font-mono uppercase"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => fetchOrderByCode(manualCode)}
                                             disabled={!manualCode.trim() || isLoadingOrder}
-                                            className="px-5 py-3 rounded-xl bg-foreground text-background font-black text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all active:scale-95 shadow-md"
+                                            className="px-5 py-2.5 sm:py-3 rounded-xl bg-foreground text-background font-black text-xs uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all active:scale-95 shadow-md cursor-pointer"
                                         >
                                             Buscar
                                         </button>
                                     </div>
+
+                                    {/* Explicit Cancel / Close Button */}
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="w-full py-2.5 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">close</span>
+                                        <span>Cerrar</span>
+                                    </button>
                                 </div>
                             </>
                         ) : (
@@ -448,7 +486,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                                 onClose();
                                                 navigate(`/orders/${foundOrder.id}`);
                                             }}
-                                            className="flex-1 py-3 px-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-foreground text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                                            className="flex-1 py-3 px-4 rounded-xl border border-border bg-muted/30 hover:bg-muted text-foreground text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                                         >
                                             <span className="material-symbols-outlined text-[16px]">visibility</span>
                                             <span>Ver Orden</span>
@@ -456,12 +494,21 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                         <button
                                             type="button"
                                             onClick={handleResetScan}
-                                            className="flex-1 py-3 px-4 rounded-xl bg-foreground text-background text-xs font-black uppercase tracking-wider hover:opacity-90 transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
+                                            className="flex-1 py-3 px-4 rounded-xl bg-foreground text-background text-xs font-black uppercase tracking-wider hover:opacity-90 transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md cursor-pointer"
                                         >
                                             <span className="material-symbols-outlined text-[16px]">qr_code_scanner</span>
                                             <span>Escanear Otro</span>
                                         </button>
                                     </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="w-full py-2.5 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">close</span>
+                                        <span>Cerrar</span>
+                                    </button>
                                 </div>
                             </div>
                         )}
