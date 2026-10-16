@@ -68,7 +68,7 @@ export class OrdersService {
         let groupingEnum: any;
         let groupingField: 'stage' | 'status';
 
-        if (type === 'REPAIR' || type === 'MANUFACTURE' || type === 'LAYAWAY') {
+        if (type === 'REPAIR' || type === 'MANUFACTURE' || type === 'DESIGN' || type === 'LASER' || type === 'LAYAWAY') {
             groupingEnum = OrderStatus;
             groupingField = 'status';
         } else {
@@ -96,36 +96,67 @@ export class OrdersService {
 
         const usesStatus = order.type === 'REPAIR' || order.type === 'MANUFACTURE' || (order.type as string) === 'DESIGN' || (order.type as string) === 'LASER' || order.type === 'LAYAWAY';
         const validTargets: string[] = usesStatus ? Object.values(OrderStatus) : Object.values(OrderStage);
-        if (typeof toStage !== 'string' || !validTargets.includes(toStage)) {
+
+        const toStageUpper = String(toStage || '').toUpperCase();
+        const isReturnAction = toStageUpper === 'RETURNED' || toStageUpper === 'DEVUELTO';
+
+        if (typeof toStage !== 'string' || (!validTargets.includes(toStage) && !isReturnAction)) {
             throw new BadRequestException('Estado destino inválido');
         }
 
+        // Si se devuelve, la orden regresa a Recibido (RECEIVED)
+        const effectiveTarget = isReturnAction ? (usesStatus ? 'RECEIVED' : 'RECIBIDO') : toStage;
+
         if (user && !isAdminRole(user.role, user.email)) {
-            const currentIdx = STATUS_ORDER[String((usesStatus ? order.status : order.stage) || '').toUpperCase()];
-            const targetIdx = STATUS_ORDER[toStage.toUpperCase()];
-            if (currentIdx !== undefined && targetIdx !== undefined && targetIdx < currentIdx) {
-                throw new ForbiddenException('No está permitido retroceder el estado del flujo de trabajo.');
+            const isReturnAllowed = isReturnAction || (effectiveTarget.toUpperCase() === 'RECEIVED' && (
+                user.role === 'JOYERO' ||
+                String(user.role || '').toUpperCase() === 'JOYERO' ||
+                String(user.email || '').toLowerCase().includes('joyero') ||
+                String(user.name || '').toLowerCase().includes('joyero')
+            ));
+
+            if (!isReturnAllowed) {
+                const currentIdx = STATUS_ORDER[String((usesStatus ? order.status : order.stage) || '').toUpperCase()];
+                const targetIdx = STATUS_ORDER[effectiveTarget.toUpperCase()];
+                if (currentIdx !== undefined && targetIdx !== undefined && targetIdx < currentIdx) {
+                    throw new ForbiddenException('No está permitido retroceder el estado del flujo de trabajo.');
+                }
             }
         }
 
         const updateData: any = {};
         if (usesStatus) {
-            updateData.status = toStage;
+            updateData.status = effectiveTarget;
         } else {
-            updateData.stage = toStage;
+            updateData.stage = effectiveTarget;
         }
 
-        const toStageUpper = String(toStage).toUpperCase();
-        const isReadyStage = toStageUpper === 'REPAIR_COMPLETED' ||
-                             toStageUpper === 'READY_FOR_PICKUP' ||
-                             toStageUpper === 'LISTO_ENTREGA' ||
-                             toStageUpper === 'READY' ||
-                             toStageUpper === 'LISTO' ||
-                             toStageUpper === 'PARA ENTREGA';
+        const toStageForSpecs = effectiveTarget.toUpperCase();
+        const isReadyStage = toStageForSpecs === 'REPAIR_COMPLETED' ||
+                             toStageForSpecs === 'READY_FOR_PICKUP' ||
+                             toStageForSpecs === 'LISTO_ENTREGA' ||
+                             toStageForSpecs === 'READY' ||
+                             toStageForSpecs === 'LISTO' ||
+                             toStageForSpecs === 'PARA ENTREGA' ||
+                             toStageForSpecs === 'TERMINADO';
 
         const specs = (order.specifications as any) || {};
-        if (isReadyStage) {
-            const userName = user?.name || user?.email || 'Joyero';
+        const userName = user?.name || user?.email || 'Joyero';
+
+        if (isReturnAction) {
+            updateData.specifications = {
+                ...specs,
+                returnedByName: userName,
+                returnedBy: {
+                    id: user?.id,
+                    name: userName,
+                    email: user?.email,
+                    role: user?.role,
+                    at: new Date()
+                },
+                returnReason: 'Devuelto por joyero a recepción'
+            };
+        } else if (isReadyStage) {
             updateData.specifications = {
                 ...specs,
                 readyByName: userName,
@@ -139,7 +170,7 @@ export class OrdersService {
             };
         }
 
-        if (toStage === 'DELIVERED' || toStage === 'ENTREGADO' || toStage === 'ENTREGADO_POSTVENTA') {
+        if (effectiveTarget === 'DELIVERED' || effectiveTarget === 'ENTREGADO' || effectiveTarget === 'ENTREGADO_POSTVENTA') {
             updateData.deliveredAt = new Date();
         }
 
@@ -148,8 +179,11 @@ export class OrdersService {
             data: updateData,
         });
 
-        // Trigger automatic WhatsApp notification on status transition
-        await this.notifyOrderWorkflowStatus(tenantId, id);
+        // Trigger automatic WhatsApp notification on status transition asynchronously (non-blocking)
+        this.notifyOrderWorkflowStatus(tenantId, id).catch(err => {
+            console.error('[Workflow WhatsApp Notification Error]', err);
+        });
+
         return updated;
     }
 
@@ -330,7 +364,9 @@ export class OrdersService {
                         } : {})
                     }
                 });
-                await this.notifyOrderWorkflowStatus(tenantId, id);
+                this.notifyOrderWorkflowStatus(tenantId, id).catch(err => {
+                    console.error('[Workflow WhatsApp Notification Error]', err);
+                });
                 return updated;
             }
         } else {
@@ -351,7 +387,9 @@ export class OrdersService {
                         } : {})
                     }
                 });
-                await this.notifyOrderWorkflowStatus(tenantId, id);
+                this.notifyOrderWorkflowStatus(tenantId, id).catch(err => {
+                    console.error('[Workflow WhatsApp Notification Error]', err);
+                });
                 return updated;
             }
         }
@@ -372,9 +410,31 @@ export class OrdersService {
         const currentIdx = Math.max(statusIdx ?? 0, stageIdx ?? 0);
         const isReceived = currentIdx === 0;
 
-        const isJoyeroUser = currentUser?.role === 'JOYERO' || String(currentUser?.email || '').toLowerCase().includes('joyero');
+        const isJoyeroUser =
+            currentUser?.role === 'JOYERO' ||
+            String(currentUser?.role || '').toUpperCase() === 'JOYERO' ||
+            String(currentUser?.email || '').toLowerCase().includes('joyero') ||
+            String(currentUser?.name || '').toLowerCase().includes('joyero');
+
         if (isJoyeroUser && (data.promisedAt !== undefined || data.dueDate !== undefined)) {
             throw new ForbiddenException('El rol Joyero no tiene permisos para modificar la fecha de entrega.');
+        }
+
+        // Si se cambia a devuelto, la orden regresa a Recibido (RECEIVED)
+        let isReturn = false;
+        if (data.status) {
+            const sUpper = String(data.status).toUpperCase();
+            if (sUpper === 'RETURNED' || sUpper === 'DEVUELTO') {
+                data.status = 'RECEIVED';
+                isReturn = true;
+            }
+        }
+        if (data.stage) {
+            const stUpper = String(data.stage).toUpperCase();
+            if (stUpper === 'RETURNED' || stUpper === 'DEVUELTO') {
+                data.stage = 'RECIBIDO';
+                isReturn = true;
+            }
         }
 
         if (!isAuthorized && currentUser) {
@@ -391,15 +451,15 @@ export class OrdersService {
                 }
             }
 
-            // 2. Si se actualiza el workflow (status o stage), no se permite ir hacia atrás
-            if (data.status) {
+            // 2. Si se actualiza el workflow (status o stage), no se permite ir hacia atrás excepto en devolución
+            if (data.status && !isReturn) {
                 const newStatusUpper = String(data.status).toUpperCase();
                 const newIdx = STATUS_ORDER[newStatusUpper];
                 if (newIdx !== undefined && newIdx < currentIdx) {
                     throw new ForbiddenException('No está permitido retroceder el estado del flujo de trabajo.');
                 }
             }
-            if (data.stage) {
+            if (data.stage && !isReturn) {
                 const newStageUpper = String(data.stage).toUpperCase();
                 const newIdx = STATUS_ORDER[newStageUpper];
                 if (newIdx !== undefined && newIdx < currentIdx) {
@@ -452,8 +512,22 @@ export class OrdersService {
                              (stage && ['LISTO_ENTREGA'].includes(String(stage).toUpperCase()));
 
         let finalSpecifications = specifications !== undefined ? specifications : specs;
-        if (isReadyStage) {
-            const userName = currentUser?.name || currentUser?.email || 'Joyero';
+        const userName = currentUser?.name || currentUser?.email || 'Joyero';
+
+        if (isReturn) {
+            finalSpecifications = {
+                ...(typeof finalSpecifications === 'object' ? finalSpecifications : {}),
+                returnedByName: userName,
+                returnedBy: {
+                    id: currentUser?.id,
+                    name: userName,
+                    email: currentUser?.email,
+                    role: currentUser?.role,
+                    at: new Date()
+                },
+                returnReason: 'Devuelto por joyero a recepción'
+            };
+        } else if (isReadyStage) {
             finalSpecifications = {
                 ...(typeof finalSpecifications === 'object' ? finalSpecifications : {}),
                 readyByName: userName,
@@ -501,7 +575,9 @@ export class OrdersService {
         });
 
         if (status && status !== order.status) {
-            await this.notifyOrderWorkflowStatus(tenantId, id);
+            this.notifyOrderWorkflowStatus(tenantId, id).catch(err => {
+                console.error('[Workflow WhatsApp Notification Error]', err);
+            });
         }
 
         return updated;

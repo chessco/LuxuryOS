@@ -115,7 +115,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
         user.role === 'SYSTEM' ||
         String(user.email || '').toLowerCase().includes('system');
 
-    const isJoyero = user?.role === 'JOYERO' || String(user?.email || '').toLowerCase().includes('joyero');
+    const isJoyero =
+        user?.role === 'JOYERO' ||
+        String(user?.role || '').toUpperCase() === 'JOYERO' ||
+        String(user?.email || '').toLowerCase().includes('joyero') ||
+        String(user?.name || '').toLowerCase().includes('joyero');
 
     const sortedOrders = useMemo(() => {
         let sortableItems = [...orders];
@@ -336,10 +340,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                 {/* 7. Estado */}
                                 <td
                                     className="px-6 py-5"
-                                    onClick={stopPropagationTouch}
-                                    onTouchStart={stopPropagationTouch}
-                                    onTouchEnd={stopPropagationTouch}
-                                    onPointerDown={stopPropagationTouch}
+                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     {(() => {
                                         const rawStatus = (order.status || order.stage || 'RECEIVED').toUpperCase();
@@ -358,15 +359,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                                     try {
                                                         await OrdersService.moveOrder(order.id, newStatus);
                                                         if (onRefresh) onRefresh();
-                                                    } catch (err) {
+                                                    } catch (err: any) {
                                                         console.error("Error updating status:", err);
-                                                        alert("Error al cambiar estado");
+                                                        const msg = err?.response?.data?.message || err?.message || "Error al cambiar estado";
+                                                        alert(typeof msg === 'string' ? msg : "Error al cambiar estado");
                                                     }
                                                 }}
-                                                onClick={stopPropagationTouch}
-                                                onTouchStart={stopPropagationTouch}
-                                                onTouchEnd={stopPropagationTouch}
-                                                onPointerDown={stopPropagationTouch}
+                                                onClick={(e) => e.stopPropagation()}
                                                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest cursor-pointer outline-none border transition-all shadow-sm ${
                                                     isDelivered
                                                         ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'

@@ -35,9 +35,6 @@ const OrderDetail: React.FC = () => {
     const [currentStep, setCurrentStep] = useState(2);
     const [notesBuffer, setNotesBuffer] = useState('');
     const [activities, setActivities] = useState<any[]>([]);
-    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
-    const cameraInputRef = React.useRef<HTMLInputElement>(null);
     const envelopeFileInputRef = React.useRef<HTMLInputElement>(null);
     const envelopeCameraInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -166,51 +163,6 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    const handleGenerateAIImage = async () => {
-        if (!id) return;
-        setIsGeneratingImage(true);
-        try {
-            const updatedOrder = await OrdersService.generateImage(id);
-            setOrder(prev => ({ ...prev, imageUrl: updatedOrder.imageUrl }));
-
-            setActivities(prev => [{
-                user: "IA",
-                action: "generó una imagen para el pedido",
-                target: "",
-                time: "Ahora mismo",
-                dotColor: "bg-purple-500"
-            }, ...prev]);
-        } catch (error) {
-            console.error(error);
-            alert('Error al generar imagen con IA');
-        } finally {
-            setIsGeneratingImage(false);
-        }
-    };
-
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !id) return;
-
-        try {
-            const compressedBase64 = await compressImageFile(file);
-            await OrdersService.updateOrder(id, { imageUrl: compressedBase64 });
-            setOrder((prev: any) => ({ ...prev, imageUrl: compressedBase64 }));
-
-            setActivities(prev => [{
-                user: "Tú",
-                action: "subiste una foto de la pieza",
-                target: "",
-                time: "Ahora mismo",
-                dotColor: "bg-indigo-500"
-            }, ...prev]);
-        } catch (error) {
-            console.error(error);
-            alert('Error al subir la imagen');
-        } finally {
-            if (e.target) e.target.value = '';
-        }
-    };
 
     const handleEnvelopeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -639,22 +591,22 @@ const OrderDetail: React.FC = () => {
                             <h2 className="text-foreground text-2xl sm:text-3xl font-black tracking-tight font-display transition-colors">
                                 {order.clientName}
                             </h2>
-                            <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-muted-foreground select-text">
                                 {order.client?.phone && (
-                                    <span className="flex items-center gap-1.5">
+                                    <span className="flex items-center gap-1.5 pointer-events-none select-text">
                                         <span className="material-symbols-outlined text-[16px] text-foreground">call</span>
-                                        {order.client.phone}
+                                        <span>{order.client.phone}</span>
                                     </span>
                                 )}
                                 {order.client?.email && (
-                                    <span className="flex items-center gap-1.5">
+                                    <span className="flex items-center gap-1.5 pointer-events-none select-text">
                                         <span className="material-symbols-outlined text-[16px] text-foreground">mail</span>
-                                        {order.client.email}
+                                        <span>{order.client.email}</span>
                                     </span>
                                 )}
-                                <span className="flex items-center gap-1.5">
+                                <span className="flex items-center gap-1.5 pointer-events-none select-text">
                                     <span className="material-symbols-outlined text-[16px] text-foreground">location_on</span>
-                                    {order.client?.location || 'México'}
+                                    <span>{order.client?.location || 'México'}</span>
                                 </span>
                             </div>
                         </div>
@@ -694,15 +646,6 @@ const OrderDetail: React.FC = () => {
                                         <span className="material-symbols-outlined text-[18px]">chat</span>
                                         <span>WhatsApp</span>
                                     </button>
-                                )}
-                                {order.client?.phone && (
-                                    <a
-                                        href={`tel:${order.client.phone}`}
-                                        className="flex items-center gap-2 bg-muted border border-border rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">call</span>
-                                        <span>Llamar</span>
-                                    </a>
                                 )}
                                 <Link
                                     to={`/clients?search=${encodeURIComponent(order.clientName)}`}
@@ -758,118 +701,71 @@ const OrderDetail: React.FC = () => {
 
                         return (
                             <div key={idx} className="bg-muted/30 hover:bg-muted/50 border border-border rounded-[28px] p-6 sm:p-8 transition-all shadow-sm">
-                                <div className="flex flex-col xl:flex-row items-start xl:items-center gap-8">
-                                    {/* Thumbnail & Image actions */}
-                                    <div className="flex flex-col items-center gap-2.5 flex-shrink-0 w-full sm:w-auto">
-                                        <div className="size-36 sm:size-44 rounded-3xl bg-muted border border-border overflow-hidden relative group/img transition-colors shadow-inner mx-auto">
-                                            {order.imageUrl ? (
-                                                <img src={order.imageUrl} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700" alt="Pieza" />
-                                            ) : (
-                                                <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                                                    <span className="material-symbols-outlined text-muted-foreground/30 text-5xl">image</span>
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">Sin foto</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        {/* Action buttons visible and touch-friendly for iPad */}
-                                        <div className="flex items-center gap-1.5 w-full sm:w-44 justify-center">
-                                            <button
-                                                type="button"
-                                                onClick={() => cameraInputRef.current?.click()}
-                                                className="flex-1 flex items-center justify-center gap-1 px-2.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[10px] font-black uppercase tracking-wider transition-all shadow-sm cursor-pointer"
-                                                title="Tomar foto con la cámara del iPad"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px]">photo_camera</span>
-                                                <span>Cámara</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => fileInputRef.current?.click()}
-                                                className="flex-1 flex items-center justify-center gap-1 px-2.5 py-2 rounded-xl bg-card hover:bg-muted active:scale-95 text-foreground text-[10px] font-black uppercase tracking-wider transition-all border border-border shadow-sm cursor-pointer"
-                                                title="Elegir foto de la galería"
-                                            >
-                                                <span className="material-symbols-outlined text-[16px]">upload</span>
-                                                <span>Galería</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleGenerateAIImage}
-                                                disabled={isGeneratingImage}
-                                                className="flex items-center justify-center p-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 active:scale-95 text-purple-600 dark:text-purple-400 text-[10px] font-black uppercase tracking-wider transition-all border border-purple-500/20 disabled:opacity-50 cursor-pointer"
-                                                title="Generar imagen con IA"
-                                            >
-                                                <span className={`material-symbols-outlined text-[16px] ${isGeneratingImage ? 'animate-spin' : ''}`}>{isGeneratingImage ? 'sync' : 'auto_awesome'}</span>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Main Technical Specs (Horizontal) */}
-                                    <div className="flex-1 min-w-0 space-y-4 w-full">
-                                        <div className="flex flex-wrap items-center gap-3.5">
-                                            <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                                                Pieza #{idx + 1}
+                                <div className="space-y-4 w-full">
+                                    <div className="flex flex-wrap items-center gap-3.5">
+                                        <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                            Pieza #{idx + 1}
+                                        </span>
+                                        <h4 className="text-foreground text-xl sm:text-2xl font-black uppercase tracking-tight truncate font-display">
+                                            {piece.item || (order.type === 'DESIGN' ? 'Diseño de Joya' : order.type === 'LASER' ? 'Grabado / Corte Láser' : order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
+                                        </h4>
+                                        {piece.itemCode && (
+                                            <span className="text-muted-foreground text-xs font-mono font-bold bg-muted px-2.5 py-1 rounded-lg border border-border">
+                                                {piece.itemCode}
                                             </span>
-                                            <h4 className="text-foreground text-xl sm:text-2xl font-black uppercase tracking-tight truncate font-display">
-                                                {piece.item || (order.type === 'DESIGN' ? 'Diseño de Joya' : order.type === 'LASER' ? 'Grabado / Corte Láser' : order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
-                                            </h4>
-                                            {piece.itemCode && (
-                                                <span className="text-muted-foreground text-xs font-mono font-bold bg-muted px-2.5 py-1 rounded-lg border border-border">
-                                                    {piece.itemCode}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* Horizontal Specs Badges */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                                            <SpecBadge label="Metal" value={piece.metal} />
-                                            <SpecBadge label="Color" value={piece.color} />
-                                            <SpecBadge label="Kilataje" value={piece.karats} />
-                                            <SpecBadge label="Peso" value={formatSpecVal(piece.weight, 'gr')} />
-                                            <SpecBadge label="Medida" value={formatSpecVal(piece.size, 'cm')} />
-                                            <SpecBadge label="Grosor" value={formatSpecVal(piece.thickness, 'mm')} />
-                                        </div>
-
-                                        {/* Description / Work / Diagnosis */}
-                                        {(() => {
-                                            const pieceDescription = 
-                                                piece.description || 
-                                                piece.notes || 
-                                                piece.trabajo || 
-                                                piece.work || 
-                                                order.specifications?.diagnosis || 
-                                                order.description || 
-                                                '';
-
-                                            return (
-                                                <div className="text-xs sm:text-sm font-medium leading-relaxed bg-muted/60 p-4 sm:p-5 rounded-2xl border border-border/80 text-foreground space-y-1.5 shadow-inner">
-                                                    <div>
-                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Trabajo:</span>
-                                                        <span className={pieceDescription ? "font-bold text-foreground" : "italic text-muted-foreground"}>
-                                                            {pieceDescription || "Sin descripción de trabajo especificada"}
-                                                        </span>
-                                                    </div>
-                                                    {order.specifications?.diagnosis && order.specifications?.diagnosis !== pieceDescription && (
-                                                        <div>
-                                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Diagnóstico:</span>
-                                                            {order.specifications.diagnosis}
-                                                        </div>
-                                                    )}
-                                                    {order.specifications?.partsNeeded && (
-                                                        <div>
-                                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Refacciones:</span>
-                                                            {order.specifications.partsNeeded}
-                                                        </div>
-                                                    )}
-                                                    {!isJoyero && piece.materialCost && (
-                                                        <div>
-                                                            <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Costo Material:</span>
-                                                            <span className="font-bold text-foreground">{Number(piece.materialCost).toLocaleString()} MXN</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })()}
+                                        )}
                                     </div>
+
+                                    {/* Horizontal Specs Badges */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                                        <SpecBadge label="Metal" value={piece.metal} />
+                                        <SpecBadge label="Color" value={piece.color} />
+                                        <SpecBadge label="Kilataje" value={piece.karats} />
+                                        <SpecBadge label="Peso" value={formatSpecVal(piece.weight, 'gr')} />
+                                        <SpecBadge label="Medida" value={formatSpecVal(piece.size, 'cm')} />
+                                        <SpecBadge label="Grosor" value={formatSpecVal(piece.thickness, 'mm')} />
+                                    </div>
+
+                                    {/* Description / Work / Diagnosis */}
+                                    {(() => {
+                                        const pieceDescription = 
+                                            piece.description || 
+                                            piece.notes || 
+                                            piece.trabajo || 
+                                            piece.work || 
+                                            order.specifications?.diagnosis || 
+                                            order.description || 
+                                            '';
+
+                                        return (
+                                            <div className="text-xs sm:text-sm font-medium leading-relaxed bg-muted/60 p-4 sm:p-5 rounded-2xl border border-border/80 text-foreground space-y-1.5 shadow-inner">
+                                                <div>
+                                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Trabajo:</span>
+                                                    <span className={pieceDescription ? "font-bold text-foreground" : "italic text-muted-foreground"}>
+                                                        {pieceDescription || "Sin descripción de trabajo especificada"}
+                                                    </span>
+                                                </div>
+                                                {order.specifications?.diagnosis && order.specifications?.diagnosis !== pieceDescription && (
+                                                    <div>
+                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Diagnóstico:</span>
+                                                        {order.specifications.diagnosis}
+                                                    </div>
+                                                )}
+                                                {order.specifications?.partsNeeded && (
+                                                    <div>
+                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Refacciones:</span>
+                                                        {order.specifications.partsNeeded}
+                                                    </div>
+                                                )}
+                                                {!isJoyero && piece.materialCost && (
+                                                    <div>
+                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Costo Material:</span>
+                                                        <span className="font-bold text-foreground">{Number(piece.materialCost).toLocaleString()} MXN</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         );
@@ -1190,21 +1086,7 @@ const OrderDetail: React.FC = () => {
                 orderCode={order?.orderCode}
             />
 
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                className="hidden"
-            />
-            <input
-                type="file"
-                ref={cameraInputRef}
-                onChange={handleImageUpload}
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-            />
+
         </div>
     );
 };

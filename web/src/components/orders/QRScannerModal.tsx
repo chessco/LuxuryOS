@@ -226,11 +226,13 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
         try {
             await OrdersService.moveOrder(foundOrder.id, newStatus);
             setActionMessage(`¡Orden actualizada con éxito a ${labelText}! ✨`);
-            setFoundOrder((prev: any) => ({ ...prev, status: newStatus, stage: newStatus }));
+            const effectiveStatus = (newStatus === 'RETURNED' || newStatus === 'DEVUELTO') ? 'RECEIVED' : newStatus;
+            setFoundOrder((prev: any) => ({ ...prev, status: effectiveStatus, stage: effectiveStatus }));
             if (onOrderUpdated) onOrderUpdated();
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error changing status:', err);
-            alert('Error al actualizar el estado de la orden');
+            const msg = err?.response?.data?.message || err?.message || 'Error al actualizar el estado de la orden';
+            alert(typeof msg === 'string' ? msg : 'Error al actualizar el estado de la orden');
         }
     };
 
@@ -471,12 +473,12 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
 
                                             <button
                                                 type="button"
-                                                onClick={() => handleUpdateStatus('RETURNED', 'Devuelto')}
+                                                onClick={() => handleUpdateStatus('RETURNED', 'Devuelto (Recibido)')}
                                                 className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all"
                                             >
                                                 <span className="material-symbols-outlined text-2xl">assignment_return</span>
                                                 <span>Devuelto</span>
-                                                <span className="text-[9px] font-medium opacity-80">Regresar pieza</span>
+                                                <span className="text-[9px] font-medium opacity-80">Regresar a Recibido</span>
                                             </button>
                                         </div>
                                     )}

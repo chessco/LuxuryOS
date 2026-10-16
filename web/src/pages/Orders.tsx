@@ -138,20 +138,6 @@ const Orders: React.FC = () => {
     const prefillTicketId = queryParams.get('ticketId') || '';
     const prefillTicketCode = queryParams.get('ticketCode') || '';
 
-    const [activeFilter, setActiveFilter] = useState<string | null>('Recibido');
-
-    const boardColumns = React.useMemo(() => {
-        let base = orderType === 'REPAIR' ? REPAIR_COLUMNS :
-            orderType === 'MANUFACTURE' ? MANUFACTURE_COLUMNS :
-            (orderType === 'DESIGN' || orderType === 'LASER') ? REPAIR_COLUMNS :
-                orderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
-                    STANDARD_COLUMNS;
-        if (activeFilter === 'Entregados') {
-            return [...base, DELIVERED_COLUMN];
-        }
-        return base;
-    }, [orderType, activeFilter]);
-
     const user = React.useMemo(() => {
         try {
             return JSON.parse(localStorage.getItem('user') || '{}');
@@ -168,6 +154,26 @@ const Orders: React.FC = () => {
             String(user?.name || '').toLowerCase().includes('joyero')
         );
     }, [user]);
+
+    const [activeFilter, setActiveFilter] = useState<string | null>(isJoyero ? 'En Taller' : 'Recibido');
+
+    useEffect(() => {
+        if (isJoyero && activeFilter === 'Recibido') {
+            setActiveFilter('En Taller');
+        }
+    }, [isJoyero, activeFilter]);
+
+    const boardColumns = React.useMemo(() => {
+        let base = orderType === 'REPAIR' ? REPAIR_COLUMNS :
+            orderType === 'MANUFACTURE' ? MANUFACTURE_COLUMNS :
+            (orderType === 'DESIGN' || orderType === 'LASER') ? REPAIR_COLUMNS :
+                orderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
+                    STANDARD_COLUMNS;
+        if (activeFilter === 'Entregados') {
+            return [...base, DELIVERED_COLUMN];
+        }
+        return base;
+    }, [orderType, activeFilter]);
 
     useEffect(() => {
         if (isJoyero && !orderType) {
@@ -554,7 +560,7 @@ const Orders: React.FC = () => {
                     const label = (o.statusLabel || '').toUpperCase();
                     return label === 'EN TALLER';
                 });
-            } else if (activeFilter === 'Para Entrega') {
+            } else if (activeFilter === 'Terminado' || activeFilter === 'Para Entrega') {
                 result = result.filter(o => {
                     const label = (o.statusLabel || '').toUpperCase();
                     return label === 'PARA ENTREGA' || label === 'LISTO' || label === 'TERMINADO';
@@ -590,7 +596,9 @@ const Orders: React.FC = () => {
         return result;
     }, [orders, searchQuery, activeFilter]);
 
-    const filterButtons = ['Recibido', 'En Taller', 'Para Entrega', 'Entregados', 'Esta Semana'];
+    const filterButtons = isJoyero
+        ? ['En Taller', 'Terminado', 'Entregados', 'Esta Semana']
+        : ['Recibido', 'En Taller', 'Terminado', 'Entregados', 'Esta Semana'];
 
     const getOrdersByStatus = (columnId: string) => {
         return filteredOrders.filter(o => o.status === columnId);
@@ -696,7 +704,7 @@ const Orders: React.FC = () => {
                                                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-md font-black'
                                                     : f === 'En Taller'
                                                     ? 'bg-purple-600 text-white border-purple-600 shadow-md font-black'
-                                                    : f === 'Para Entrega'
+                                                    : (f === 'Terminado' || f === 'Para Entrega')
                                                     ? 'bg-amber-500 text-black border-amber-500 shadow-md font-black'
                                                     : f === 'Entregados'
                                                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-md font-black'
