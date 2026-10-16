@@ -15,47 +15,120 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-const getStatusOptions = (orderType: string, currentStatus?: string, isJoyero?: boolean) => {
+const getStatusOptions = (orderType: string, currentStatus?: string, isJoyero?: boolean, isVendedor?: boolean, isAdminOrSystem?: boolean) => {
     const type = (orderType || 'STANDARD').toUpperCase();
 
     if (isJoyero) {
         const completedVal = type === 'MANUFACTURE' ? 'READY_FOR_PICKUP' : 'REPAIR_COMPLETED';
-        return [
+        const opts: { value: string; label: string; disabled?: boolean; hidden?: boolean }[] = [
             { value: completedVal, label: 'TERMINADO' },
             { value: 'RETURNED', label: 'DEVUELTO' }
         ];
+        if (currentStatus && !opts.some(o => o.value === currentStatus)) {
+            opts.unshift({
+                value: currentStatus,
+                label: getStatusLabel(currentStatus),
+                disabled: true,
+                hidden: true
+            });
+        }
+        return opts;
     }
 
-    let opts: { value: string; label: string }[] = [];
+    if (isVendedor) {
+        const inWorkshopVal = type === 'MANUFACTURE' ? 'IN_PRODUCTION' : (type === 'STANDARD' ? 'EN_PRODUCCION' : 'IN_REPAIR');
+        const deliveredVal = type === 'STANDARD' ? 'ENTREGADO_POSTVENTA' : 'DELIVERED';
+        const opts: { value: string; label: string; disabled?: boolean; hidden?: boolean }[] = [
+            { value: inWorkshopVal, label: 'EN TALLER' },
+            { value: deliveredVal, label: 'ENTREGADO' },
+            { value: 'RETURNED', label: 'DEVUELTO' }
+        ];
+
+        if (currentStatus && !opts.some(o => o.value === currentStatus)) {
+            opts.unshift({
+                value: currentStatus,
+                label: getStatusLabel(currentStatus),
+                disabled: true,
+                hidden: true
+            });
+        }
+        return opts;
+    }
+
+    if (isAdminOrSystem) {
+        let opts: { value: string; label: string; disabled?: boolean; hidden?: boolean }[] = [];
+        if (type === 'REPAIR' || type === 'DESIGN' || type === 'LASER') {
+            opts = [
+                { value: 'RECEIVED', label: 'RECIBIDO' },
+                { value: 'RETURNED', label: 'DEVUELTO' },
+                { value: 'IN_REPAIR', label: 'EN TALLER' },
+                { value: 'REPAIR_COMPLETED', label: 'TERMINADO' },
+                { value: 'DELIVERED', label: 'ENTREGADO' }
+            ];
+        } else if (type === 'MANUFACTURE') {
+            opts = [
+                { value: 'RECEIVED', label: 'RECIBIDO' },
+                { value: 'RETURNED', label: 'DEVUELTO' },
+                { value: 'IN_PRODUCTION', label: 'EN TALLER' },
+                { value: 'READY_FOR_PICKUP', label: 'TERMINADO' },
+                { value: 'DELIVERED', label: 'ENTREGADO' }
+            ];
+        } else if (type === 'LAYAWAY') {
+            opts = [
+                { value: 'LAYAWAY_OPEN', label: 'APARTADO' },
+                { value: 'RETURNED', label: 'DEVUELTO' },
+                { value: 'LAYAWAY_EXPIRED', label: 'VENCIDO' },
+                { value: 'DELIVERED', label: 'ENTREGADO' }
+            ];
+        } else {
+            opts = [
+                { value: 'INTERES_LEAD', label: 'RECIBIDO' },
+                { value: 'COTIZACION_ENVIADA', label: 'COTIZACIÓN' },
+                { value: 'APROBADO_ANTICIPO', label: 'APROBADO / ANTICIPO' },
+                { value: 'RETURNED', label: 'DEVUELTO' },
+                { value: 'EN_PRODUCCION', label: 'EN TALLER' },
+                { value: 'CONTROL_CALIDAD', label: 'CONTROL CALIDAD' },
+                { value: 'ENTREGADO_POSTVENTA', label: 'ENTREGADO' }
+            ];
+        }
+
+        if (currentStatus && !opts.some(o => o.value === currentStatus)) {
+            opts.unshift({ value: currentStatus, label: getStatusLabel(currentStatus) });
+        }
+        return opts;
+    }
+
+    let opts: { value: string; label: string; disabled?: boolean; hidden?: boolean }[] = [];
     if (type === 'REPAIR' || type === 'DESIGN' || type === 'LASER') {
         opts = [
             { value: 'RECEIVED', label: 'RECIBIDO' },
+            { value: 'RETURNED', label: 'DEVUELTO' },
             { value: 'IN_REPAIR', label: 'EN TALLER' },
             { value: 'REPAIR_COMPLETED', label: 'TERMINADO' },
-            { value: 'DELIVERED', label: 'ENTREGADO' },
-            { value: 'RETURNED', label: 'DEVUELTO' }
+            { value: 'DELIVERED', label: 'ENTREGADO' }
         ];
     } else if (type === 'MANUFACTURE') {
         opts = [
             { value: 'RECEIVED', label: 'RECIBIDO' },
+            { value: 'RETURNED', label: 'DEVUELTO' },
             { value: 'IN_PRODUCTION', label: 'EN TALLER' },
             { value: 'READY_FOR_PICKUP', label: 'TERMINADO' },
-            { value: 'DELIVERED', label: 'ENTREGADO' },
-            { value: 'RETURNED', label: 'DEVUELTO' }
+            { value: 'DELIVERED', label: 'ENTREGADO' }
         ];
     } else if (type === 'LAYAWAY') {
         opts = [
             { value: 'LAYAWAY_OPEN', label: 'APARTADO' },
+            { value: 'RETURNED', label: 'DEVUELTO' },
             { value: 'LAYAWAY_EXPIRED', label: 'VENCIDO' },
-            { value: 'DELIVERED', label: 'ENTREGADO' },
-            { value: 'RETURNED', label: 'DEVUELTO' }
+            { value: 'DELIVERED', label: 'ENTREGADO' }
         ];
     } else {
         opts = [
-            { value: 'INTERES_LEAD', label: 'INTERÉS / LEAD' },
+            { value: 'INTERES_LEAD', label: 'RECIBIDO' },
             { value: 'COTIZACION_ENVIADA', label: 'COTIZACIÓN' },
             { value: 'APROBADO_ANTICIPO', label: 'APROBADO / ANTICIPO' },
-            { value: 'EN_PRODUCCION', label: 'EN PRODUCCIÓN' },
+            { value: 'RETURNED', label: 'DEVUELTO' },
+            { value: 'EN_PRODUCCION', label: 'EN TALLER' },
             { value: 'CONTROL_CALIDAD', label: 'CONTROL CALIDAD' },
             { value: 'ENTREGADO_POSTVENTA', label: 'ENTREGADO' }
         ];
@@ -120,6 +193,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
         String(user?.role || '').toUpperCase() === 'JOYERO' ||
         String(user?.email || '').toLowerCase().includes('joyero') ||
         String(user?.name || '').toLowerCase().includes('joyero');
+
+    const isVendedor =
+        user?.role === 'VENDEDOR' ||
+        String(user?.role || '').toUpperCase() === 'VENDEDOR' ||
+        user?.role === 'VENTAS' ||
+        String(user?.role || '').toUpperCase() === 'VENTAS' ||
+        String(user?.email || '').toLowerCase().includes('vendedor') ||
+        String(user?.email || '').toLowerCase().includes('ventas') ||
+        String(user?.name || '').toLowerCase().includes('vendedor');
 
     const sortedOrders = useMemo(() => {
         let sortableItems = [...orders];
@@ -348,8 +430,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                         const isDelivered = displayLabel === 'ENTREGADO' || rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA';
                                         const isReady = displayLabel === 'PARA ENTREGA' || displayLabel === 'LISTO' || displayLabel === 'TERMINADO' || rawStatus === 'REPAIR_COMPLETED' || rawStatus === 'READY_FOR_PICKUP' || rawStatus === 'READY';
                                         const isInWorkshop = displayLabel === 'EN TALLER' || displayLabel === 'PRODUCCIÓN' || rawStatus === 'IN_REPAIR' || rawStatus === 'IN_PRODUCTION' || rawStatus === 'EN_PRODUCCION' || rawStatus === 'QUALITY_CHECK';
+                                        const isReturned = displayLabel === 'DEVUELTO' || rawStatus === 'RETURNED' || rawStatus === 'DEVUELTO' || order.specifications?.isReturned;
 
-                                        const options = getStatusOptions(order.type, rawStatus, isJoyero);
+                                        const options = getStatusOptions(order.type, rawStatus, isJoyero, isVendedor, isSystemAdmin);
 
                                         return (
                                             <select
@@ -373,12 +456,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                                         ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
                                                         : isInWorkshop
                                                         ? 'bg-yellow-300 dark:bg-yellow-400 text-black border-yellow-500 font-black'
+                                                        : isReturned
+                                                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 font-black'
                                                         : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 font-bold'
                                                 }`}
                                                 title="Modificar estado directamente"
                                             >
                                                 {options.map((opt) => (
-                                                    <option key={opt.value} value={opt.value} className="bg-background text-foreground font-bold">
+                                                    <option 
+                                                        key={opt.value} 
+                                                        value={opt.value} 
+                                                        disabled={opt.disabled}
+                                                        hidden={opt.hidden}
+                                                        className="bg-background text-foreground font-bold"
+                                                    >
                                                         {opt.label}
                                                     </option>
                                                 ))}

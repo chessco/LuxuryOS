@@ -27,6 +27,8 @@ const STATUS_ORDER: Record<string, number> = {
     'QUALITY_CHECK': 1,
     'CONTROL_CALIDAD': 1,
     'MATERIALS_PENDING': 1,
+    'RETURNED': 0.5,
+    'DEVUELTO': 0.5,
     'REPAIR_COMPLETED': 2,
     'READY_FOR_PICKUP': 2,
     'READY': 2,
@@ -34,8 +36,6 @@ const STATUS_ORDER: Record<string, number> = {
     'DELIVERED': 3,
     'ENTREGADO': 3,
     'ENTREGADO_POSTVENTA': 3,
-    'RETURNED': 3,
-    'DEVUELTO': 3,
     'CANCELLED': 4,
 };
 
@@ -104,15 +104,22 @@ export class OrdersService {
             throw new BadRequestException('Estado destino inválido');
         }
 
-        // Si se devuelve, la orden regresa a Recibido (RECEIVED)
-        const effectiveTarget = isReturnAction ? (usesStatus ? 'RECEIVED' : 'RECIBIDO') : toStage;
+        // Si se devuelve, la orden pasa a RETURNED (o RECIBIDO si el tipo no usa OrderStatus)
+        const effectiveTarget = isReturnAction ? (usesStatus ? 'RETURNED' : 'RECIBIDO') : toStage;
 
         if (user && !isAdminRole(user.role, user.email)) {
             const isReturnAllowed = isReturnAction || (effectiveTarget.toUpperCase() === 'RECEIVED' && (
                 user.role === 'JOYERO' ||
                 String(user.role || '').toUpperCase() === 'JOYERO' ||
+                user.role === 'VENDEDOR' ||
+                String(user.role || '').toUpperCase() === 'VENDEDOR' ||
+                user.role === 'VENTAS' ||
+                String(user.role || '').toUpperCase() === 'VENTAS' ||
                 String(user.email || '').toLowerCase().includes('joyero') ||
-                String(user.name || '').toLowerCase().includes('joyero')
+                String(user.email || '').toLowerCase().includes('vendedor') ||
+                String(user.email || '').toLowerCase().includes('ventas') ||
+                String(user.name || '').toLowerCase().includes('joyero') ||
+                String(user.name || '').toLowerCase().includes('vendedor')
             ));
 
             if (!isReturnAllowed) {
@@ -154,24 +161,33 @@ export class OrdersService {
                     role: user?.role,
                     at: new Date()
                 },
-                returnReason: 'Devuelto por joyero a recepción'
+                returnReason: 'Devuelto por joyero a recepción',
+                isReturned: true
             };
-        } else if (isReadyStage) {
-            updateData.specifications = {
-                ...specs,
-                readyByName: userName,
-                readyBy: {
-                    id: user?.id,
-                    name: userName,
-                    email: user?.email,
-                    role: user?.role,
-                    at: new Date()
-                }
-            };
+        } else {
+            if (specs.isReturned) {
+                const { isReturned, returnReason, returnedBy, returnedByName, ...restSpecs } = specs;
+                updateData.specifications = restSpecs;
+            }
+            if (isReadyStage) {
+                updateData.specifications = {
+                    ...(updateData.specifications || specs),
+                    readyByName: userName,
+                    readyBy: {
+                        id: user?.id,
+                        name: userName,
+                        email: user?.email,
+                        role: user?.role,
+                        at: new Date()
+                    }
+                };
+            }
         }
 
         if (effectiveTarget === 'DELIVERED' || effectiveTarget === 'ENTREGADO' || effectiveTarget === 'ENTREGADO_POSTVENTA') {
             updateData.deliveredAt = new Date();
+        } else if (order.deliveredAt) {
+            updateData.deliveredAt = null;
         }
 
         const updated = await this.prisma.order.update({
@@ -420,12 +436,12 @@ export class OrdersService {
             throw new ForbiddenException('El rol Joyero no tiene permisos para modificar la fecha de entrega.');
         }
 
-        // Si se cambia a devuelto, la orden regresa a Recibido (RECEIVED)
+        // Si se cambia a devuelto, la orden pasa a RETURNED
         let isReturn = false;
         if (data.status) {
             const sUpper = String(data.status).toUpperCase();
             if (sUpper === 'RETURNED' || sUpper === 'DEVUELTO') {
-                data.status = 'RECEIVED';
+                data.status = 'RETURNED';
                 isReturn = true;
             }
         }

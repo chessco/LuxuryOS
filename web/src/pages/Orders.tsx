@@ -81,12 +81,12 @@ export const SPANISH_STATUS_MAP: Record<string, string> = {
     'EN_PRODUCCION': 'EN TALLER',
     'CONTROL_CALIDAD': 'EN TALLER',
     'DRAFT': 'RECIBIDO',
-    'QUOTE_SENT': 'COTIZACIÓN ENVIADA',
-    'APPROVED': 'APROBADO',
     'CANCELLED': 'CANCELADO',
     'READY': 'TERMINADO',
     'LISTO': 'TERMINADO',
-    'TERMINADO': 'TERMINADO'
+    'TERMINADO': 'TERMINADO',
+    'RETURNED': 'DEVUELTO',
+    'DEVUELTO': 'DEVUELTO'
 };
 
 export const getStatusLabel = (stage: string) => {
@@ -553,7 +553,19 @@ const Orders: React.FC = () => {
             if (activeFilter === 'Recibido') {
                 result = result.filter(o => {
                     const label = (o.statusLabel || '').toUpperCase();
-                    return label === 'RECIBIDO';
+                    const rawStatus = (o.status || o.stage || '').toUpperCase();
+                    const isDevuelto = label === 'DEVUELTO' || rawStatus === 'RETURNED' || rawStatus === 'DEVUELTO' || (o.specifications?.isReturned === true || !!o.specifications?.returnedBy);
+                    return (label === 'RECIBIDO' || rawStatus === 'RECEIVED' || rawStatus === 'RECIBIDO') && !isDevuelto;
+                });
+            } else if (activeFilter === 'Devuelto') {
+                result = result.filter(o => {
+                    const label = (o.statusLabel || '').toUpperCase();
+                    const rawStatus = (o.status || o.stage || '').toUpperCase();
+                    if (label === 'DEVUELTO' || rawStatus === 'RETURNED' || rawStatus === 'DEVUELTO') {
+                        return true;
+                    }
+                    const isReceived = label === 'RECIBIDO' || rawStatus === 'RECEIVED' || rawStatus === 'RECIBIDO';
+                    return isReceived && (o.specifications?.isReturned === true || !!o.specifications?.returnedBy);
                 });
             } else if (activeFilter === 'En Taller') {
                 result = result.filter(o => {
@@ -597,8 +609,8 @@ const Orders: React.FC = () => {
     }, [orders, searchQuery, activeFilter]);
 
     const filterButtons = isJoyero
-        ? ['En Taller', 'Terminado', 'Entregados', 'Esta Semana']
-        : ['Recibido', 'En Taller', 'Terminado', 'Entregados', 'Esta Semana'];
+        ? ['Devuelto', 'En Taller', 'Terminado', 'Entregados', 'Esta Semana']
+        : ['Recibido', 'Devuelto', 'En Taller', 'Terminado', 'Entregados', 'Esta Semana'];
 
     const getOrdersByStatus = (columnId: string) => {
         return filteredOrders.filter(o => o.status === columnId);
@@ -702,6 +714,8 @@ const Orders: React.FC = () => {
                                             isActive
                                                 ? f === 'Recibido'
                                                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-md font-black'
+                                                    : f === 'Devuelto'
+                                                    ? 'bg-rose-600 text-white border-rose-600 shadow-md font-black'
                                                     : f === 'En Taller'
                                                     ? 'bg-purple-600 text-white border-purple-600 shadow-md font-black'
                                                     : (f === 'Terminado' || f === 'Para Entrega')
@@ -812,6 +826,38 @@ const Orders: React.FC = () => {
     );
 };
 
+const compressImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.7): Promise<string> => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width *= maxHeight / height;
+                        height = maxHeight;
+                    }
+                }
+                canvas.width = Math.round(width);
+                canvas.height = Math.round(height);
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    });
+};
+
 const NewOrderDrawer: React.FC<{
     onClose: () => void;
     onSave: (order: any) => void;
@@ -859,7 +905,7 @@ const NewOrderDrawer: React.FC<{
     }, [initialClientName, initialClientPhone]);
 
     const [items, setItems] = useState<any[]>([
-        { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '' }
+        { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '' }
     ]);
 
     const handleItemChange = (index: number, field: string, value: string) => {
@@ -869,7 +915,7 @@ const NewOrderDrawer: React.FC<{
     };
 
     const addItem = () => {
-        setItems([...items, { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '' }]);
+        setItems([...items, { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '' }]);
     };
 
     const removeItem = (index: number) => {
@@ -992,6 +1038,7 @@ const NewOrderDrawer: React.FC<{
             newClientPhone: newClientData.phone || initialClientPhone,
             newClientEmail: newClientData.email,
             ...mainItem,
+            imageUrl: mainItem.imageUrl || formData.imageUrl || '',
             pieceType: mainItem.item,
             notes: formData.notes || '', // Independent order notes
             specifications: { items },
@@ -1488,6 +1535,103 @@ const NewOrderDrawer: React.FC<{
                                             className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none min-h-[80px] resize-none"
                                             placeholder="Soldar broche, ajuste de medida, grabado láser, pulido, etc."
                                         />
+                                    </div>
+
+                                    {/* Subir foto de la pieza: Cámara y Galería */}
+                                    <div className="space-y-2 pt-1">
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
+                                            <span>Fotografía de la Pieza</span>
+                                            <span className="text-[9px] text-zinc-400 font-normal">Cámara o archivo</span>
+                                        </label>
+
+                                        <input
+                                            type="file"
+                                            id={`piece-camera-${index}`}
+                                            accept="image/*"
+                                            capture="environment"
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    try {
+                                                        const compressed = await compressImageFile(file);
+                                                        handleItemChange(index, 'imageUrl', compressed);
+                                                    } catch (err) {
+                                                        console.error('Error compressing camera photo:', err);
+                                                    }
+                                                }
+                                                e.target.value = '';
+                                            }}
+                                        />
+                                        <input
+                                            type="file"
+                                            id={`piece-gallery-${index}`}
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    try {
+                                                        const compressed = await compressImageFile(file);
+                                                        handleItemChange(index, 'imageUrl', compressed);
+                                                    } catch (err) {
+                                                        console.error('Error compressing gallery photo:', err);
+                                                    }
+                                                }
+                                                e.target.value = '';
+                                            }}
+                                        />
+
+                                        {item.imageUrl ? (
+                                            <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border">
+                                                <img
+                                                    src={item.imageUrl}
+                                                    alt="Preview de pieza"
+                                                    className="size-16 object-cover rounded-lg border border-border shadow-sm shrink-0 bg-background"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-bold text-foreground truncate">Foto adjuntada</p>
+                                                    <p className="text-[10px] text-muted-foreground">Lista para guardar en la orden</p>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => document.getElementById(`piece-camera-${index}`)?.click()}
+                                                        title="Tomar otra foto"
+                                                        className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all"
+                                                    >
+                                                        <span className="material-symbols-outlined text-base">photo_camera</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleItemChange(index, 'imageUrl', '')}
+                                                        title="Eliminar foto"
+                                                        className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all"
+                                                    >
+                                                        <span className="material-symbols-outlined text-base">delete</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => document.getElementById(`piece-camera-${index}`)?.click()}
+                                                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-border hover:border-indigo-500/50 bg-muted/30 hover:bg-muted/60 text-xs font-bold text-muted-foreground hover:text-foreground transition-all active:scale-95"
+                                                >
+                                                    <span className="material-symbols-outlined text-base text-indigo-500">photo_camera</span>
+                                                    <span>Cámara</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => document.getElementById(`piece-gallery-${index}`)?.click()}
+                                                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-border hover:border-indigo-500/50 bg-muted/30 hover:bg-muted/60 text-xs font-bold text-muted-foreground hover:text-foreground transition-all active:scale-95"
+                                                >
+                                                    <span className="material-symbols-outlined text-base text-purple-500">image</span>
+                                                    <span>Galería</span>
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
