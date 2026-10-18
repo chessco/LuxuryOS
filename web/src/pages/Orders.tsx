@@ -1806,33 +1806,28 @@ const NewOrderDrawer: React.FC<{
                 </form>
 
                 {/* Footer Actions */}
-                <div className={`p-8 border-t border-border bg-muted/20 grid ${isJoyero ? 'grid-cols-2' : 'grid-cols-3'} gap-4`}>
+                <div className="p-8 border-t border-border bg-muted/20 grid grid-cols-2 gap-4">
                     <button type="button" onClick={onClose} className="py-4 rounded-xl text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground transition-all">
                         Cancelar
                     </button>
-                    {!isJoyero && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setShouldPrintLabel(true);
-                                setTimeout(() => {
-                                    const form = document.getElementById('new-order-form') as HTMLFormElement;
-                                    form?.requestSubmit();
-                                }, 50);
-                            }}
-                            className="py-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 hover:bg-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
-                        >
-                            <span className="material-symbols-outlined text-[16px]">print</span>
-                            <span>Imprimir Etiqueta</span>
-                        </button>
-                    )}
+                    {/* Un solo botón: ventas/admin registran e imprimen la etiqueta; el joyero solo registra */}
                     <button
-                        type="submit"
-                        form="new-order-form"
-                        onClick={() => setShouldPrintLabel(false)}
-                        className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95"
+                        type="button"
+                        onClick={() => {
+                            setShouldPrintLabel(!isJoyero);
+                            setTimeout(() => {
+                                const form = document.getElementById('new-order-form') as HTMLFormElement;
+                                form?.requestSubmit();
+                            }, 50);
+                        }}
+                        className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
                     >
-                        {orderType === 'REPAIR' ? 'Registrar Reparación' : orderType === 'MANUFACTURE' ? 'Registrar Fabricación' : orderType === 'DESIGN' ? 'Registrar Diseño' : orderType === 'LASER' ? 'Registrar Láser' : 'Crear Pedido'}
+                        {!isJoyero && <span className="material-symbols-outlined text-[16px]">print</span>}
+                        <span>
+                            {isJoyero
+                                ? (orderType === 'REPAIR' ? 'Registrar Reparación' : orderType === 'MANUFACTURE' ? 'Registrar Fabricación' : orderType === 'DESIGN' ? 'Registrar Diseño' : orderType === 'LASER' ? 'Registrar Láser' : 'Crear Pedido')
+                                : 'Registrar e Imprimir'}
+                        </span>
                     </button>
                 </div>
             </motion.div>

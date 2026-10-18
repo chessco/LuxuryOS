@@ -23,8 +23,10 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.11.0",
     "recharts": "^3.6.0",
+    "remark-gfm": "^4.0.1",
     "socket.io-client": "^4.8.3",
     "ssh2-sftp-client": "^12.1.1",
     "tailwind-merge": "^2.6.0"

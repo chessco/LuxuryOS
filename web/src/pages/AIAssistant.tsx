@@ -1,5 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactMarkdown, { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import api from '../services/api';
+
+// Estilos del markdown que devuelve Aura (negritas, listas, enlaces, código, tablas)
+const markdownComponents: Components = {
+    p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+    ul: ({ children }) => <ul className="list-disc pl-5 mb-3 last:mb-0 space-y-1">{children}</ul>,
+    ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 last:mb-0 space-y-1">{children}</ol>,
+    h1: ({ children }) => <h3 className="font-black text-base mb-2">{children}</h3>,
+    h2: ({ children }) => <h3 className="font-black text-base mb-2">{children}</h3>,
+    h3: ({ children }) => <h4 className="font-bold mb-2">{children}</h4>,
+    a: ({ href, children }) => (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-500 underline underline-offset-2">{children}</a>
+    ),
+    code: ({ children }) => <code className="px-1.5 py-0.5 rounded bg-muted text-[12px] font-mono">{children}</code>,
+    table: ({ children }) => <div className="overflow-x-auto mb-3"><table className="text-xs border-collapse">{children}</table></div>,
+    th: ({ children }) => <th className="border border-border px-3 py-1.5 text-left font-bold">{children}</th>,
+    td: ({ children }) => <td className="border border-border px-3 py-1.5">{children}</td>,
+};
 
 interface ChatMessage {
     role: 'user' | 'assistant';
@@ -81,7 +101,13 @@ const AIAssistantPage: React.FC = () => {
                                     ? 'bg-muted/30 border border-border text-foreground'
                                     : 'bg-primary text-primary-foreground font-medium'
                                     }`}>
-                                    {msg.content}
+                                    {msg.role === 'assistant' ? (
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                            {msg.content}
+                                        </ReactMarkdown>
+                                    ) : (
+                                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                                    )}
                                 </div>
                             </div>
                         </div>
