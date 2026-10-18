@@ -163,23 +163,24 @@ const Orders: React.FC = () => {
         }
     }, [isJoyero, activeFilter]);
 
+    const effectiveOrderType = orderType || 'REPAIR';
     const boardColumns = React.useMemo(() => {
-        let base = orderType === 'REPAIR' ? REPAIR_COLUMNS :
-            orderType === 'MANUFACTURE' ? MANUFACTURE_COLUMNS :
-            (orderType === 'DESIGN' || orderType === 'LASER') ? REPAIR_COLUMNS :
-                orderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
+        let base = effectiveOrderType === 'REPAIR' ? REPAIR_COLUMNS :
+            effectiveOrderType === 'MANUFACTURE' ? MANUFACTURE_COLUMNS :
+            (effectiveOrderType === 'DESIGN' || effectiveOrderType === 'LASER') ? REPAIR_COLUMNS :
+                effectiveOrderType === 'LAYAWAY' ? LAYAWAY_COLUMNS :
                     STANDARD_COLUMNS;
         if (activeFilter === 'Entregados') {
             return [...base, DELIVERED_COLUMN];
         }
         return base;
-    }, [orderType, activeFilter]);
+    }, [effectiveOrderType, activeFilter]);
 
     useEffect(() => {
-        if (isJoyero && !orderType) {
+        if (!orderType) {
             navigate('/orders?type=REPAIR', { replace: true });
         }
-    }, [isJoyero, orderType, navigate]);
+    }, [orderType, navigate]);
 
     const [isModalOpen, setIsModalOpen] = useState(autoOpenNew && !isJoyero);
     const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
@@ -213,7 +214,7 @@ const Orders: React.FC = () => {
     const fetchBoard = async () => {
         try {
             setIsLoading(true);
-            const data = await OrdersService.getBoard(orderType || undefined);
+            const data = await OrdersService.getBoard(effectiveOrderType);
 
             const rawOrders: any[] = [];
             Object.keys(data).forEach(stage => {
@@ -609,44 +610,44 @@ const Orders: React.FC = () => {
     }, [orders, searchQuery, activeFilter]);
 
     const filterButtons = isJoyero
-        ? ['Devuelto', 'En Taller', 'Terminado', 'Entregados', 'Esta Semana']
-        : ['Recibido', 'Devuelto', 'En Taller', 'Terminado', 'Entregados', 'Esta Semana'];
+        ? ['En Taller', 'Terminado', 'Entregados', 'Esta Semana', 'Devuelto']
+        : ['Recibido', 'En Taller', 'Terminado', 'Entregados', 'Esta Semana', 'Devuelto'];
 
     const getOrdersByStatus = (columnId: string) => {
         return filteredOrders.filter(o => o.status === columnId);
     };
 
-    const boardTitle = orderType === 'REPAIR'
+    const boardTitle = effectiveOrderType === 'REPAIR'
         ? 'Tablero de Reparaciones'
-        : orderType === 'MANUFACTURE'
+        : effectiveOrderType === 'MANUFACTURE'
         ? 'Tablero de Fabricación'
-        : orderType === 'DESIGN'
+        : effectiveOrderType === 'DESIGN'
         ? 'Tablero de Diseño'
-        : orderType === 'LASER'
+        : effectiveOrderType === 'LASER'
         ? 'Tablero de Láser'
-        : orderType === 'LAYAWAY'
+        : effectiveOrderType === 'LAYAWAY'
         ? 'Tablero de Apartados'
         : 'Tablero de Pedidos';
 
-    const boardSubtitle = orderType === 'REPAIR'
+    const boardSubtitle = effectiveOrderType === 'REPAIR'
         ? 'Gestión visual del flujo de reparación y servicio'
-        : orderType === 'MANUFACTURE'
+        : effectiveOrderType === 'MANUFACTURE'
         ? 'Gestión visual del flujo de fabricación personalizada'
-        : orderType === 'DESIGN'
+        : effectiveOrderType === 'DESIGN'
         ? 'Gestión visual del flujo de modelado y diseño personalizado'
-        : orderType === 'LASER'
+        : effectiveOrderType === 'LASER'
         ? 'Gestión visual del flujo de grabado y corte láser'
-        : orderType === 'LAYAWAY'
+        : effectiveOrderType === 'LAYAWAY'
         ? 'Gestión visual del flujo de apartados y liquidación'
         : 'Gestión visual del flujo de producción y ventas';
 
-    const newButtonLabel = orderType === 'REPAIR'
+    const newButtonLabel = effectiveOrderType === 'REPAIR'
         ? 'Nueva Reparación'
-        : orderType === 'MANUFACTURE'
+        : effectiveOrderType === 'MANUFACTURE'
         ? 'Nueva Fabricación'
-        : orderType === 'DESIGN'
+        : effectiveOrderType === 'DESIGN'
         ? 'Nuevo Diseño'
-        : orderType === 'LASER'
+        : effectiveOrderType === 'LASER'
         ? 'Nuevo Láser'
         : 'Nuevo Pedido';
 

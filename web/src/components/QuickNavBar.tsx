@@ -20,7 +20,7 @@ const QUICK_NAV_ITEMS: QuickNavItem[] = [
 export const QuickNavBar: React.FC = () => {
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
-    const currentType = queryParams.get('type');
+    const currentType = queryParams.get('type') || (location.pathname === '/orders' ? 'REPAIR' : null);
 
     const isItemActive = (item: QuickNavItem) => {
         if (item.type) {

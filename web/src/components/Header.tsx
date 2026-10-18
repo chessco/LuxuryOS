@@ -23,7 +23,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                 >
                     <span className="material-symbols-outlined text-[22px]">menu</span>
                 </button>
-                <div className="flex items-center gap-2.5 pl-1">
+                <Link to="/orders?type=REPAIR" className="flex items-center gap-2.5 pl-1 cursor-pointer">
                     <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-blue-900 size-9 shadow-md shadow-indigo-500/20 ring-1 ring-indigo-500/30">
                         <span className="material-symbols-outlined text-white text-lg">diamond</span>
                     </div>
@@ -35,7 +35,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                             Atelier • Luxury OS
                         </span>
                     </div>
-                </div>
+                </Link>
             </div>
 
             {/* Search */}
