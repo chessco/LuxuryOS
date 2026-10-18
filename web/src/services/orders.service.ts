@@ -18,7 +18,8 @@ export const OrdersService = {
         return response.data;
     },
     getOrder: async (id: string): Promise<any> => {
-        const response = await api.get(`/kanban/orders/${id}`);
+        const cleanId = encodeURIComponent((id || '').trim());
+        const response = await api.get(`/kanban/orders/${cleanId}`);
         return response.data;
     },
     advanceStatus: async (id: string) => {

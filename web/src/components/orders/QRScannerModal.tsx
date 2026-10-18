@@ -18,9 +18,13 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const isProcessingRef = useRef(false);
+    const lastScannedCodeRef = useRef<string>('');
+    const lastScannedTimeRef = useRef<number>(0);
 
     const [isScanning, setIsScanning] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
+    const [scanError, setScanError] = useState<string | null>(null);
     const [manualCode, setManualCode] = useState('');
     const [isLoadingOrder, setIsLoadingOrder] = useState(false);
     const [foundOrder, setFoundOrder] = useState<any | null>(null);
@@ -56,22 +60,50 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
     // Extract order code or token from scanned text/url
     const parseScannedCode = (raw: string): string => {
         if (!raw) return '';
-        const trimmed = raw.trim();
-        // Check for URL track link: https://.../track/{token}
-        const trackMatch = trimmed.match(/\/track\/([a-zA-Z0-9_-]+)/);
-        if (trackMatch) return trackMatch[1];
-        // Check for standard code like REP-28, FAB-12, etc.
-        const codeMatch = trimmed.match(/([A-Z]{3}-\d+)/i);
-        if (codeMatch) return codeMatch[1].toUpperCase();
-        return trimmed;
+        let trimmed = raw.trim();
+        try {
+            trimmed = decodeURIComponent(trimmed).trim();
+        } catch {}
+
+        // 1. Check for URL track link: https://.../track/{token}
+        const trackMatch = trimmed.match(/\/track\/([a-zA-Z0-9_-]+)/i);
+        if (trackMatch) return trackMatch[1].trim();
+
+        // 2. Check for order URL: https://.../orders/{id}
+        const orderUrlMatch = trimmed.match(/\/orders\/([a-zA-Z0-9_-]+)/i);
+        if (orderUrlMatch) return orderUrlMatch[1].trim();
+
+        // 3. Remove common prefixes like "TURNO:", "ORDEN:", "ORD:", "TICKET:", "CODE:"
+        const cleanPrefixed = trimmed.replace(/^(TURNO|ORDEN|ORD|TICKET|CODE|CODIGO|QR)\s*[:#-]?\s*/i, '').trim();
+
+        // 4. If URL without /track/ or /orders/, take last segment
+        if (cleanPrefixed.startsWith('http://') || cleanPrefixed.startsWith('https://')) {
+            try {
+                const url = new URL(cleanPrefixed);
+                const segments = url.pathname.split('/').filter(Boolean);
+                if (segments.length > 0) return segments[segments.length - 1];
+            } catch {}
+        }
+
+        // 5. Standard order code pattern: REP-38, FAB-12, DIS-01, LAS-02, APT-03, PED-14, R-01, etc.
+        const codeMatch = cleanPrefixed.match(/^([A-Za-z]{1,4})\s*[-_ ]?\s*(\d+)$/);
+        if (codeMatch) {
+            return `${codeMatch[1].toUpperCase()}-${codeMatch[2]}`;
+        }
+
+        return cleanPrefixed;
     };
 
     const fetchOrderByCode = async (rawCode: string) => {
         const clean = parseScannedCode(rawCode);
-        if (!clean) return;
+        if (!clean) {
+            isProcessingRef.current = false;
+            return;
+        }
 
         setIsLoadingOrder(true);
         setActionMessage(null);
+        setScanError(null);
         try {
             const order = await OrdersService.getOrder(clean);
             if (order && order.id) {
@@ -79,14 +111,29 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                 setFoundOrder(order);
                 stopCamera();
             } else {
-                alert(`No se encontró ningún pedido con el código: ${clean}`);
+                setScanError(`No se encontró ninguna orden con el código: "${clean}"`);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error fetching order from QR:', err);
-            alert(`No se encontró pedido con el código: ${clean}`);
+            const msg = err?.response?.data?.message || err?.message || 'Orden no encontrada';
+            setScanError(`No se encontró ninguna orden con el código: "${clean}". (${typeof msg === 'string' ? msg : 'No encontrada'})`);
         } finally {
             setIsLoadingOrder(false);
+            isProcessingRef.current = false;
         }
+    };
+
+    const onCodeDetected = (code: string) => {
+        if (!code) return;
+        const now = Date.now();
+        if (isProcessingRef.current) return;
+        if (code === lastScannedCodeRef.current && now - lastScannedTimeRef.current < 2500) {
+            return;
+        }
+        lastScannedCodeRef.current = code;
+        lastScannedTimeRef.current = now;
+        isProcessingRef.current = true;
+        fetchOrderByCode(code);
     };
 
     // Start iPad/Device Camera
@@ -149,8 +196,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                     if (barcodes && barcodes.length > 0) {
                         const code = barcodes[0].rawValue;
                         if (code) {
-                            fetchOrderByCode(code);
-                            return;
+                            onCodeDetected(code);
                         }
                     }
                 } else if ((window as any).jsQR) {
@@ -164,8 +210,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                             const code = (window as any).jsQR(imgData.data, imgData.width, imgData.height);
                             if (code && code.data) {
-                                fetchOrderByCode(code.data);
-                                return;
+                                onCodeDetected(code.data);
                             }
                         }
                     }
@@ -216,7 +261,11 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
     const handleResetScan = () => {
         setFoundOrder(null);
         setActionMessage(null);
+        setScanError(null);
         setManualCode('');
+        isProcessingRef.current = false;
+        lastScannedCodeRef.current = '';
+        lastScannedTimeRef.current = 0;
         startCamera();
     };
 
@@ -349,6 +398,25 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Scan Error Banner */}
+                                {scanError && (
+                                    <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-start gap-3 text-red-500 text-xs animate-in fade-in duration-200">
+                                        <span className="material-symbols-outlined text-[20px] shrink-0 mt-0.5">error</span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold break-words">{scanError}</p>
+                                            <p className="text-[11px] opacity-80 mt-1">Apunta la cámara a otro código o introduce el código abajo.</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setScanError(null)}
+                                            className="text-red-400 hover:text-red-300 cursor-pointer p-0.5"
+                                            title="Cerrar aviso"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">close</span>
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* Manual Input Fallback */}
                                 <div className="space-y-3">

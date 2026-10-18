@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStage, OrderStatus, Prisma } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { generateTrackToken } from './tracking.util';
+import { generateTrackToken, generateHmacToken } from './tracking.util';
 
 import { OrderStrategyFactory } from './strategies/order-strategy.factory';
 import { NotificationService } from '../queue/notification.service';
@@ -289,8 +289,17 @@ export class OrdersService {
     }
 
     async getOrder(tenantId: string, idOrCode: string) {
+        let cleanIdOrCode = (idOrCode || '').trim();
+        try {
+            cleanIdOrCode = decodeURIComponent(cleanIdOrCode).trim();
+        } catch {}
+        const trackMatch = cleanIdOrCode.match(/\/track\/([a-zA-Z0-9_-]+)/i);
+        if (trackMatch) cleanIdOrCode = trackMatch[1];
+        const orderUrlMatch = cleanIdOrCode.match(/\/orders\/([a-fA-F0-9-]+)/i);
+        if (orderUrlMatch) cleanIdOrCode = orderUrlMatch[1];
+
         let order = await this.prisma.order.findFirst({
-            where: { id: idOrCode, tenantId },
+            where: { id: cleanIdOrCode, tenantId },
             include: { 
                 client: true, 
                 createdBy: { select: { id: true, name: true, email: true } },
@@ -310,15 +319,63 @@ export class OrdersService {
                 },
             });
 
-            const searchCode = idOrCode.toUpperCase().trim();
+            const searchCode = cleanIdOrCode.toUpperCase().trim();
+            const searchLower = cleanIdOrCode.toLowerCase().trim();
+            const searchNormalized = searchCode.replace(/[^A-Z0-9]/g, '');
+
             order = allOrders.find(o => {
+                // 1. Direct specifications orderCode (e.g. REP-38)
                 const specCode = String((o.specifications as any)?.orderCode || '').toUpperCase();
-                if (specCode === searchCode) return true;
+                if (specCode && specCode === searchCode) return true;
                 const specClean = specCode.replace(/-0+/, '-');
                 const searchClean = searchCode.replace(/-0+/, '-');
                 if (specClean && specClean === searchClean) return true;
+
+                // 2. Normalize codes without hyphens (e.g. REP38 vs REP-38)
+                if (specCode && specCode.replace(/[^A-Z0-9]/g, '') === searchNormalized) return true;
+
+                // 3. Match tracking token (generated in WhatsApp QR and public track URLs)
+                try {
+                    const trackToken = generateTrackToken(o.id).toLowerCase();
+                    if (trackToken === searchLower) return true;
+                    const hmacToken = generateHmacToken(o.id).toLowerCase();
+                    if (hmacToken === searchLower) return true;
+                } catch {}
+
+                // 4. Match Queue Ticket code or qrToken
+                if (o.queueTicket) {
+                    if (o.queueTicket.code && o.queueTicket.code.toUpperCase() === searchCode) return true;
+                    if (o.queueTicket.code && o.queueTicket.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === searchNormalized) return true;
+                    if (o.queueTicket.qrToken && o.queueTicket.qrToken.toLowerCase() === searchLower) return true;
+                }
+
+                // 5. Match by ID prefix / suffix (e.g. ORD-42691 or first 8 chars of UUID)
+                if (o.id.toLowerCase() === searchLower) return true;
+                if (searchLower.length >= 6 && o.id.toLowerCase().startsWith(searchLower)) return true;
+
                 return false;
             }) || null;
+
+            // 6. Fallback: match by sequential computed code if orderCode was not stored
+            if (!order && searchNormalized) {
+                const typeOrders: Record<string, typeof allOrders> = {};
+                for (const o of allOrders) {
+                    if (!typeOrders[o.type]) typeOrders[o.type] = [];
+                    typeOrders[o.type].push(o);
+                }
+                for (const type of Object.keys(typeOrders)) {
+                    typeOrders[type].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                    const prefix = type === 'REPAIR' ? 'REP' : (type === 'MANUFACTURE' ? 'FAB' : (type === 'DESIGN' ? 'DIS' : (type === 'LASER' ? 'LAS' : (type === 'LAYAWAY' ? 'APT' : 'PED'))));
+                    for (let i = 0; i < typeOrders[type].length; i++) {
+                        const computed = `${prefix}-${i + 1}`;
+                        if (computed === searchCode || computed.replace(/[^A-Z0-9]/g, '') === searchNormalized) {
+                            order = typeOrders[type][i];
+                            break;
+                        }
+                    }
+                    if (order) break;
+                }
+            }
         }
 
         if (!order) return null;
