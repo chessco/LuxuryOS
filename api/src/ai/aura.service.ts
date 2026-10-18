@@ -1,4 +1,9 @@
-import { BadGatewayException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
 
 export const AURA_AGENT_SLUG = 'aura';
@@ -36,15 +41,23 @@ export class AuraService {
     const [tenantUrl, tenantKey, pitayaTenant] = await Promise.all([
       this.settings.getSetting(tenantId, 'pitayacore_api_url', envUrl),
       this.settings.getSetting(tenantId, 'pitayacore_api_key'),
-      this.settings.getSetting(tenantId, 'pitayacore_tenant_id', DEFAULT_PITAYACORE_TENANT),
+      this.settings.getSetting(
+        tenantId,
+        'pitayacore_tenant_id',
+        DEFAULT_PITAYACORE_TENANT,
+      ),
     ]);
     // La clave del entorno es compartida entre tenants: solo se envía al destino del entorno,
     // nunca a una URL que un tenant pueda haber configurado (evita exfiltrar la clave).
     const apiKey = tenantKey || process.env.PITAYACORE_API_KEY;
     const url = tenantKey ? tenantUrl : envUrl;
     if (!apiKey) {
-      this.logger.error('Falta pitayacore_api_key (setting) o PITAYACORE_API_KEY (env)');
-      throw new ServiceUnavailableException('El asistente Aura no está configurado.');
+      this.logger.error(
+        'Falta pitayacore_api_key (setting) o PITAYACORE_API_KEY (env)',
+      );
+      throw new ServiceUnavailableException(
+        'El asistente Aura no está configurado.',
+      );
     }
     const trimmed = url.replace(/\/+$/, '');
     return {
@@ -54,7 +67,10 @@ export class AuraService {
     };
   }
 
-  private headers(cfg: PitayaCoreConfig, operatorEmail?: string): Record<string, string> {
+  private headers(
+    cfg: PitayaCoreConfig,
+    operatorEmail?: string,
+  ): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-api-key': cfg.apiKey,
@@ -79,20 +95,34 @@ export class AuraService {
       const created = await fetch(`${cfg.baseUrl}/agents`, {
         method: 'POST',
         headers: this.headers(cfg),
-        body: JSON.stringify({ name: AURA_AGENT_NAME, slug: AURA_AGENT_SLUG, prompt: AURA_PROMPT }),
+        body: JSON.stringify({
+          name: AURA_AGENT_NAME,
+          slug: AURA_AGENT_SLUG,
+          prompt: AURA_PROMPT,
+        }),
       });
       if (created.ok) {
         this.provisioned.add(cfg.tenantId);
-        this.logger.log(`Agente ${AURA_AGENT_SLUG} creado en pitayacore (tenant ${cfg.tenantId})`);
+        this.logger.log(
+          `Agente ${AURA_AGENT_SLUG} creado en pitayacore (tenant ${cfg.tenantId})`,
+        );
       } else {
-        this.logger.warn(`No se pudo crear el agente ${AURA_AGENT_SLUG}: HTTP ${created.status}`);
+        this.logger.warn(
+          `No se pudo crear el agente ${AURA_AGENT_SLUG}: HTTP ${created.status}`,
+        );
       }
     } catch (error: any) {
-      this.logger.warn(`No se pudo verificar el agente ${AURA_AGENT_SLUG}: ${error.message}`);
+      this.logger.warn(
+        `No se pudo verificar el agente ${AURA_AGENT_SLUG}: ${error.message}`,
+      );
     }
   }
 
-  async chat(tenantId: string, operatorEmail: string | undefined, message: string) {
+  async chat(
+    tenantId: string,
+    operatorEmail: string | undefined,
+    message: string,
+  ) {
     const cfg = await this.getConfig(tenantId);
     await this.ensureAgent(cfg);
 
@@ -105,12 +135,18 @@ export class AuraService {
       });
     } catch (error: any) {
       this.logger.error(`pitayacore no disponible: ${error.message}`);
-      throw new BadGatewayException('El asistente Aura no está disponible en este momento.');
+      throw new BadGatewayException(
+        'El asistente Aura no está disponible en este momento.',
+      );
     }
 
     if (!response.ok) {
-      this.logger.error(`pitayacore respondió HTTP ${response.status}: ${await response.text()}`);
-      throw new BadGatewayException('El asistente Aura no pudo responder. Intenta de nuevo.');
+      this.logger.error(
+        `pitayacore respondió HTTP ${response.status}: ${await response.text()}`,
+      );
+      throw new BadGatewayException(
+        'El asistente Aura no pudo responder. Intenta de nuevo.',
+      );
     }
 
     const data: any = await response.json().catch(() => ({}));
