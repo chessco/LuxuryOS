@@ -297,6 +297,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                             <HeaderTh label="Prioridad" sortKey="priority" />
                             <HeaderTh label="Cliente" sortKey="client" />
                             <HeaderTh label="Descripción" sortKey="item" />
+                            <HeaderTh label="Asignado a" sortKey="jeweler" />
                             <HeaderTh label="Mano de Obra" sortKey="laborCost" />
                             <HeaderTh label="Estado" sortKey="status" />
                             {isSystemAdmin && <th className="px-6 py-5 w-14"></th>}
@@ -414,7 +415,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                     <span className="text-zinc-800 dark:text-zinc-200 text-xs font-bold transition-colors">{order.description || order.item}</span>
                                 </td>
 
-                                {/* 6. Mano de Obra */}
+                                {/* 6. Asignado a */}
+                                <td className="px-6 py-5">
+                                    <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
+                                        <span className="material-symbols-outlined text-[15px] text-indigo-500">assignment_ind</span>
+                                        <span>{order.jeweler && order.jeweler !== '—' ? order.jeweler : (order.specifications?.assignedTo || order.specifications?.assignedJeweler || 'Sin asignar')}</span>
+                                    </div>
+                                </td>
+
+                                {/* 7. Mano de Obra */}
                                 <td className="px-6 py-5">
                                     <span className="text-zinc-900 dark:text-white font-black text-xs tracking-tight transition-colors">{order.laborCost || order.value}</span>
                                 </td>

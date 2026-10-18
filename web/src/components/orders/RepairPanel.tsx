@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { OrderStatus } from '../../types';
+import { getStatusLabel } from '../../pages/Orders';
 
 interface RepairPanelProps {
     order: any;
@@ -10,7 +11,8 @@ const REPAIR_STEPS = [
     { status: OrderStatus.RECEIVED, label: 'Recibido', icon: 'package_2' },
     { status: OrderStatus.IN_REPAIR, label: 'En Taller', icon: 'handyman' },
     { status: OrderStatus.REPAIR_COMPLETED, label: 'Terminado', icon: 'verified' },
-    { status: OrderStatus.DELIVERED, label: 'Entregado', icon: 'local_shipping' }
+    { status: OrderStatus.DELIVERED, label: 'Entregado', icon: 'local_shipping' },
+    { status: OrderStatus.RETURNED, label: 'Devuelto', icon: 'assignment_return' }
 ];
 
 const AVAILABLE_ICONS = [
@@ -113,7 +115,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                 <div className="flex items-center gap-2">
                     <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest transition-colors">Estado Actual:</span>
                     <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full transition-colors">
-                        {REPAIR_STEPS[currentIndex]?.label || currentStatus}
+                        {REPAIR_STEPS[currentIndex]?.label || getStatusLabel(currentStatus) || currentStatus}
                     </span>
                 </div>
             </header>
@@ -237,7 +239,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                         {isSaving ? 'Guardando...' : 'Guardar Datos Técnicos'}
                     </button>
 
-                    {currentStatus !== OrderStatus.REPAIR_COMPLETED && currentStatus !== OrderStatus.DELIVERED && (
+                    {currentStatus !== OrderStatus.REPAIR_COMPLETED && currentStatus !== OrderStatus.DELIVERED && currentStatus !== OrderStatus.RETURNED && (
                         <button
                             onClick={() => onUpdateStatus({ status: OrderStatus.REPAIR_COMPLETED })}
                             className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
@@ -247,7 +249,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                     )}
                 </div>
 
-                {currentIndex < REPAIR_STEPS.length - 1 && (
+                {currentIndex < REPAIR_STEPS.length - 1 && REPAIR_STEPS[currentIndex + 1].status !== OrderStatus.RETURNED && (
                     <button
                         onClick={handleNextStatus}
                         className="flex items-center gap-3 px-8 py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-amber-500/10 active:scale-95"

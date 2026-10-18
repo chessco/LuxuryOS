@@ -887,20 +887,31 @@ const NewOrderDrawer: React.FC<{
         UsersService.getAll().then((allUsers: any[]) => {
             const filtered = (allUsers || []).filter(u => {
                 const r = String(u.role || '').toUpperCase();
-                const str = `${u.name || ''} ${u.email || ''}`.toLowerCase();
+                const n = String(u.name || '').toLowerCase();
+                const e = String(u.email || '').toLowerCase();
+
+                // Excluir específicamente rol o usuario system
+                if (r === 'SYSTEM' || r === 'SYSTEM_ADMIN' || n.includes('system') || e.includes('system')) {
+                    return false;
+                }
+
                 return (
                     r === 'JOYERO' ||
                     r === 'ADMIN' ||
                     r === 'TENANT_ADMIN' ||
-                    r === 'SYSTEM_ADMIN' ||
                     r === 'DESIGNER' ||
                     r === 'DISENADOR' ||
                     r === 'DISEÑADOR' ||
-                    str.includes('joyero') ||
-                    str.includes('admin') ||
-                    str.includes('diseñador') ||
-                    str.includes('disenador') ||
-                    str.includes('design')
+                    n.includes('joyero') ||
+                    n.includes('admin') ||
+                    n.includes('diseña') ||
+                    n.includes('disena') ||
+                    n.includes('design') ||
+                    e.includes('joyero') ||
+                    e.includes('admin') ||
+                    e.includes('diseña') ||
+                    e.includes('disena') ||
+                    e.includes('design')
                 );
             });
             setAssignableUsers(filtered);
@@ -911,9 +922,9 @@ const NewOrderDrawer: React.FC<{
 
     const formatUserRole = (role?: string, name?: string, email?: string) => {
         const r = String(role || '').toUpperCase();
-        const str = `${name || ''} ${email || ''}`.toLowerCase();
+        const str = `${r} ${name || ''} ${email || ''}`.toLowerCase();
         if (r === 'JOYERO' || str.includes('joyero')) return 'Joyero';
-        if (r === 'DESIGNER' || r === 'DISENADOR' || r === 'DISEÑADOR' || str.includes('diseñador') || str.includes('disenador') || str.includes('design')) return 'Diseñador';
+        if (r === 'DESIGNER' || r === 'DISENADOR' || r === 'DISEÑADOR' || str.includes('diseña') || str.includes('disena') || str.includes('design')) return 'Diseñador';
         return 'Admin';
     };
 

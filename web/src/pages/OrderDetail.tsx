@@ -98,6 +98,8 @@ const OrderDetail: React.FC = () => {
             ? parseFloat(String(foundOrder.materialCost))
             : (totalItemsMaterial || parseFloat(String(foundOrder.specifications?.materialCost || foundOrder.cost || '0')) || 0);
 
+        const assignedTo = foundOrder.assignedTo || foundOrder.specifications?.assignedTo || foundOrder.specifications?.assignedJeweler || foundOrder.assignedJeweler || foundOrder.jeweler || '';
+
         return {
             ...foundOrder,
             orderCode: orderCode,
@@ -108,6 +110,7 @@ const OrderDetail: React.FC = () => {
             laborCost: laborCost,
             commission: commission,
             materialCost: materialCost,
+            assignedTo: assignedTo,
             initials: clientName.substring(0, 2).toUpperCase() || 'CX',
             initialsColor: 'bg-muted text-muted-foreground',
             date: foundOrder.createdAt ? new Date(foundOrder.createdAt).toLocaleDateString('es-MX', {
@@ -544,9 +547,12 @@ const OrderDetail: React.FC = () => {
                             <MetaItem icon="history" label="Recibido" value={order.date} />
                             <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
                             <MetaItem icon="event" label="Entrega" value={promisedLabel} tone="emerald" />
-                            {(order.specifications?.assignedTo || order.specifications?.assignedJeweler) && (
-                                <MetaItem icon="assignment_ind" label="Asignado a" value={order.specifications?.assignedTo || order.specifications?.assignedJeweler} tone="indigo" />
-                            )}
+                            <MetaItem 
+                                icon="assignment_ind" 
+                                label="Asignado a" 
+                                value={order.assignedTo || order.specifications?.assignedTo || order.specifications?.assignedJeweler || order.assignedJeweler || order.jeweler || 'Sin asignar'} 
+                                tone="indigo" 
+                            />
                             {readyByLabel && <MetaItem icon="verified" label="Listo por" value={readyByLabel} tone="indigo" />}
                             {isDelivered && <MetaItem icon="local_shipping" label="Entregado" value={deliveredLabel} tone="emerald" />}
                         </dl>
