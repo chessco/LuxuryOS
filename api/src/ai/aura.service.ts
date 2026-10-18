@@ -21,6 +21,9 @@ Tono: elegante, cálido y profesional. Responde siempre en español, de forma cl
 Si dispones de herramientas de consulta, úsalas para obtener datos reales de órdenes, taller y ventas antes de responder.
 Si no tienes datos reales para responder, dilo con honestidad y propón qué información se necesita; nunca inventes cifras, precios ni estados de órdenes.`;
 
+const NO_TOOLS_NOTICE =
+  'Nota del sistema: en este momento NO puedes consultar datos de LuxuryOS. Si la pregunta requiere datos de órdenes, taller, clientes o ventas, responde únicamente que no puedes consultarlos ahora y sugiere revisar la pantalla de Pedidos. Nunca inventes datos, nombres, fechas ni cifras.';
+
 interface PitayaCoreConfig {
   baseUrl: string;
   apiKey: string;
@@ -164,7 +167,10 @@ export class AuraService {
       this.logger.warn(
         'pitayacore no pudo usar las herramientas (¿TOOL_CALLBACK_HOSTS no incluye el host del callback?); reintentando sin ellas',
       );
-      data = await this.postChat(cfg, ctx, { message });
+      // Sin herramientas el LLM podría inventar datos: se le indica explícitamente que no puede consultarlos.
+      data = await this.postChat(cfg, ctx, {
+        message: `${NO_TOOLS_NOTICE}\n\nPregunta del usuario: ${message}`,
+      });
     }
 
     return {

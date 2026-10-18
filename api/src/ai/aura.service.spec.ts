@@ -123,7 +123,11 @@ describe('AuraService', () => {
 
     expect(chatBodies).toHaveLength(2);
     expect(chatBodies[0].tools).toBeDefined();
-    expect(chatBodies[1]).toEqual({ message: '¿Cómo va REP-54?' });
+    expect(chatBodies[1].tools).toBeUndefined();
+    expect(chatBodies[1].toolCallback).toBeUndefined();
+    expect(chatBodies[1].message).toContain('NO puedes consultar datos');
+    expect(chatBodies[1].message).toContain('Nunca inventes');
+    expect(chatBodies[1].message).toContain('¿Cómo va REP-54?');
     expect(result.content).toBe('No tengo acceso a datos en tiempo real.');
   });
 
