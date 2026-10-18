@@ -48,18 +48,20 @@ const num = (v: any) => (v === null || v === undefined ? 0 : Number(v));
 const isoDate = (d?: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : null);
 
 /**
- * Herramientas de SOLO LECTURA que Aura puede pedir. Siempre filtran por tenant y respetan el rol del usuario
- * (los montos solo los ve quien no es joyero; costos y ventas solo administradores). Nunca se ejecuta SQL libre.
+ * Herramientas de SOLO LECTURA que Aura puede pedir. Solo están disponibles para administradores (acceso
+ * completo: montos, costos y ventas); cualquier otro rol no recibe herramientas y el callback las rechaza.
+ * Siempre filtran por tenant y nunca se ejecuta SQL libre.
  */
 @Injectable()
 export class AuraToolsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private canSeeMoney(ctx: AuraToolContext) {
-    return !String(ctx.role || '').toUpperCase().includes('JOYER');
+  private isAdmin(ctx: AuraToolContext) {
+    return isAdminRole(ctx.role, ctx.email);
   }
 
   getDefinitions(ctx: AuraToolContext): AuraToolDefinition[] {
+    if (!this.isAdmin(ctx)) return [];
     const defs: AuraToolDefinition[] = [
       {
         name: 'buscar_orden',
@@ -81,16 +83,14 @@ export class AuraToolsService {
         },
       },
     ];
-    if (isAdminRole(ctx.role, ctx.email)) {
-      defs.push({
-        name: 'ventas_del_mes',
-        description: 'Resumen de ventas de un mes: número de órdenes, total vendido, total cobrado y desglose por tipo.',
-        parameters: {
-          type: 'object',
-          properties: { mes: { type: 'string', description: 'Mes en formato AAAA-MM (opcional, por defecto el mes actual)' } },
-        },
-      });
-    }
+    defs.push({
+      name: 'ventas_del_mes',
+      description: 'Resumen de ventas de un mes: número de órdenes, total vendido, total cobrado y desglose por tipo.',
+      parameters: {
+        type: 'object',
+        properties: { mes: { type: 'string', description: 'Mes en formato AAAA-MM (opcional, por defecto el mes actual)' } },
+      },
+    });
     return defs;
   }
 
@@ -121,7 +121,7 @@ export class AuraToolsService {
     if (!order) return { encontrada: false, mensaje: `No existe la orden ${code}.` };
 
     const specs = (order.specifications as any) || {};
-    const result: Record<string, any> = {
+    return {
       encontrada: true,
       codigo: code,
       tipo: order.type,
@@ -132,17 +132,12 @@ export class AuraToolsService {
       entrega_prometida: isoDate(order.promisedAt || order.dueDate),
       asignado_a: specs.assignedTo || specs.assignedJeweler || null,
       recibida: isoDate(order.createdAt),
+      total: num(order.totalAmount),
+      pagado: num(order.paidAmount),
+      saldo: num(order.balance),
+      mano_de_obra: num(order.laborCost),
+      material: num(order.materialCost),
     };
-    if (this.canSeeMoney(ctx)) {
-      result.total = num(order.totalAmount);
-      result.pagado = num(order.paidAmount);
-      result.saldo = num(order.balance);
-    }
-    if (isAdminRole(ctx.role, ctx.email)) {
-      result.mano_de_obra = num(order.laborCost);
-      result.material = num(order.materialCost);
-    }
-    return result;
   }
 
   private async ordenesEnTaller(ctx: AuraToolContext, tipo?: string) {

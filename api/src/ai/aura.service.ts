@@ -139,8 +139,11 @@ export class AuraService {
       );
       return {};
     }
+    // Solo administradores reciben herramientas; para el resto no se envía nada (ni token)
+    const tools = this.tools.getDefinitions(ctx);
+    if (tools.length === 0) return {};
     return {
-      tools: this.tools.getDefinitions(ctx),
+      tools,
       toolCallback: { url, token: signAuraToken(ctx, secret) },
     };
   }
