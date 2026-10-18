@@ -317,8 +317,10 @@ const OrderDetail: React.FC = () => {
             if (fresh) {
                 setOrder(enrichOrder(fresh));
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
+            alert(error?.response?.data?.message || 'No se pudieron guardar los cambios del pedido. Intenta de nuevo.');
+            throw error;
         }
     };
 

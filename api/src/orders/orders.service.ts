@@ -547,6 +547,17 @@ export class OrdersService {
             laborCost, materialCost, specifications, clientId, status, stage, imageUrl
         } = data;
 
+        // El modal de edición envía el estado del flujo en `status` y `stage`; `stage` usa otro enum
+        // (OrderStage) y un valor como RECEIVED hacía fallar Prisma con 500. Solo se guarda si es válido.
+        const stageValue = stage !== undefined && stage !== null && String(stage).toUpperCase() in OrderStage
+            ? (String(stage).toUpperCase() as OrderStage)
+            : undefined;
+        const statusValue = status !== undefined && status !== null && String(status).toUpperCase() in OrderStatus
+            ? (String(status).toUpperCase() as OrderStatus)
+            : undefined;
+        // Los campos de texto del item pueden llegar como número desde datos antiguos
+        const textOrUndefined = (v: any) => (v === undefined || v === null ? undefined : String(v));
+
         if (clientId !== undefined) {
             await this.assertClientInTenant(tenantId, clientId);
         }
@@ -620,28 +631,28 @@ export class OrdersService {
         const updated = await this.prisma.order.update({
             where: { id },
             data: {
-                pieceType,
+                pieceType: textOrUndefined(pieceType),
                 value: updatedValue,
                 cost: cost !== undefined ? Number(cost) : undefined,
                 priority,
                 notes,
                 dueDate: dueDate ? new Date(dueDate) : undefined,
                 promisedAt: promisedAt !== undefined ? (promisedAt ? new Date(promisedAt) : null) : undefined,
-                metal,
-                color,
-                karats,
-                weight,
-                size,
-                thickness,
-                itemCode,
+                metal: textOrUndefined(metal),
+                color: textOrUndefined(color),
+                karats: textOrUndefined(karats),
+                weight: textOrUndefined(weight),
+                size: textOrUndefined(size),
+                thickness: textOrUndefined(thickness),
+                itemCode: textOrUndefined(itemCode),
                 laborCost: updatedLabor,
                 materialCost: updatedMaterial,
                 totalAmount,
                 balance,
                 specifications: finalSpecifications,
                 clientId,
-                status,
-                stage: stage !== undefined ? stage : undefined,
+                status: statusValue,
+                stage: stageValue,
                 imageUrl,
                 ...(isDelivering ? { deliveredAt: new Date() } : {})
             }
