@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import api from '../services/api';
+
+interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
 
 const AIAssistantPage: React.FC = () => {
-    const [messages, setMessages] = useState([
-        { role: 'assistant', content: 'Bienvenido, Mateo. Soy tu asistente de Luxury OS. ¿En qué puedo ayudarte hoy con la gestión de tu atelier?' }
+    const [messages, setMessages] = useState<ChatMessage[]>([
+        { role: 'assistant', content: 'Hola, soy Aura, tu asistente de Luxury OS. ¿En qué puedo ayudarte hoy con la gestión de tu atelier?' }
     ]);
     const [input, setInput] = useState('');
+    const [loading, setLoading] = useState(false);
+    const endRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, loading]);
 
     const suggestions = [
         "Resumen de ventas del mes",
@@ -13,18 +25,23 @@ const AIAssistantPage: React.FC = () => {
         "Reporte de clientes VIP"
     ];
 
-    const handleSend = () => {
-        if (!input.trim()) return;
-        setMessages([...messages, { role: 'user', content: input }]);
+    const handleSend = async () => {
+        const text = input.trim();
+        if (!text || loading) return;
+        setMessages(prev => [...prev, { role: 'user', content: text }]);
         setInput('');
+        setLoading(true);
 
-        // Simulate thinking
-        setTimeout(() => {
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: 'He analizado los datos actuales. Basado en las tendencias de este trimestre, recomiendo aumentar el stock de zafiros azules en un 15% para cubrir las órdenes proyectadas de junio.'
-            }]);
-        }, 1000);
+        try {
+            // El consumo de IA se canaliza por PitayaCore (agente pitayacore/aura)
+            const { data } = await api.post('/ai/chat', { message: text });
+            setMessages(prev => [...prev, { role: 'assistant', content: data.content || 'No obtuve respuesta. Intenta de nuevo.' }]);
+        } catch (error: any) {
+            const detail = error.response?.data?.message || 'No pude conectar con el asistente. Intenta de nuevo en unos momentos.';
+            setMessages(prev => [...prev, { role: 'assistant', content: detail }]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -37,10 +54,10 @@ const AIAssistantPage: React.FC = () => {
                             <span className="material-symbols-outlined text-[22px]">auto_awesome</span>
                         </div>
                         <div>
-                            <h2 className="text-foreground text-sm font-black uppercase tracking-widest font-display transition-colors">Intelligence Assistant</h2>
+                            <h2 className="text-foreground text-sm font-black uppercase tracking-widest font-display transition-colors">Asistente Aura</h2>
                             <div className="flex items-center gap-2">
                                 <span className="size-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-                                <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest transition-colors">Conectado a Red Neuronal Luxury OS</p>
+                                <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest transition-colors">Conectado a PitayaCore · Luxury OS</p>
                             </div>
                         </div>
                     </div>
@@ -69,6 +86,14 @@ const AIAssistantPage: React.FC = () => {
                             </div>
                         </div>
                     ))}
+                    {loading && (
+                        <div className="flex justify-start">
+                            <div className="rounded-3xl px-6 py-4 text-sm bg-muted/30 border border-border text-muted-foreground animate-pulse">
+                                Aura está pensando...
+                            </div>
+                        </div>
+                    )}
+                    <div ref={endRef} />
                 </div>
 
                 {/* Suggestions */}
@@ -101,6 +126,7 @@ const AIAssistantPage: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleSend}
+                                disabled={loading}
                                 className="bg-primary text-primary-foreground p-3 rounded-xl hover:opacity-90 transition-all shadow-xl shadow-primary/20 active:scale-95 transition-colors"
                             >
                                 <span className="material-symbols-outlined text-[18px]">send</span>

@@ -29,7 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
             title: 'Principal',
             items: [
                 { name: 'Panel de Control', icon: 'grid_view', path: '/dashboard' },
-                { name: 'AI Assistant', icon: 'auto_awesome', path: '/ai-assistant', highlight: true },
+                { name: 'Asistente Aura', icon: 'auto_awesome', path: '/ai-assistant', highlight: true },
                 { name: 'Mensajes', icon: 'forum', path: '/messages' },
             ]
         },
