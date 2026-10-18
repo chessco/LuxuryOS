@@ -13,6 +13,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LabelPrintModal } from '../components/orders/LabelPrintModal';
 import { PieceSelect } from '../components/orders/PieceSelect';
+import { SelectWithOther } from '../components/orders/SelectWithOther';
+import { UsersService } from '../services/users.service';
 
 // --- Interfaces for View ---
 export interface Order {
@@ -263,7 +265,7 @@ const Orders: React.FC = () => {
                         value: `$${Number(o.value || 0).toLocaleString()} MXN`,
                         laborCost: `$${Number(o.laborCost || o.value || 0).toLocaleString()} MXN`,
                         department: (o.specifications?.department || 'CARED').toUpperCase(),
-                        jeweler: o.specifications?.assignedJeweler || o.specifications?.readyByName || o.specifications?.readyBy?.name || o.readyByName || o.completedByName || (o.createdBy?.role === 'JOYERO' ? o.createdBy?.name : '—'),
+                        jeweler: o.specifications?.assignedTo || o.specifications?.assignedJeweler || o.specifications?.readyByName || o.specifications?.readyBy?.name || o.readyByName || o.completedByName || (o.createdBy?.role === 'JOYERO' ? o.createdBy?.name : '—'),
                         completedDate: o.specifications?.completedAt
                             ? new Date(o.specifications.completedAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' })
                             : (o.deliveredAt
@@ -418,7 +420,9 @@ const Orders: React.FC = () => {
                 specifications: {
                     items: uppercaseItems,
                     department: (newOrder.department || 'Taller Cared').trim(),
-                    promisedDate: newOrder.promisedDate || ''
+                    promisedDate: newOrder.promisedDate || '',
+                    assignedTo: (newOrder.assignedTo || '').trim(),
+                    assignedJeweler: (newOrder.assignedTo || '').trim()
                 }
             };
 
@@ -877,6 +881,41 @@ const NewOrderDrawer: React.FC<{
     const [selectedClientInfo, setSelectedClientInfo] = useState<any>(null);
     const [phoneSearchValue, setPhoneSearchValue] = useState('');
     const [shouldPrintLabel, setShouldPrintLabel] = useState(false);
+    const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
+
+    useEffect(() => {
+        UsersService.getAll().then((allUsers: any[]) => {
+            const filtered = (allUsers || []).filter(u => {
+                const r = String(u.role || '').toUpperCase();
+                const str = `${u.name || ''} ${u.email || ''}`.toLowerCase();
+                return (
+                    r === 'JOYERO' ||
+                    r === 'ADMIN' ||
+                    r === 'TENANT_ADMIN' ||
+                    r === 'SYSTEM_ADMIN' ||
+                    r === 'DESIGNER' ||
+                    r === 'DISENADOR' ||
+                    r === 'DISEÑADOR' ||
+                    str.includes('joyero') ||
+                    str.includes('admin') ||
+                    str.includes('diseñador') ||
+                    str.includes('disenador') ||
+                    str.includes('design')
+                );
+            });
+            setAssignableUsers(filtered);
+        }).catch(err => {
+            console.error('Error fetching assignable users:', err);
+        });
+    }, []);
+
+    const formatUserRole = (role?: string, name?: string, email?: string) => {
+        const r = String(role || '').toUpperCase();
+        const str = `${name || ''} ${email || ''}`.toLowerCase();
+        if (r === 'JOYERO' || str.includes('joyero')) return 'Joyero';
+        if (r === 'DESIGNER' || r === 'DISENADOR' || r === 'DISEÑADOR' || str.includes('diseñador') || str.includes('disenador') || str.includes('design')) return 'Diseñador';
+        return 'Admin';
+    };
 
     const [formData, setFormData] = useState<any>({
         client: '',
@@ -884,6 +923,7 @@ const NewOrderDrawer: React.FC<{
         cost: '',
         priority: 'Media',
         department: 'Taller Cared',
+        assignedTo: '',
         promisedDate: '',
         notes: '',
         imageUrl: '',
@@ -1027,6 +1067,16 @@ const NewOrderDrawer: React.FC<{
 
         if (!formData.promisedDate) {
             alert('Por favor, especifica la Fecha Compromiso de Entrega para poder guardar la orden.');
+            return;
+        }
+
+        if (formData.value === undefined || formData.value === null || String(formData.value).trim() === '') {
+            alert('El campo Mano de Obra es obligatorio.');
+            return;
+        }
+
+        if (formData.cost === undefined || formData.cost === null || String(formData.cost).trim() === '') {
+            alert('El campo Material es obligatorio.');
             return;
         }
 
@@ -1465,49 +1515,36 @@ const NewOrderDrawer: React.FC<{
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Metal</label>
-                                        <select
+                                        <SelectWithOther
                                             value={item.metal}
-                                            onChange={(e) => handleItemChange(index, 'metal', e.target.value)}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                            onChange={(val) => handleItemChange(index, 'metal', val)}
+                                            options={['Oro', 'Plata', 'Platino']}
+                                            placeholder="Seleccionar metal..."
+                                            otherPlaceholder="Especificar otro metal (ej. Titanio, Acero)..."
                                             required
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="Oro">Oro</option>
-                                            <option value="Plata">Plata</option>
-                                            <option value="Platino">Platino</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Color</label>
-                                        <select
+                                        <SelectWithOther
                                             value={item.color}
-                                            onChange={(e) => handleItemChange(index, 'color', e.target.value)}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                            onChange={(val) => handleItemChange(index, 'color', val)}
+                                            options={['Amarillo', 'Blanco', 'Rosa']}
+                                            placeholder="Seleccionar color..."
+                                            otherPlaceholder="Especificar otro color (ej. Bicolor, Negro)..."
                                             required
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="Amarillo">Amarillo</option>
-                                            <option value="Blanco">Blanco</option>
-                                            <option value="Rosa">Rosa</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Quilates</label>
-                                        <select
+                                        <SelectWithOther
                                             value={item.karats}
-                                            onChange={(e) => handleItemChange(index, 'karats', e.target.value)}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                            onChange={(val) => handleItemChange(index, 'karats', val)}
+                                            options={['10 K', '14 K', '18 K', '21.6 K']}
+                                            placeholder="Seleccionar quilates..."
+                                            otherPlaceholder="Especificar otros quilates o ley (ej. 24 K, Ley 925)..."
                                             required
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="10 K">10 K</option>
-                                            <option value="14 K">14 K</option>
-                                            <option value="18 K">18 K</option>
-                                            <option value="21.6 K">21.6 K</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Peso (Gr)</label>
@@ -1660,16 +1697,14 @@ const NewOrderDrawer: React.FC<{
                         <div className="flex flex-col gap-4">
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Departamento / Localización</label>
-                                <select
+                                <SelectWithOther
                                     name="department"
                                     value={formData.department || 'Taller Cared'}
-                                    onChange={handleChange as any}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none cursor-pointer"
-                                >
-                                    <option value="Taller Cared">Taller Cared</option>
-                                    <option value="Taller Fabiola">Taller Fabiola</option>
-                                    <option value="Relojero">Relojero</option>
-                                </select>
+                                    onChange={(val) => setFormData(prev => ({ ...prev, department: val }))}
+                                    options={['Taller Cared', 'Taller Fabiola', 'Relojero']}
+                                    placeholder="Seleccionar departamento..."
+                                    otherPlaceholder="Especificar otro departamento / localización..."
+                                />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
@@ -1696,25 +1731,64 @@ const NewOrderDrawer: React.FC<{
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Mano de Obra</label>
-                                <input name="value" value={formData.value} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
+                                    <span>Mano de Obra</span>
+                                    <span className="text-red-500 font-bold">* Obligatorio</span>
+                                </label>
+                                <input
+                                    name="value"
+                                    required
+                                    value={formData.value}
+                                    onChange={handleChange}
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
+                                    placeholder="0.00"
+                                />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Material</label>
-                                <input name="cost" value={formData.cost} onChange={handleChange} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none" placeholder="0.00" />
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
+                                    <span>Material</span>
+                                    <span className="text-red-500 font-bold">* Obligatorio</span>
+                                </label>
+                                <input
+                                    name="cost"
+                                    required
+                                    value={formData.cost}
+                                    onChange={handleChange}
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Asignar a</label>
+                                <div className="relative">
+                                    <select
+                                        name="assignedTo"
+                                        value={formData.assignedTo || ''}
+                                        onChange={handleChange as any}
+                                        className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Sin asignar / Pendiente</option>
+                                        {assignableUsers.map(u => (
+                                            <option key={u.id} value={u.name || u.email}>
+                                                {u.name || u.email} ({formatUserRole(u.role, u.name, u.email)})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-muted-foreground">
+                                        <span className="material-symbols-outlined text-base">unfold_more</span>
+                                    </div>
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Prioridad del Joyero</label>
-                                <select
+                                <SelectWithOther
                                     name="priority"
-                                    value={formData.priority}
-                                    onChange={handleChange as any}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
-                                >
-                                    <option value="Baja">Baja</option>
-                                    <option value="Media">Media</option>
-                                    <option value="Alta">Alta</option>
-                                </select>
+                                    value={formData.priority || 'Media'}
+                                    onChange={(val) => setFormData(prev => ({ ...prev, priority: val }))}
+                                    options={['Baja', 'Media', 'Alta']}
+                                    placeholder="Seleccionar prioridad..."
+                                    otherPlaceholder="Especificar otra prioridad..."
+                                />
                             </div>
                         </div>
                     </div>

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AutocompleteInput from '../AutocompleteInput';
 import { PieceSelect } from './PieceSelect';
 import { ClientsService } from '../../services/clients.service';
+import { UsersService } from '../../services/users.service';
+import { SelectWithOther } from './SelectWithOther';
 
 interface EditOrderModalProps {
     isOpen: boolean;
@@ -19,7 +21,19 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         } catch {}
         return null;
     }, []);
-    const isJoyero = user?.role === 'JOYERO' || String(user?.email || '').toLowerCase().includes('joyero');
+    const isJoyero = 
+        user?.role === 'JOYERO' || 
+        String(user?.role || '').toUpperCase().includes('JOYER') ||
+        String(user?.email || '').toLowerCase().includes('joyero') ||
+        String(user?.name || '').toLowerCase().includes('joyero');
+    const isVendedor = 
+        user?.role === 'VENDEDOR' || 
+        String(user?.role || '').toUpperCase().includes('VEND') ||
+        String(user?.email || '').toLowerCase().includes('ventas') || 
+        String(user?.email || '').toLowerCase().includes('vendedor') ||
+        String(user?.name || '').toLowerCase().includes('ventas') ||
+        String(user?.name || '').toLowerCase().includes('vendedor');
+    const canSeeCost = !isJoyero && !isVendedor;
 
     const [formData, setFormData] = useState({
         pieceType: order.pieceType,
@@ -27,6 +41,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         cost: order.cost,
         laborCost: order.laborCost || 0,
         materialCost: order.materialCost || 0,
+        assignedTo: order.specifications?.assignedTo || order.specifications?.assignedJeweler || '',
         priority: (order.priority || 'MEDIA').toUpperCase(),
         location: order.location || '',
         department: order.specifications?.department || order.department || 'Taller Cared',
@@ -39,6 +54,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
     });
 
     const [clients, setClientOptions] = useState<any[]>([]);
+    const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchClients = async () => {
@@ -49,8 +65,49 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                 console.error("Failed to fetch clients", error);
             }
         };
+        const fetchUsers = async () => {
+            try {
+                const data = await UsersService.getAll();
+                if (Array.isArray(data)) {
+                    const filtered = data.filter(u => {
+                        const r = String(u.role || '').toUpperCase();
+                        const n = String(u.name || '').toLowerCase();
+                        const e = String(u.email || '').toLowerCase();
+                        return (
+                            r === 'JOYERO' ||
+                            r === 'ADMIN' ||
+                            r === 'TENANT_ADMIN' ||
+                            r === 'SYSTEM_ADMIN' ||
+                            r === 'DESIGNER' ||
+                            r === 'DISENADOR' ||
+                            n.includes('joyero') ||
+                            n.includes('admin') ||
+                            n.includes('diseña') ||
+                            n.includes('disena') ||
+                            e.includes('joyero') ||
+                            e.includes('admin') ||
+                            e.includes('diseña') ||
+                            e.includes('disena')
+                        );
+                    });
+                    setAssignableUsers(filtered);
+                }
+            } catch (error) {
+                console.error("Failed to fetch assignable users", error);
+            }
+        };
         fetchClients();
+        fetchUsers();
     }, []);
+
+    const formatUserRole = (role?: string, name?: string, email?: string) => {
+        const r = String(role || '').toUpperCase();
+        const str = `${r} ${name || ''} ${email || ''}`.toLowerCase();
+        if (r === 'JOYERO' || str.includes('joyero')) return 'Joyero';
+        if (r === 'DESIGNER' || r === 'DISENADOR' || str.includes('diseña') || str.includes('disena')) return 'Diseñador';
+        if (r === 'TENANT_ADMIN' || r === 'SYSTEM_ADMIN' || r === 'ADMIN' || str.includes('admin')) return 'Admin';
+        return role || 'Personal';
+    };
 
     // Initialize items from specifications or legacy fields
     const initialItems = order.specifications?.items?.map((it: any) => ({
@@ -126,6 +183,8 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                 pieceType: mainItem.item,
                 specifications: {
                     ...order.specifications,
+                    assignedTo: formData.assignedTo || undefined,
+                    assignedJeweler: formData.assignedTo || undefined,
                     items: syncedItems,
                     department: (formData.department || 'Taller Cared').trim(),
                     promisedDate: formData.promisedDate
@@ -257,15 +316,13 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                             </div>
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Departamento / Localización</label>
-                                <select
+                                <SelectWithOther
                                     value={formData.department || 'Taller Cared'}
-                                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm font-bold text-foreground focus:border-indigo-500/50 outline-none appearance-none cursor-pointer transition-colors shadow-inner [color-scheme:light] dark:[color-scheme:dark]"
-                                >
-                                    <option value="Taller Cared" className="bg-background font-medium">Taller Cared</option>
-                                    <option value="Taller Fabiola" className="bg-background font-medium">Taller Fabiola</option>
-                                    <option value="Relojero" className="bg-background font-medium">Relojero</option>
-                                </select>
+                                    onChange={(val) => setFormData({ ...formData, department: val })}
+                                    options={['Taller Cared', 'Taller Fabiola', 'Relojero']}
+                                    placeholder="Seleccionar departamento..."
+                                    otherPlaceholder="Especificar otro departamento / localización..."
+                                />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors flex items-center justify-between">
@@ -332,46 +389,33 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Metal</label>
-                                        <select
+                                        <SelectWithOther
                                             value={item.metal}
-                                            onChange={(e) => handleItemChange(index, 'metal', e.target.value)}
-                                            className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="Oro">Oro</option>
-                                            <option value="Plata">Plata</option>
-                                            <option value="Platino">Platino</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
+                                            onChange={(val) => handleItemChange(index, 'metal', val)}
+                                            options={['Oro', 'Plata', 'Platino']}
+                                            placeholder="Seleccionar metal..."
+                                            otherPlaceholder="Especificar otro metal..."
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Color</label>
-                                        <select
+                                        <SelectWithOther
                                             value={item.color}
-                                            onChange={(e) => handleItemChange(index, 'color', e.target.value)}
-                                            className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="Amarillo">Amarillo</option>
-                                            <option value="Blanco">Blanco</option>
-                                            <option value="Rosa">Rosa</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
+                                            onChange={(val) => handleItemChange(index, 'color', val)}
+                                            options={['Amarillo', 'Blanco', 'Rosa']}
+                                            placeholder="Seleccionar color..."
+                                            otherPlaceholder="Especificar otro color..."
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Quilates</label>
-                                        <select
+                                        <SelectWithOther
                                             value={item.karats}
-                                            onChange={(e) => handleItemChange(index, 'karats', e.target.value)}
-                                            className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <option value="10 K">10 K</option>
-                                            <option value="14 K">14 K</option>
-                                            <option value="18 K">18 K</option>
-                                            <option value="21.6 K">21.6 K</option>
-                                            <option value="Otros">Otros</option>
-                                        </select>
+                                            onChange={(val) => handleItemChange(index, 'karats', val)}
+                                            options={['10 K', '14 K', '18 K', '21.6 K']}
+                                            placeholder="Seleccionar quilates..."
+                                            otherPlaceholder="Especificar otros quilates..."
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Peso (Gr)</label>
@@ -407,25 +451,51 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                     <div className="space-y-6">
                         <h3 className="text-foreground text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2 pt-2 border-t border-border transition-colors">
                             <span className="size-1.5 rounded-full bg-emerald-500"></span>
-                            Valores y Costos
+                            {canSeeCost ? 'Valores y Costos' : 'Valores'}
                         </h3>
                         <div className="flex flex-col gap-4">
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Mano de Obra (MXN)</label>
                                 <input type="number" value={formData.laborCost} onChange={(e) => setFormData({ ...formData, laborCost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
                             </div>
+                            {canSeeCost && (
+                                <div className="space-y-2">
+                                    <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Material (MXN)</label>
+                                    <input type="number" value={formData.materialCost} onChange={(e) => setFormData({ ...formData, materialCost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
+                                </div>
+                            )}
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Material (MXN)</label>
-                                <input type="number" value={formData.materialCost} onChange={(e) => setFormData({ ...formData, materialCost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Asignar a</label>
+                                <div className="relative">
+                                    <select
+                                        value={formData.assignedTo || ''}
+                                        onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+                                        className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Sin asignar / Pendiente</option>
+                                        {assignableUsers.map(u => (
+                                            <option key={u.id} value={u.name || u.email}>
+                                                {u.name || u.email} ({formatUserRole(u.role, u.name, u.email)})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-muted-foreground">
+                                        <span className="material-symbols-outlined text-base">unfold_more</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Venta Total (MXN)</label>
-                                <input type="number" value={formData.value} onChange={(e) => setFormData({ ...formData, value: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Costo Total (MXN)</label>
-                                <input type="number" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
-                            </div>
+                            {!isJoyero && (
+                                <div className="space-y-2">
+                                    <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Venta Total (MXN)</label>
+                                    <input type="number" value={formData.value} onChange={(e) => setFormData({ ...formData, value: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
+                                </div>
+                            )}
+                            {canSeeCost && (
+                                <div className="space-y-2">
+                                    <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Costo Total (MXN)</label>
+                                    <input type="number" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
+                                </div>
+                            )}
                         </div>
                     </div>
                     {/* Section: Notas */}

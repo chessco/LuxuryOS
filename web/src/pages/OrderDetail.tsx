@@ -435,10 +435,19 @@ const OrderDetail: React.FC = () => {
         userNameLower.includes('joyero') ||
         RBACService.getEffectiveRole(user) === 'JOYERO';
 
+    const isVendedor =
+        userRoleUpper === 'VENDEDOR' ||
+        userRoleUpper.includes('VEND') ||
+        userEmailLower.includes('ventas') ||
+        userEmailLower.includes('vendedor') ||
+        userNameLower.includes('ventas') ||
+        userNameLower.includes('vendedor') ||
+        RBACService.getEffectiveRole(user) === 'VENDEDOR';
+
     const canViewPayments = !isJoyero && RBACService.hasPermission('view_payments', user);
     const canRegisterPayments = !isJoyero && RBACService.hasPermission('register_payments', user);
     const canViewLaborCost = RBACService.hasPermission('view_labor_cost', user);
-    const canViewCostsMargins = !isJoyero && RBACService.hasPermission('view_costs_margins', user);
+    const canViewCostsMargins = !isJoyero && !isVendedor && RBACService.hasPermission('view_costs_margins', user);
     const canViewClientContact = !isJoyero && RBACService.hasPermission('view_client_contact', user);
     const canViewEnvelope = RBACService.hasPermission('view_envelope_photos', user);
     const canViewTotals = !isJoyero && canViewPayments;
@@ -527,6 +536,9 @@ const OrderDetail: React.FC = () => {
                             <MetaItem icon="history" label="Recibido" value={order.date} />
                             <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
                             <MetaItem icon="event" label="Entrega" value={promisedLabel} tone="emerald" />
+                            {(order.specifications?.assignedTo || order.specifications?.assignedJeweler) && (
+                                <MetaItem icon="assignment_ind" label="Asignado a" value={order.specifications?.assignedTo || order.specifications?.assignedJeweler} tone="indigo" />
+                            )}
                             {readyByLabel && <MetaItem icon="verified" label="Listo por" value={readyByLabel} tone="indigo" />}
                             {isDelivered && <MetaItem icon="local_shipping" label="Entregado" value={deliveredLabel} tone="emerald" />}
                         </dl>
@@ -757,7 +769,7 @@ const OrderDetail: React.FC = () => {
                                                         {order.specifications.partsNeeded}
                                                     </div>
                                                 )}
-                                                {!isJoyero && piece.materialCost && (
+                                                {!isJoyero && !isVendedor && canViewCostsMargins && piece.materialCost && (
                                                     <div>
                                                         <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Costo Material:</span>
                                                         <span className="font-bold text-foreground">{Number(piece.materialCost).toLocaleString()} MXN</span>
@@ -1018,7 +1030,7 @@ const OrderDetail: React.FC = () => {
                             />
                         </>
                     )}
-                    {user.role !== 'VENDEDOR' && canViewCostsMargins && (
+                    {!isJoyero && !isVendedor && canViewCostsMargins && (
                         <>
                             <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
                             <StatCard label="Margen" value={(parseValue(order.totalAmount) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
@@ -1049,8 +1061,11 @@ const OrderDetail: React.FC = () => {
                     <PaymentModal
                         isOpen={isPaymentModalOpen}
                         onClose={() => setIsPaymentModalOpen(false)}
-                        totalAmount={parseValue(order.value)}
-                        pendingAmount={parseValue(order.pendingAmount)}
+                        totalAmount={parseValue(order.totalAmount || order.value)}
+                        pendingAmount={parseValue(order.balance ?? order.pendingAmount)}
+                        laborCost={Number(order.laborCost || order.value || 0)}
+                        materialCost={Number(order.materialCost || order.cost || 0)}
+                        pieceType={order.pieceType}
                         onRegisterPayment={handleRegisterPayment}
                     />
                 )}

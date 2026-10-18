@@ -296,7 +296,9 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
 
     if (!isOpen) return null;
 
-    const totalAmount = Number(foundOrder?.totalAmount || foundOrder?.value || 0);
+    const laborCost = Number(foundOrder?.laborCost || foundOrder?.value || 0);
+    const materialCost = Number(foundOrder?.materialCost || foundOrder?.cost || 0);
+    const totalAmount = Number(foundOrder?.totalAmount || (laborCost + materialCost) || foundOrder?.value || 0);
     const paidAmount = Number(foundOrder?.paidAmount || 0);
     const pendingAmount = Math.max(0, totalAmount - paidAmount);
     const orderCode = foundOrder?.orderCode || foundOrder?.specifications?.orderCode || `ORD-${foundOrder?.id?.slice(0, 5)}`;
@@ -481,13 +483,33 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                     <div className="text-sm font-black uppercase tracking-tight text-foreground truncate">
                                         {clientName}
                                     </div>
-                                    <div className="text-xs text-muted-foreground font-medium">
-                                        {pieceName} • Total: ${totalAmount.toLocaleString()} MXN
-                                        {pendingAmount > 0 ? (
-                                            <span className="text-amber-500 font-bold ml-1.5">(Pendiente: ${pendingAmount.toLocaleString()} MXN)</span>
-                                        ) : (
-                                            <span className="text-emerald-500 font-bold ml-1.5">(Liquidado)</span>
-                                        )}
+                                    
+                                    {/* Desglose: Pieza, Mano de Obra y Material */}
+                                    <div className="pt-2 border-t border-border/60 flex flex-col gap-2.5">
+                                        <div className="text-xs font-bold text-foreground">
+                                            {pieceName}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 text-xs bg-background/60 p-3 rounded-xl border border-border/50">
+                                            <div>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">Mano de Obra</span>
+                                                <span className="font-mono font-black text-foreground text-sm">${laborCost.toLocaleString()} MXN</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">Material</span>
+                                                <span className="font-mono font-black text-foreground text-sm">${materialCost.toLocaleString()} MXN</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs pt-1">
+                                            <span className="font-black uppercase tracking-wider text-muted-foreground text-[10px]">Total Pedido:</span>
+                                            <div className="text-right">
+                                                <span className="font-black text-foreground font-mono text-sm">${totalAmount.toLocaleString()} MXN</span>
+                                                {pendingAmount > 0 ? (
+                                                    <span className="text-amber-500 font-bold ml-2 text-[11px]">(Pendiente: ${pendingAmount.toLocaleString()} MXN)</span>
+                                                ) : (
+                                                    <span className="text-emerald-500 font-bold ml-2 text-[11px]">(Liquidado)</span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -498,29 +520,18 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                     </div>
 
                                     {!isJoyero ? (
-                                        /* Ventas / Admin Actions: Cobrar y Mandar al Taller */
-                                        <div className="grid grid-cols-2 gap-3">
+                                        /* Ventas / Admin Actions: Cobrar (Mandar al Taller eliminado) */
+                                        <div>
                                             <button
                                                 type="button"
                                                 onClick={() => setIsPaymentOpen(true)}
-                                                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all"
+                                                className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all cursor-pointer"
                                             >
                                                 <span className="material-symbols-outlined text-2xl">payments</span>
-                                                <span>Cobrar</span>
-                                                <span className="text-[9px] font-medium opacity-80">Registrar Pago</span>
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleUpdateStatus(
-                                                    foundOrder.type === 'MANUFACTURE' ? 'IN_PRODUCTION' : 'IN_REPAIR',
-                                                    'En Taller'
-                                                )}
-                                                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all"
-                                            >
-                                                <span className="material-symbols-outlined text-2xl">construction</span>
-                                                <span>Mandar al Taller</span>
-                                                <span className="text-[9px] font-medium opacity-80">Estado: En Taller</span>
+                                                <div className="flex flex-col text-left">
+                                                    <span>Cobrar</span>
+                                                    <span className="text-[9px] font-medium opacity-80">Registrar Pago</span>
+                                                </div>
                                             </button>
                                         </div>
                                     ) : (
@@ -596,6 +607,9 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                     onClose={() => setIsPaymentOpen(false)}
                     totalAmount={totalAmount}
                     pendingAmount={pendingAmount}
+                    laborCost={laborCost}
+                    materialCost={materialCost}
+                    pieceType={pieceName}
                     onRegisterPayment={handleRegisterPayment}
                 />
             )}
