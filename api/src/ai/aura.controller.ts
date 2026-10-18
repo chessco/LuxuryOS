@@ -12,6 +12,7 @@ export class AuraController {
     const message = (body?.message || '').trim();
     if (!message) throw new BadRequestException('El mensaje es requerido');
     if (message.length > 4000) throw new BadRequestException('El mensaje es demasiado largo');
-    return this.aura.chat(req.user.tenantId, req.user.email, message);
+    const { tenantId, id, role, email } = req.user;
+    return this.aura.chat({ tenantId, userId: id, role, email }, message);
   }
 }

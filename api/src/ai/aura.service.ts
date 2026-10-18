@@ -5,6 +5,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
+import { AuraToolContext, signAuraToken } from './aura-token';
+import { AuraToolsService } from './aura-tools.service';
 
 export const AURA_AGENT_SLUG = 'aura';
 export const AURA_AGENT_NAME = 'Asistente Aura';
@@ -16,6 +18,7 @@ const DEFAULT_PITAYACORE_TENANT = '87e0dd95-fd29-4e63-a219-18478c58e4c8';
 const AURA_PROMPT = `Eres Aura, la asistente inteligente de Cared, un atelier de joyería de lujo que opera sobre LuxuryOS.
 Ayudas al equipo (administradores, vendedores y joyeros) con la gestión del atelier: reparaciones, fabricación, diseño, láser, cotizaciones, apartados, clientes, ventas e inventario de gemas y metales.
 Tono: elegante, cálido y profesional. Responde siempre en español, de forma clara y concisa.
+Si dispones de herramientas de consulta, úsalas para obtener datos reales de órdenes, taller y ventas antes de responder.
 Si no tienes datos reales para responder, dilo con honestidad y propón qué información se necesita; nunca inventes cifras, precios ni estados de órdenes.`;
 
 interface PitayaCoreConfig {
@@ -34,7 +37,10 @@ export class AuraService {
   private readonly logger = new Logger(AuraService.name);
   private readonly provisioned = new Set<string>();
 
-  constructor(private readonly settings: SettingsService) {}
+  constructor(
+    private readonly settings: SettingsService,
+    private readonly tools: AuraToolsService,
+  ) {}
 
   private async getConfig(tenantId: string): Promise<PitayaCoreConfig> {
     const envUrl = process.env.PITAYACORE_API_URL || DEFAULT_PITAYACORE_URL;
@@ -118,20 +124,37 @@ export class AuraService {
     }
   }
 
-  async chat(
-    tenantId: string,
-    operatorEmail: string | undefined,
-    message: string,
-  ) {
-    const cfg = await this.getConfig(tenantId);
+  /**
+   * Herramientas de consulta que Aura puede pedir (solo lectura). Se envían a pitayacore únicamente si
+   * AURA_TOOLS_ENABLED=true y hay secreto de firma y URL de callback; si pitayacore aún no soporta
+   * tools, ignora los campos extra y Aura responde como antes.
+   */
+  private buildToolsPayload(ctx: AuraToolContext) {
+    if (process.env.AURA_TOOLS_ENABLED !== 'true') return {};
+    const secret = process.env.AURA_TOOLS_SECRET || '';
+    const url = process.env.AURA_TOOLS_CALLBACK_URL || '';
+    if (secret.length < 32 || !url) {
+      this.logger.warn(
+        'AURA_TOOLS_ENABLED=true pero falta AURA_TOOLS_SECRET (mín. 32 caracteres) o AURA_TOOLS_CALLBACK_URL',
+      );
+      return {};
+    }
+    return {
+      tools: this.tools.getDefinitions(ctx),
+      toolCallback: { url, token: signAuraToken(ctx, secret) },
+    };
+  }
+
+  async chat(ctx: AuraToolContext, message: string) {
+    const cfg = await this.getConfig(ctx.tenantId);
     await this.ensureAgent(cfg);
 
     let response: Response;
     try {
       response = await fetch(`${cfg.baseUrl}/agents/${AURA_AGENT_SLUG}/chat`, {
         method: 'POST',
-        headers: this.headers(cfg, operatorEmail),
-        body: JSON.stringify({ message }),
+        headers: this.headers(cfg, ctx.email),
+        body: JSON.stringify({ message, ...this.buildToolsPayload(ctx) }),
       });
     } catch (error: any) {
       this.logger.error(`pitayacore no disponible: ${error.message}`);
