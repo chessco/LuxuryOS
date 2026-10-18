@@ -157,7 +157,10 @@ export class AuraService {
 
     // Si pitayacore no puede enrutar con herramientas (p. ej. el host del callback no está en su allowlist),
     // devuelve el mensaje del usuario como respuesta. En ese caso se reintenta una vez sin herramientas.
-    if ('tools' in toolsPayload && String(data.content || '').trim() === message.trim()) {
+    if (
+      'tools' in toolsPayload &&
+      String(data.content || '').trim() === message.trim()
+    ) {
       this.logger.warn(
         'pitayacore no pudo usar las herramientas (¿TOOL_CALLBACK_HOSTS no incluye el host del callback?); reintentando sin ellas',
       );
@@ -171,7 +174,11 @@ export class AuraService {
     };
   }
 
-  private async postChat(cfg: PitayaCoreConfig, ctx: AuraToolContext, body: Record<string, unknown>): Promise<any> {
+  private async postChat(
+    cfg: PitayaCoreConfig,
+    ctx: AuraToolContext,
+    body: Record<string, unknown>,
+  ): Promise<any> {
     let response: Response;
     try {
       response = await fetch(`${cfg.baseUrl}/agents/${AURA_AGENT_SLUG}/chat`, {

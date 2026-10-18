@@ -45,12 +45,10 @@ describe('AuraToolsService', () => {
         groupBy: jest
           .fn()
           .mockResolvedValue([{ status: 'IN_REPAIR', _count: { _all: 3 } }]),
-        aggregate: jest
-          .fn()
-          .mockResolvedValue({
-            _count: { _all: 4 },
-            _sum: { totalAmount: 2600, paidAmount: 650 },
-          }),
+        aggregate: jest.fn().mockResolvedValue({
+          _count: { _all: 4 },
+          _sum: { totalAmount: 2600, paidAmount: 650 },
+        }),
       },
     };
     service = new AuraToolsService(prisma);
