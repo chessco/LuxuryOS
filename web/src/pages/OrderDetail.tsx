@@ -86,6 +86,7 @@ const OrderDetail: React.FC = () => {
         const items = foundOrder.specifications?.items;
         const totalItemsLabor = Array.isArray(items) ? items.reduce((acc: number, it: any) => acc + (parseFloat(it.laborCost) || 0), 0) : 0;
         const totalItemsCommission = Array.isArray(items) ? items.reduce((acc: number, it: any) => acc + (parseFloat(it.commission) || 0), 0) : 0;
+        const totalItemsMaterial = Array.isArray(items) ? items.reduce((acc: number, it: any) => acc + (parseFloat(it.materialCost || it.cost) || 0), 0) : 0;
 
         const laborCost = foundOrder.laborCost !== undefined && foundOrder.laborCost !== null && foundOrder.laborCost !== ''
             ? parseFloat(String(foundOrder.laborCost))
@@ -93,6 +94,9 @@ const OrderDetail: React.FC = () => {
         const commission = foundOrder.commission !== undefined && foundOrder.commission !== null && foundOrder.commission !== ''
             ? parseFloat(String(foundOrder.commission))
             : (totalItemsCommission || parseFloat(String(foundOrder.specifications?.commission || '0')) || 0);
+        const materialCost = foundOrder.materialCost !== undefined && foundOrder.materialCost !== null && foundOrder.materialCost !== ''
+            ? parseFloat(String(foundOrder.materialCost))
+            : (totalItemsMaterial || parseFloat(String(foundOrder.specifications?.materialCost || foundOrder.cost || '0')) || 0);
 
         return {
             ...foundOrder,
@@ -103,6 +107,7 @@ const OrderDetail: React.FC = () => {
             balance: balance,
             laborCost: laborCost,
             commission: commission,
+            materialCost: materialCost,
             initials: clientName.substring(0, 2).toUpperCase() || 'CX',
             initialsColor: 'bg-muted text-muted-foreground',
             date: foundOrder.createdAt ? new Date(foundOrder.createdAt).toLocaleDateString('es-MX', {
@@ -329,13 +334,20 @@ const OrderDetail: React.FC = () => {
         }
     };
 
+    const userRoleUpper = String(user?.role || '').toUpperCase();
+    const userEmailLower = String(user?.email || '').toLowerCase();
+    const userNameLower = String(user?.name || '').toLowerCase();
+
     const isAuthorized = 
-        user.role === 'SYSTEM_ADMIN' || 
-        user.role === 'TENANT_ADMIN' || 
-        user.role === 'ADMIN' || 
-        user.role === 'SUPER_ADMIN' ||
-        user.role === 'SYSTEM' ||
-        String(user.email || '').toLowerCase().includes('system');
+        userRoleUpper === 'SYSTEM_ADMIN' || 
+        userRoleUpper === 'TENANT_ADMIN' || 
+        userRoleUpper === 'ADMIN' || 
+        userRoleUpper === 'SUPER_ADMIN' ||
+        userRoleUpper === 'SYSTEM' ||
+        userEmailLower.includes('system') ||
+        userEmailLower.includes('admin') ||
+        RBACService.getEffectiveRole(user) === 'ADMIN' ||
+        RBACService.getEffectiveRole(user) === 'SYSTEM_ADMIN';
 
     const handleStepChange = async (index: number) => {
         if (index === currentStep) return;
@@ -423,10 +435,6 @@ const OrderDetail: React.FC = () => {
             console.error("Failed to update field", error);
         }
     };
-
-    const userRoleUpper = String(user?.role || '').toUpperCase();
-    const userEmailLower = String(user?.email || '').toLowerCase();
-    const userNameLower = String(user?.name || '').toLowerCase();
 
     const isJoyero =
         userRoleUpper === 'JOYERO' ||
@@ -624,7 +632,7 @@ const OrderDetail: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Mano de Obra y Comisión de la orden (aplica para toda la orden) + Acciones del Cliente */}
+                    {/* Mano de Obra y Material de la orden (aplica para toda la orden) + Acciones del Cliente */}
                     <div className="flex flex-wrap items-center gap-4 sm:gap-6 w-full lg:w-auto justify-between lg:justify-end">
                         {canViewLaborCost && (
                             <div className="flex items-center gap-6 bg-muted/40 border border-border rounded-2xl px-6 py-3.5 shadow-sm">
@@ -633,17 +641,15 @@ const OrderDetail: React.FC = () => {
                                     <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
                                         {(order.laborCost && Number(order.laborCost) > 0)
                                             ? `${Number(order.laborCost).toLocaleString()} MXN`
-                                            : (order.value && Number(order.value) > 0 ? `${Number(order.value).toLocaleString()} MXN` : '—')}
+                                            : (order.value && Number(order.value) > 0 ? `${Number(order.value).toLocaleString()} MXN` : '0 MXN')}
                                     </span>
                                 </div>
-                                {(order.commission !== undefined && order.commission !== null) && (
-                                    <div className="text-left sm:text-right border-l border-border pl-6">
-                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Comisión</span>
-                                        <span className="text-emerald-600 dark:text-emerald-400 text-xl sm:text-2xl font-black tracking-tight font-display">
-                                            {Number(order.commission || 0).toLocaleString()} MXN
-                                        </span>
-                                    </div>
-                                )}
+                                <div className="text-left sm:text-right border-l border-border pl-6">
+                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">Material</span>
+                                    <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
+                                        {Number(order.materialCost || order.cost || 0).toLocaleString()} MXN
+                                    </span>
+                                </div>
                             </div>
                         )}
 
@@ -975,67 +981,22 @@ const OrderDetail: React.FC = () => {
                 </section>
             )}
 
-            {/* Stats Grid */}
-            {(isJoyero || !canViewTotals) ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10 mb-10">
-                    {canViewLaborCost && (
-                        <>
-                            <StatCard 
-                                label="Mano de Obra" 
-                                value={Number(order.laborCost || 0).toLocaleString() + ' MXN'} 
-                                subtext="Trabajo de Taller" 
-                                icon="handyman" 
-                                color="text-amber-500" 
-                            />
-                            <StatCard 
-                                label="Comisión" 
-                                value={Number(order.commission || 0).toLocaleString() + ' MXN'} 
-                                subtext="Comisión asignada" 
-                                icon="paid" 
-                                color="text-emerald-500" 
-                            />
-                        </>
-                    )}
-                    <StatCard
-                        label="Entrega"
-                        value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
-                        isDate
-                        subtext={order.dueDate ? (
-                            (() => {
-                                const days = Math.ceil((new Date(order.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                                return days > 0 ? `Quedan ${days} días` : days === 0 ? "Entrega hoy" : `Atrasa ${Math.abs(days)} días`;
-                            })()
-                        ) : "Sin fecha"}
-                        icon="event"
-                        color="text-foreground"
-                        alert={order.dueDate && new Date(order.dueDate) < new Date() ? "priority_high" : undefined}
-                        alertColor="text-red-500"
-                        border={order.dueDate && new Date(order.dueDate) < new Date() ? "border-l-4 border-l-red-500" : ""}
+            {/* Stats Grid - Solo visible para el rol Admin y System */}
+            {isAuthorized && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mt-10 mb-10">
+                    <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('totalAmount', v) : undefined} subtext="Venta" icon="payments" color="text-foreground" />
+                    <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
+                    <StatCard 
+                        label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
+                        value={Math.abs(Number(order.balance || 0)).toLocaleString() + ' MXN'} 
+                        subtext={order.balance < 0 ? "Cliente tiene crédito" : "Pendiente de liquidar"} 
+                        icon={order.balance < 0 ? "account_balance" : "pending_actions"} 
+                        color={order.balance < 0 ? "text-emerald-500" : "text-amber-500"} 
+                        alert={order.balance > 0 ? "priority_high" : undefined} 
+                        alertColor="text-amber-500" 
                     />
-                </div>
-            ) : (
-                <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${user.role === 'VENDEDOR' ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4 mt-10 mb-10`}>
-                    {canViewTotals && (
-                        <>
-                            <StatCard label="Valor Total" value={Number(order.totalAmount || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('totalAmount', v) : undefined} subtext="Venta" icon="payments" color="text-foreground" />
-                            <StatCard label="Anticipo" value={Number(order.paidAmount || 0).toLocaleString() + ' MXN'} subtext="Pagado" icon="account_balance_wallet" color="text-emerald-500" />
-                            <StatCard 
-                                label={order.balance < 0 ? "Saldo a Favor" : "Resta"} 
-                                value={Math.abs(Number(order.balance || 0)).toLocaleString() + ' MXN'} 
-                                subtext={order.balance < 0 ? "Cliente tiene crédito" : "Pendiente de liquidar"} 
-                                icon={order.balance < 0 ? "account_balance" : "pending_actions"} 
-                                color={order.balance < 0 ? "text-emerald-500" : "text-amber-500"} 
-                                alert={order.balance > 0 ? "priority_high" : undefined} 
-                                alertColor="text-amber-500" 
-                            />
-                        </>
-                    )}
-                    {!isJoyero && !isVendedor && canViewCostsMargins && (
-                        <>
-                            <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
-                            <StatCard label="Margen" value={(parseValue(order.totalAmount) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
-                        </>
-                    )}
+                    <StatCard label="Costo" value={Number(order.cost || 0).toLocaleString() + ' MXN'} onUpdate={canModifyOrderDetails ? (v) => updateField('cost', v) : undefined} subtext="Material + Mano Obra" icon="precision_manufacturing" color="text-foreground" />
+                    <StatCard label="Margen" value={(parseValue(order.totalAmount) - parseValue(order.cost)).toLocaleString() + ' MXN'} subtext="Utilidad" icon="trending_up" badge={order.margin} badgeColor="bg-emerald-500/10 text-emerald-600" />
                     <StatCard
                         label="Entrega"
                         value={order.dueDate ? new Date(order.dueDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : 'Pendiente'}
