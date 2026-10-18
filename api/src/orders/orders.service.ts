@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStage, OrderStatus, Prisma } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -10,855 +15,1160 @@ import { SettingsService } from '../settings/settings.service';
 import { isAdminRole } from '../common/roles.util';
 
 const STATUS_ORDER: Record<string, number> = {
-    'RECEIVED': 0,
-    'RECIBIDO': 0,
-    'DRAFT': 0,
-    'SPEC_PENDING': 0,
-    'INTERES_LEAD': 0,
-    'COTIZACION_ENVIADA': 0,
-    'QUOTE_SENT': 0,
-    'APPROVED': 0,
-    'APROBADO_ANTICIPO': 0,
-    'DIAGNOSIS_PENDING': 1,
-    'WAITING_PARTS': 1,
-    'IN_REPAIR': 1,
-    'IN_PRODUCTION': 1,
-    'EN_PRODUCCION': 1,
-    'QUALITY_CHECK': 1,
-    'CONTROL_CALIDAD': 1,
-    'MATERIALS_PENDING': 1,
-    'RETURNED': 0.5,
-    'DEVUELTO': 0.5,
-    'REPAIR_COMPLETED': 2,
-    'READY_FOR_PICKUP': 2,
-    'READY': 2,
-    'LISTO_ENTREGA': 2,
-    'DELIVERED': 3,
-    'ENTREGADO': 3,
-    'ENTREGADO_POSTVENTA': 3,
-    'CANCELLED': 4,
+  RECEIVED: 0,
+  RECIBIDO: 0,
+  DRAFT: 0,
+  SPEC_PENDING: 0,
+  INTERES_LEAD: 0,
+  COTIZACION_ENVIADA: 0,
+  QUOTE_SENT: 0,
+  APPROVED: 0,
+  APROBADO_ANTICIPO: 0,
+  DIAGNOSIS_PENDING: 1,
+  WAITING_PARTS: 1,
+  IN_REPAIR: 1,
+  IN_PRODUCTION: 1,
+  EN_PRODUCCION: 1,
+  QUALITY_CHECK: 1,
+  CONTROL_CALIDAD: 1,
+  MATERIALS_PENDING: 1,
+  RETURNED: 0.5,
+  DEVUELTO: 0.5,
+  REPAIR_COMPLETED: 2,
+  READY_FOR_PICKUP: 2,
+  READY: 2,
+  LISTO_ENTREGA: 2,
+  DELIVERED: 3,
+  ENTREGADO: 3,
+  ENTREGADO_POSTVENTA: 3,
+  CANCELLED: 4,
 };
 
 @Injectable()
 export class OrdersService {
-    constructor(
-        private prisma: PrismaService,
-        private strategyFactory: OrderStrategyFactory,
-        private notificationService: NotificationService,
-        private settingsService: SettingsService,
-    ) { }
+  constructor(
+    private prisma: PrismaService,
+    private strategyFactory: OrderStrategyFactory,
+    private notificationService: NotificationService,
+    private settingsService: SettingsService,
+  ) {}
 
-    async getBoard(tenantId: string, type?: string) {
-        const query: any = { tenantId };
-        if (type) {
-            query.type = type;
-        } else {
-            query.type = 'STANDARD';
-        }
-
-        const orders = await this.prisma.order.findMany({
-            where: query,
-            include: { 
-                client: true,
-                createdBy: { select: { id: true, name: true, email: true } }
-            },
-        });
-
-        // Determine grouping keys based on type
-        let groupingEnum: any;
-        let groupingField: 'stage' | 'status';
-
-        if (type === 'REPAIR' || type === 'MANUFACTURE' || type === 'DESIGN' || type === 'LASER' || type === 'LAYAWAY') {
-            groupingEnum = OrderStatus;
-            groupingField = 'status';
-        } else {
-            groupingEnum = OrderStage;
-            groupingField = 'stage';
-        }
-
-        const columns = Object.values(groupingEnum).reduce((acc: any, key: any) => {
-            acc[key] = orders
-                .filter((o: any) => o[groupingField] === key)
-                .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            return acc;
-        }, {});
-
-        return columns;
+  async getBoard(tenantId: string, type?: string) {
+    const query: any = { tenantId };
+    if (type) {
+      query.type = type;
+    } else {
+      query.type = 'STANDARD';
     }
 
-    async moveOrder(id: string, tenantId: string, toStage: any, user?: any) {
-        const order = await this.prisma.order.findUnique({
-            where: { id },
-        });
+    const orders = await this.prisma.order.findMany({
+      where: query,
+      include: {
+        client: true,
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    });
 
-        if (!order) throw new NotFoundException('Pedido no encontrado');
-        if (order.tenantId !== tenantId) throw new ForbiddenException('No tienes permiso para mover este pedido');
+    // Determine grouping keys based on type
+    let groupingEnum: any;
+    let groupingField: 'stage' | 'status';
 
-        const usesStatus = order.type === 'REPAIR' || order.type === 'MANUFACTURE' || (order.type as string) === 'DESIGN' || (order.type as string) === 'LASER' || order.type === 'LAYAWAY';
-        const validTargets: string[] = usesStatus ? Object.values(OrderStatus) : Object.values(OrderStage);
+    if (
+      type === 'REPAIR' ||
+      type === 'MANUFACTURE' ||
+      type === 'DESIGN' ||
+      type === 'LASER' ||
+      type === 'LAYAWAY'
+    ) {
+      groupingEnum = OrderStatus;
+      groupingField = 'status';
+    } else {
+      groupingEnum = OrderStage;
+      groupingField = 'stage';
+    }
 
-        const toStageUpper = String(toStage || '').toUpperCase();
-        const isReturnAction = toStageUpper === 'RETURNED' || toStageUpper === 'DEVUELTO';
+    const columns = Object.values(groupingEnum).reduce((acc: any, key: any) => {
+      acc[key] = orders
+        .filter((o: any) => o[groupingField] === key)
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+      return acc;
+    }, {});
 
-        if (typeof toStage !== 'string' || (!validTargets.includes(toStage) && !isReturnAction)) {
-            throw new BadRequestException('Estado destino inválido');
+    return columns;
+  }
+
+  async moveOrder(id: string, tenantId: string, toStage: any, user?: any) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) throw new NotFoundException('Pedido no encontrado');
+    if (order.tenantId !== tenantId)
+      throw new ForbiddenException('No tienes permiso para mover este pedido');
+
+    const usesStatus =
+      order.type === 'REPAIR' ||
+      order.type === 'MANUFACTURE' ||
+      (order.type as string) === 'DESIGN' ||
+      (order.type as string) === 'LASER' ||
+      order.type === 'LAYAWAY';
+    const validTargets: string[] = usesStatus
+      ? Object.values(OrderStatus)
+      : Object.values(OrderStage);
+
+    const toStageUpper = String(toStage || '').toUpperCase();
+    const isReturnAction =
+      toStageUpper === 'RETURNED' || toStageUpper === 'DEVUELTO';
+
+    if (
+      typeof toStage !== 'string' ||
+      (!validTargets.includes(toStage) && !isReturnAction)
+    ) {
+      throw new BadRequestException('Estado destino inválido');
+    }
+
+    // Si se devuelve, la orden pasa a RETURNED (o RECIBIDO si el tipo no usa OrderStatus)
+    const effectiveTarget = isReturnAction
+      ? usesStatus
+        ? 'RETURNED'
+        : 'RECIBIDO'
+      : toStage;
+
+    if (user && !isAdminRole(user.role, user.email)) {
+      const isReturnAllowed =
+        isReturnAction ||
+        (effectiveTarget.toUpperCase() === 'RECEIVED' &&
+          (user.role === 'JOYERO' ||
+            String(user.role || '').toUpperCase() === 'JOYERO' ||
+            user.role === 'VENDEDOR' ||
+            String(user.role || '').toUpperCase() === 'VENDEDOR' ||
+            user.role === 'VENTAS' ||
+            String(user.role || '').toUpperCase() === 'VENTAS' ||
+            String(user.email || '')
+              .toLowerCase()
+              .includes('joyero') ||
+            String(user.email || '')
+              .toLowerCase()
+              .includes('vendedor') ||
+            String(user.email || '')
+              .toLowerCase()
+              .includes('ventas') ||
+            String(user.name || '')
+              .toLowerCase()
+              .includes('joyero') ||
+            String(user.name || '')
+              .toLowerCase()
+              .includes('vendedor')));
+
+      if (!isReturnAllowed) {
+        const currentIdx =
+          STATUS_ORDER[
+            String(
+              (usesStatus ? order.status : order.stage) || '',
+            ).toUpperCase()
+          ];
+        const targetIdx = STATUS_ORDER[effectiveTarget.toUpperCase()];
+        if (
+          currentIdx !== undefined &&
+          targetIdx !== undefined &&
+          targetIdx < currentIdx
+        ) {
+          throw new ForbiddenException(
+            'No está permitido retroceder el estado del flujo de trabajo.',
+          );
         }
+      }
+    }
 
-        // Si se devuelve, la orden pasa a RETURNED (o RECIBIDO si el tipo no usa OrderStatus)
-        const effectiveTarget = isReturnAction ? (usesStatus ? 'RETURNED' : 'RECIBIDO') : toStage;
+    const updateData: any = {};
+    if (usesStatus) {
+      updateData.status = effectiveTarget;
+    } else {
+      updateData.stage = effectiveTarget;
+    }
 
-        if (user && !isAdminRole(user.role, user.email)) {
-            const isReturnAllowed = isReturnAction || (effectiveTarget.toUpperCase() === 'RECEIVED' && (
-                user.role === 'JOYERO' ||
-                String(user.role || '').toUpperCase() === 'JOYERO' ||
-                user.role === 'VENDEDOR' ||
-                String(user.role || '').toUpperCase() === 'VENDEDOR' ||
-                user.role === 'VENTAS' ||
-                String(user.role || '').toUpperCase() === 'VENTAS' ||
-                String(user.email || '').toLowerCase().includes('joyero') ||
-                String(user.email || '').toLowerCase().includes('vendedor') ||
-                String(user.email || '').toLowerCase().includes('ventas') ||
-                String(user.name || '').toLowerCase().includes('joyero') ||
-                String(user.name || '').toLowerCase().includes('vendedor')
-            ));
+    const toStageForSpecs = effectiveTarget.toUpperCase();
+    const isReadyStage =
+      toStageForSpecs === 'REPAIR_COMPLETED' ||
+      toStageForSpecs === 'READY_FOR_PICKUP' ||
+      toStageForSpecs === 'LISTO_ENTREGA' ||
+      toStageForSpecs === 'READY' ||
+      toStageForSpecs === 'LISTO' ||
+      toStageForSpecs === 'PARA ENTREGA' ||
+      toStageForSpecs === 'TERMINADO';
 
-            if (!isReturnAllowed) {
-                const currentIdx = STATUS_ORDER[String((usesStatus ? order.status : order.stage) || '').toUpperCase()];
-                const targetIdx = STATUS_ORDER[effectiveTarget.toUpperCase()];
-                if (currentIdx !== undefined && targetIdx !== undefined && targetIdx < currentIdx) {
-                    throw new ForbiddenException('No está permitido retroceder el estado del flujo de trabajo.');
-                }
+    const specs = (order.specifications as any) || {};
+    const userName = user?.name || user?.email || 'Joyero';
+
+    if (isReturnAction) {
+      updateData.specifications = {
+        ...specs,
+        returnedByName: userName,
+        returnedBy: {
+          id: user?.id,
+          name: userName,
+          email: user?.email,
+          role: user?.role,
+          at: new Date(),
+        },
+        returnReason: 'Devuelto por joyero a recepción',
+        isReturned: true,
+      };
+    } else {
+      if (specs.isReturned) {
+        const {
+          isReturned,
+          returnReason,
+          returnedBy,
+          returnedByName,
+          ...restSpecs
+        } = specs;
+        updateData.specifications = restSpecs;
+      }
+      if (isReadyStage) {
+        updateData.specifications = {
+          ...(updateData.specifications || specs),
+          readyByName: userName,
+          readyBy: {
+            id: user?.id,
+            name: userName,
+            email: user?.email,
+            role: user?.role,
+            at: new Date(),
+          },
+        };
+      }
+    }
+
+    if (
+      effectiveTarget === 'DELIVERED' ||
+      effectiveTarget === 'ENTREGADO' ||
+      effectiveTarget === 'ENTREGADO_POSTVENTA'
+    ) {
+      updateData.deliveredAt = new Date();
+    } else if (order.deliveredAt) {
+      updateData.deliveredAt = null;
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: updateData,
+    });
+
+    // Trigger automatic WhatsApp notification on status transition asynchronously (non-blocking)
+    this.notifyOrderWorkflowStatus(tenantId, id).catch((err) => {
+      console.error('[Workflow WhatsApp Notification Error]', err);
+    });
+
+    return updated;
+  }
+
+  private async assertClientInTenant(
+    tenantId: string,
+    clientId?: string | null,
+  ) {
+    if (!clientId) return;
+    const client = await this.prisma.client.findFirst({
+      where: { id: clientId, tenantId },
+      select: { id: true },
+    });
+    if (!client) throw new BadRequestException('El cliente indicado no existe');
+  }
+
+  async createOrder(tenantId: string, data: CreateOrderDto, userId?: string) {
+    await this.assertClientInTenant(tenantId, data.clientId);
+    if (
+      !data.promisedAt &&
+      !data.dueDate &&
+      !data.specifications?.promisedDate
+    ) {
+      throw new BadRequestException(
+        'La fecha compromiso de entrega es obligatoria para registrar la orden.',
+      );
+    }
+    const totalAmount = data.totalAmount ?? data.value ?? 0;
+    const paidAmount = 0;
+    const balance = totalAmount;
+    const margin = (data.value || 0) - (data.cost || 0);
+
+    // Determine initial status from strategy if not provided
+    let status = data.status;
+    if (!status && data.type) {
+      const strategy = this.strategyFactory.getStrategy(data.type);
+      if (strategy) {
+        status = strategy.getInitialStatus();
+      }
+    }
+
+    const type = data.type || 'STANDARD';
+    const count = await this.prisma.order.count({
+      where: { tenantId, type },
+    });
+    const sequence = count + 1;
+    const prefix =
+      type === 'REPAIR'
+        ? 'REP'
+        : type === 'MANUFACTURE'
+          ? 'FAB'
+          : type === 'DESIGN'
+            ? 'DIS'
+            : type === 'LASER'
+              ? 'LAS'
+              : type === 'LAYAWAY'
+                ? 'APT'
+                : 'PED';
+    const orderCode = `${prefix}-${sequence}`;
+
+    const specifications = {
+      ...(typeof data.specifications === 'object' ? data.specifications : {}),
+      orderCode,
+    };
+
+    const created = await this.prisma.order.create({
+      data: {
+        ...data,
+        tenantId,
+        createdById: data.createdById || userId,
+        totalAmount,
+        paidAmount,
+        balance,
+        margin,
+        status: status ?? undefined, // Let Prisma default to DRAFT if undefined
+        specifications,
+      },
+      include: {
+        client: true,
+        createdBy: { select: { id: true, name: true, email: true } },
+        queueTicket: true,
+      },
+    });
+
+    // Trigger automatic WhatsApp notification on order creation (Recibido con QR)
+    try {
+      await this.notifyOrderWorkflowStatus(tenantId, created.id);
+    } catch (error) {
+      console.error('[Create Order WhatsApp Notification Error]', error);
+    }
+
+    return created;
+  }
+
+  async getOrders(tenantId: string) {
+    const orders = await this.prisma.order.findMany({
+      where: { tenantId },
+      include: {
+        client: true,
+        createdBy: { select: { id: true, name: true, email: true } },
+        queueTicket: true,
+      },
+    });
+
+    // Sort in memory to avoid "Out of sort memory" errors in limited MySQL environments
+    return orders.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }
+
+  async getOrder(tenantId: string, idOrCode: string) {
+    let cleanIdOrCode = (idOrCode || '').trim();
+    try {
+      cleanIdOrCode = decodeURIComponent(cleanIdOrCode).trim();
+    } catch {}
+    const trackMatch = cleanIdOrCode.match(/\/track\/([a-zA-Z0-9_-]+)/i);
+    if (trackMatch) cleanIdOrCode = trackMatch[1];
+    const orderUrlMatch = cleanIdOrCode.match(/\/orders\/([a-fA-F0-9-]+)/i);
+    if (orderUrlMatch) cleanIdOrCode = orderUrlMatch[1];
+
+    let order = await this.prisma.order.findFirst({
+      where: { id: cleanIdOrCode, tenantId },
+      include: {
+        client: true,
+        createdBy: { select: { id: true, name: true, email: true } },
+        payments: true,
+        queueTicket: true,
+      },
+    });
+
+    if (!order) {
+      const allOrders = await this.prisma.order.findMany({
+        where: { tenantId },
+        include: {
+          client: true,
+          createdBy: { select: { id: true, name: true, email: true } },
+          payments: true,
+          queueTicket: true,
+        },
+      });
+
+      const searchCode = cleanIdOrCode.toUpperCase().trim();
+      const searchLower = cleanIdOrCode.toLowerCase().trim();
+      const searchNormalized = searchCode.replace(/[^A-Z0-9]/g, '');
+
+      order =
+        allOrders.find((o) => {
+          // 1. Direct specifications orderCode (e.g. REP-38)
+          const specCode = String(
+            (o.specifications as any)?.orderCode || '',
+          ).toUpperCase();
+          if (specCode && specCode === searchCode) return true;
+          const specClean = specCode.replace(/-0+/, '-');
+          const searchClean = searchCode.replace(/-0+/, '-');
+          if (specClean && specClean === searchClean) return true;
+
+          // 2. Normalize codes without hyphens (e.g. REP38 vs REP-38)
+          if (
+            specCode &&
+            specCode.replace(/[^A-Z0-9]/g, '') === searchNormalized
+          )
+            return true;
+
+          // 3. Match tracking token (generated in WhatsApp QR and public track URLs)
+          try {
+            const trackToken = generateTrackToken(o.id).toLowerCase();
+            if (trackToken === searchLower) return true;
+            const hmacToken = generateHmacToken(o.id).toLowerCase();
+            if (hmacToken === searchLower) return true;
+          } catch {}
+
+          // 4. Match Queue Ticket code or qrToken
+          if (o.queueTicket) {
+            if (
+              o.queueTicket.code &&
+              o.queueTicket.code.toUpperCase() === searchCode
+            )
+              return true;
+            if (
+              o.queueTicket.code &&
+              o.queueTicket.code.toUpperCase().replace(/[^A-Z0-9]/g, '') ===
+                searchNormalized
+            )
+              return true;
+            if (
+              o.queueTicket.qrToken &&
+              o.queueTicket.qrToken.toLowerCase() === searchLower
+            )
+              return true;
+          }
+
+          // 5. Match by ID prefix / suffix (e.g. ORD-42691 or first 8 chars of UUID)
+          if (o.id.toLowerCase() === searchLower) return true;
+          if (
+            searchLower.length >= 6 &&
+            o.id.toLowerCase().startsWith(searchLower)
+          )
+            return true;
+
+          return false;
+        }) || null;
+
+      // 6. Fallback: match by sequential computed code if orderCode was not stored
+      if (!order && searchNormalized) {
+        const typeOrders: Record<string, typeof allOrders> = {};
+        for (const o of allOrders) {
+          if (!typeOrders[o.type]) typeOrders[o.type] = [];
+          typeOrders[o.type].push(o);
+        }
+        for (const type of Object.keys(typeOrders)) {
+          typeOrders[type].sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+          const prefix =
+            type === 'REPAIR'
+              ? 'REP'
+              : type === 'MANUFACTURE'
+                ? 'FAB'
+                : type === 'DESIGN'
+                  ? 'DIS'
+                  : type === 'LASER'
+                    ? 'LAS'
+                    : type === 'LAYAWAY'
+                      ? 'APT'
+                      : 'PED';
+          for (let i = 0; i < typeOrders[type].length; i++) {
+            const computed = `${prefix}-${i + 1}`;
+            if (
+              computed === searchCode ||
+              computed.replace(/[^A-Z0-9]/g, '') === searchNormalized
+            ) {
+              order = typeOrders[type][i];
+              break;
             }
+          }
+          if (order) break;
         }
+      }
+    }
 
-        const updateData: any = {};
-        if (usesStatus) {
-            updateData.status = effectiveTarget;
-        } else {
-            updateData.stage = effectiveTarget;
-        }
+    if (!order) return null;
 
-        const toStageForSpecs = effectiveTarget.toUpperCase();
-        const isReadyStage = toStageForSpecs === 'REPAIR_COMPLETED' ||
-                             toStageForSpecs === 'READY_FOR_PICKUP' ||
-                             toStageForSpecs === 'LISTO_ENTREGA' ||
-                             toStageForSpecs === 'READY' ||
-                             toStageForSpecs === 'LISTO' ||
-                             toStageForSpecs === 'PARA ENTREGA' ||
-                             toStageForSpecs === 'TERMINADO';
+    const countBefore = await this.prisma.order.count({
+      where: {
+        tenantId: order.tenantId,
+        type: order.type,
+        createdAt: { lte: order.createdAt },
+      },
+    });
 
-        const specs = (order.specifications as any) || {};
-        const userName = user?.name || user?.email || 'Joyero';
+    const prefix =
+      order.type === 'REPAIR'
+        ? 'REP'
+        : order.type === 'MANUFACTURE'
+          ? 'FAB'
+          : order.type === 'LAYAWAY'
+            ? 'APT'
+            : 'PED';
+    const sequenceNumber = countBefore;
+    let computedCode = `${prefix}-${sequenceNumber}`;
 
-        if (isReturnAction) {
-            updateData.specifications = {
-                ...specs,
-                returnedByName: userName,
-                returnedBy: {
-                    id: user?.id,
-                    name: userName,
-                    email: user?.email,
-                    role: user?.role,
-                    at: new Date()
-                },
-                returnReason: 'Devuelto por joyero a recepción',
-                isReturned: true
-            };
-        } else {
-            if (specs.isReturned) {
-                const { isReturned, returnReason, returnedBy, returnedByName, ...restSpecs } = specs;
-                updateData.specifications = restSpecs;
-            }
-            if (isReadyStage) {
-                updateData.specifications = {
-                    ...(updateData.specifications || specs),
+    const specs = (order.specifications as any) || {};
+    let orderCode = specs.orderCode || computedCode;
+    const match = String(orderCode).match(/^([A-Z]+)-0*(\d+)$/i);
+    if (match) {
+      orderCode = `${match[1].toUpperCase()}-${match[2]}`;
+    }
+
+    return {
+      ...order,
+      sequenceNumber,
+      orderCode,
+      specifications: {
+        ...specs,
+        orderCode,
+      },
+    };
+  }
+
+  async advanceStatus(tenantId: string, id: string, user?: any) {
+    const order = await this.getOrder(tenantId, id);
+    if (!order) throw new NotFoundException('Order not found');
+
+    const strategy = this.strategyFactory.getStrategy(order.type);
+    const specs = (order.specifications as any) || {};
+    const userName = user?.name || user?.email || 'Joyero';
+
+    // Specialized logic for Standard (OrderStage) vs others (OrderStatus)
+    if (order.type === 'STANDARD') {
+      const nextStage = (strategy as any).getNextStage(order.stage);
+      if (nextStage) {
+        const isReady = nextStage === 'LISTO_ENTREGA';
+        const updated = await this.prisma.order.update({
+          where: { id },
+          data: {
+            stage: nextStage,
+            ...(nextStage === 'ENTREGADO_POSTVENTA'
+              ? { deliveredAt: new Date() }
+              : {}),
+            ...(isReady
+              ? {
+                  specifications: {
+                    ...specs,
                     readyByName: userName,
                     readyBy: {
-                        id: user?.id,
-                        name: userName,
-                        email: user?.email,
-                        role: user?.role,
-                        at: new Date()
-                    }
-                };
-            }
-        }
-
-        if (effectiveTarget === 'DELIVERED' || effectiveTarget === 'ENTREGADO' || effectiveTarget === 'ENTREGADO_POSTVENTA') {
-            updateData.deliveredAt = new Date();
-        } else if (order.deliveredAt) {
-            updateData.deliveredAt = null;
-        }
-
-        const updated = await this.prisma.order.update({
-            where: { id },
-            data: updateData,
+                      id: user?.id,
+                      name: userName,
+                      email: user?.email,
+                      role: user?.role,
+                      at: new Date(),
+                    },
+                  },
+                }
+              : {}),
+          },
         });
-
-        // Trigger automatic WhatsApp notification on status transition asynchronously (non-blocking)
-        this.notifyOrderWorkflowStatus(tenantId, id).catch(err => {
-            console.error('[Workflow WhatsApp Notification Error]', err);
+        this.notifyOrderWorkflowStatus(tenantId, id).catch((err) => {
+          console.error('[Workflow WhatsApp Notification Error]', err);
         });
-
         return updated;
-    }
-
-    private async assertClientInTenant(tenantId: string, clientId?: string | null) {
-        if (!clientId) return;
-        const client = await this.prisma.client.findFirst({ where: { id: clientId, tenantId }, select: { id: true } });
-        if (!client) throw new BadRequestException('El cliente indicado no existe');
-    }
-
-    async createOrder(tenantId: string, data: CreateOrderDto, userId?: string) {
-        await this.assertClientInTenant(tenantId, data.clientId);
-        if (!data.promisedAt && !data.dueDate && !data.specifications?.promisedDate) {
-            throw new BadRequestException('La fecha compromiso de entrega es obligatoria para registrar la orden.');
-        }
-        const totalAmount = data.totalAmount ?? data.value ?? 0;
-        const paidAmount = 0;
-        const balance = totalAmount;
-        const margin = (data.value || 0) - (data.cost || 0);
-
-        // Determine initial status from strategy if not provided
-        let status = data.status;
-        if (!status && data.type) {
-            const strategy = this.strategyFactory.getStrategy(data.type);
-            if (strategy) {
-                status = strategy.getInitialStatus();
-            }
-        }
-
-        const type = data.type || 'STANDARD';
-        const count = await this.prisma.order.count({
-            where: { tenantId, type }
-        });
-        const sequence = count + 1;
-        const prefix = type === 'REPAIR' ? 'REP' : (type === 'MANUFACTURE' ? 'FAB' : (type === 'DESIGN' ? 'DIS' : (type === 'LASER' ? 'LAS' : (type === 'LAYAWAY' ? 'APT' : 'PED'))));
-        const orderCode = `${prefix}-${sequence}`;
-
-        const specifications = {
-            ...(typeof data.specifications === 'object' ? data.specifications : {}),
-            orderCode
-        };
-
-        const created = await this.prisma.order.create({
-            data: {
-                ...data,
-                tenantId,
-                createdById: data.createdById || userId,
-                totalAmount,
-                paidAmount,
-                balance,
-                margin,
-                status: status ?? undefined, // Let Prisma default to DRAFT if undefined
-                specifications,
-            },
-            include: {
-                client: true,
-                createdBy: { select: { id: true, name: true, email: true } },
-                queueTicket: true,
-            }
-        });
-
-        // Trigger automatic WhatsApp notification on order creation (Recibido con QR)
-        try {
-            await this.notifyOrderWorkflowStatus(tenantId, created.id);
-        } catch (error) {
-            console.error('[Create Order WhatsApp Notification Error]', error);
-        }
-
-        return created;
-    }
-
-    async getOrders(tenantId: string) {
-        const orders = await this.prisma.order.findMany({
-            where: { tenantId },
-            include: { 
-                client: true, 
-                createdBy: { select: { id: true, name: true, email: true } },
-                queueTicket: true
-            },
-        });
-
-        // Sort in memory to avoid "Out of sort memory" errors in limited MySQL environments
-        return orders.sort((a, b) => {
-            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return dateB - dateA;
-        });
-    }
-
-    async getOrder(tenantId: string, idOrCode: string) {
-        let cleanIdOrCode = (idOrCode || '').trim();
-        try {
-            cleanIdOrCode = decodeURIComponent(cleanIdOrCode).trim();
-        } catch {}
-        const trackMatch = cleanIdOrCode.match(/\/track\/([a-zA-Z0-9_-]+)/i);
-        if (trackMatch) cleanIdOrCode = trackMatch[1];
-        const orderUrlMatch = cleanIdOrCode.match(/\/orders\/([a-fA-F0-9-]+)/i);
-        if (orderUrlMatch) cleanIdOrCode = orderUrlMatch[1];
-
-        let order = await this.prisma.order.findFirst({
-            where: { id: cleanIdOrCode, tenantId },
-            include: { 
-                client: true, 
-                createdBy: { select: { id: true, name: true, email: true } },
-                payments: true,
-                queueTicket: true
-            },
-        });
-
-        if (!order) {
-            const allOrders = await this.prisma.order.findMany({
-                where: { tenantId },
-                include: { 
-                    client: true, 
-                    createdBy: { select: { id: true, name: true, email: true } },
-                    payments: true,
-                    queueTicket: true
-                },
-            });
-
-            const searchCode = cleanIdOrCode.toUpperCase().trim();
-            const searchLower = cleanIdOrCode.toLowerCase().trim();
-            const searchNormalized = searchCode.replace(/[^A-Z0-9]/g, '');
-
-            order = allOrders.find(o => {
-                // 1. Direct specifications orderCode (e.g. REP-38)
-                const specCode = String((o.specifications as any)?.orderCode || '').toUpperCase();
-                if (specCode && specCode === searchCode) return true;
-                const specClean = specCode.replace(/-0+/, '-');
-                const searchClean = searchCode.replace(/-0+/, '-');
-                if (specClean && specClean === searchClean) return true;
-
-                // 2. Normalize codes without hyphens (e.g. REP38 vs REP-38)
-                if (specCode && specCode.replace(/[^A-Z0-9]/g, '') === searchNormalized) return true;
-
-                // 3. Match tracking token (generated in WhatsApp QR and public track URLs)
-                try {
-                    const trackToken = generateTrackToken(o.id).toLowerCase();
-                    if (trackToken === searchLower) return true;
-                    const hmacToken = generateHmacToken(o.id).toLowerCase();
-                    if (hmacToken === searchLower) return true;
-                } catch {}
-
-                // 4. Match Queue Ticket code or qrToken
-                if (o.queueTicket) {
-                    if (o.queueTicket.code && o.queueTicket.code.toUpperCase() === searchCode) return true;
-                    if (o.queueTicket.code && o.queueTicket.code.toUpperCase().replace(/[^A-Z0-9]/g, '') === searchNormalized) return true;
-                    if (o.queueTicket.qrToken && o.queueTicket.qrToken.toLowerCase() === searchLower) return true;
-                }
-
-                // 5. Match by ID prefix / suffix (e.g. ORD-42691 or first 8 chars of UUID)
-                if (o.id.toLowerCase() === searchLower) return true;
-                if (searchLower.length >= 6 && o.id.toLowerCase().startsWith(searchLower)) return true;
-
-                return false;
-            }) || null;
-
-            // 6. Fallback: match by sequential computed code if orderCode was not stored
-            if (!order && searchNormalized) {
-                const typeOrders: Record<string, typeof allOrders> = {};
-                for (const o of allOrders) {
-                    if (!typeOrders[o.type]) typeOrders[o.type] = [];
-                    typeOrders[o.type].push(o);
-                }
-                for (const type of Object.keys(typeOrders)) {
-                    typeOrders[type].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                    const prefix = type === 'REPAIR' ? 'REP' : (type === 'MANUFACTURE' ? 'FAB' : (type === 'DESIGN' ? 'DIS' : (type === 'LASER' ? 'LAS' : (type === 'LAYAWAY' ? 'APT' : 'PED'))));
-                    for (let i = 0; i < typeOrders[type].length; i++) {
-                        const computed = `${prefix}-${i + 1}`;
-                        if (computed === searchCode || computed.replace(/[^A-Z0-9]/g, '') === searchNormalized) {
-                            order = typeOrders[type][i];
-                            break;
-                        }
-                    }
-                    if (order) break;
-                }
-            }
-        }
-
-        if (!order) return null;
-
-        const countBefore = await this.prisma.order.count({
-            where: {
-                tenantId: order.tenantId,
-                type: order.type,
-                createdAt: { lte: order.createdAt }
-            }
-        });
-
-        const prefix = order.type === 'REPAIR' ? 'REP' : (order.type === 'MANUFACTURE' ? 'FAB' : (order.type === 'LAYAWAY' ? 'APT' : 'PED'));
-        const sequenceNumber = countBefore;
-        let computedCode = `${prefix}-${sequenceNumber}`;
-
-        const specs = (order.specifications as any) || {};
-        let orderCode = specs.orderCode || computedCode;
-        const match = String(orderCode).match(/^([A-Z]+)-0*(\d+)$/i);
-        if (match) {
-            orderCode = `${match[1].toUpperCase()}-${match[2]}`;
-        }
-
-        return {
-            ...order,
-            sequenceNumber,
-            orderCode,
-            specifications: {
-                ...specs,
-                orderCode
-            }
-        };
-    }
-
-    async advanceStatus(tenantId: string, id: string, user?: any) {
-        const order = await this.getOrder(tenantId, id);
-        if (!order) throw new NotFoundException('Order not found');
-
-        const strategy = this.strategyFactory.getStrategy(order.type);
-        const specs = (order.specifications as any) || {};
-        const userName = user?.name || user?.email || 'Joyero';
-
-        // Specialized logic for Standard (OrderStage) vs others (OrderStatus)
-        if (order.type === 'STANDARD') {
-            const nextStage = (strategy as any).getNextStage(order.stage);
-            if (nextStage) {
-                const isReady = nextStage === 'LISTO_ENTREGA';
-                const updated = await this.prisma.order.update({
-                    where: { id },
-                    data: { 
-                        stage: nextStage,
-                        ...(nextStage === 'ENTREGADO_POSTVENTA' ? { deliveredAt: new Date() } : {}),
-                        ...(isReady ? {
-                            specifications: {
-                                ...specs,
-                                readyByName: userName,
-                                readyBy: { id: user?.id, name: userName, email: user?.email, role: user?.role, at: new Date() }
-                            }
-                        } : {})
-                    }
-                });
-                this.notifyOrderWorkflowStatus(tenantId, id).catch(err => {
-                    console.error('[Workflow WhatsApp Notification Error]', err);
-                });
-                return updated;
-            }
-        } else {
-            const nextStatus = strategy.getNextStatus(order.status);
-            if (nextStatus) {
-                const isReady = nextStatus === 'REPAIR_COMPLETED' || nextStatus === 'READY_FOR_PICKUP';
-                const updated = await this.prisma.order.update({
-                    where: { id },
-                    data: { 
-                        status: nextStatus,
-                        ...(nextStatus === 'DELIVERED' ? { deliveredAt: new Date() } : {}),
-                        ...(isReady ? {
-                            specifications: {
-                                ...specs,
-                                readyByName: userName,
-                                readyBy: { id: user?.id, name: userName, email: user?.email, role: user?.role, at: new Date() }
-                            }
-                        } : {})
-                    }
-                });
-                this.notifyOrderWorkflowStatus(tenantId, id).catch(err => {
-                    console.error('[Workflow WhatsApp Notification Error]', err);
-                });
-                return updated;
-            }
-        }
-        return order; // No transition possible
-    }
-
-    async updateOrder(tenantId: string, id: string, data: any, currentUser?: any) {
-        const order = await this.getOrder(tenantId, id);
-        if (!order) throw new NotFoundException('Order not found');
-
-        const userRole = currentUser?.role;
-        const isAuthorized = isAdminRole(userRole, currentUser?.email);
-
-        const currentStatusUpper = String(order.status || '').toUpperCase();
-        const currentStageUpper = String(order.stage || '').toUpperCase();
-        const statusIdx = STATUS_ORDER[currentStatusUpper];
-        const stageIdx = STATUS_ORDER[currentStageUpper];
-        const currentIdx = Math.max(statusIdx ?? 0, stageIdx ?? 0);
-        const isReceived = currentIdx === 0;
-
-        const isJoyeroUser =
-            currentUser?.role === 'JOYERO' ||
-            String(currentUser?.role || '').toUpperCase() === 'JOYERO' ||
-            String(currentUser?.email || '').toLowerCase().includes('joyero') ||
-            String(currentUser?.name || '').toLowerCase().includes('joyero');
-
-        if (isJoyeroUser && (data.promisedAt !== undefined || data.dueDate !== undefined)) {
-            throw new ForbiddenException('El rol Joyero no tiene permisos para modificar la fecha de entrega.');
-        }
-
-        // Si se cambia a devuelto, la orden pasa a RETURNED
-        let isReturn = false;
-        if (data.status) {
-            const sUpper = String(data.status).toUpperCase();
-            if (sUpper === 'RETURNED' || sUpper === 'DEVUELTO') {
-                data.status = 'RETURNED';
-                isReturn = true;
-            }
-        }
-        if (data.stage) {
-            const stUpper = String(data.stage).toUpperCase();
-            if (stUpper === 'RETURNED' || stUpper === 'DEVUELTO') {
-                data.stage = 'RECIBIDO';
-                isReturn = true;
-            }
-        }
-
-        if (!isAuthorized && currentUser) {
-            // 1. Si no es admin/system y la orden ya no está en RECIBIDO, no se pueden modificar campos de detalle
-            if (!isReceived) {
-                const detailKeys = [
-                    'pieceType', 'value', 'cost', 'dueDate', 'metal', 'color',
-                    'karats', 'weight', 'size', 'thickness', 'itemCode',
-                    'laborCost', 'materialCost', 'clientId', 'priority', 'imageUrl'
-                ];
-                const hasDetailChanges = detailKeys.some(k => data[k] !== undefined);
-                if (hasDetailChanges) {
-                    throw new ForbiddenException('Las órdenes en estado diferente a Recibido solo pueden ser modificadas por Administradores y Sistema.');
-                }
-            }
-
-            // 2. Si se actualiza el workflow (status o stage), no se permite ir hacia atrás excepto en devolución
-            if (data.status && !isReturn) {
-                const newStatusUpper = String(data.status).toUpperCase();
-                const newIdx = STATUS_ORDER[newStatusUpper];
-                if (newIdx !== undefined && newIdx < currentIdx) {
-                    throw new ForbiddenException('No está permitido retroceder el estado del flujo de trabajo.');
-                }
-            }
-            if (data.stage && !isReturn) {
-                const newStageUpper = String(data.stage).toUpperCase();
-                const newIdx = STATUS_ORDER[newStageUpper];
-                if (newIdx !== undefined && newIdx < currentIdx) {
-                    throw new ForbiddenException('No está permitido retroceder el estado del flujo de trabajo.');
-                }
-            }
-        }
-
-        const {
-            pieceType, value, cost, priority, notes, dueDate, promisedAt,
-            metal, color, karats, weight, size, thickness, itemCode,
-            laborCost, materialCost, specifications, clientId, status, stage, imageUrl
-        } = data;
-
-        // El modal de edición envía el estado del flujo en `status` y `stage`; `stage` usa otro enum
-        // (OrderStage) y un valor como RECEIVED hacía fallar Prisma con 500. Solo se guarda si es válido.
-        const stageValue = stage !== undefined && stage !== null && String(stage).toUpperCase() in OrderStage
-            ? (String(stage).toUpperCase() as OrderStage)
-            : undefined;
-        const statusValue = status !== undefined && status !== null && String(status).toUpperCase() in OrderStatus
-            ? (String(status).toUpperCase() as OrderStatus)
-            : undefined;
-        // Los campos de texto del item pueden llegar como número desde datos antiguos
-        const textOrUndefined = (v: any) => (v === undefined || v === null ? undefined : String(v));
-
-        if (clientId !== undefined) {
-            await this.assertClientInTenant(tenantId, clientId);
-        }
-
-        // Recalculate totalAmount and balance if financial fields are changing
-        const currentLabor = order.laborCost ? Number(order.laborCost) : 0;
-        const currentMaterial = order.materialCost ? Number(order.materialCost) : 0;
-        const currentValue = order.value ? Number(order.value) : 0;
-
-        const updatedLabor = laborCost !== undefined ? Number(laborCost) : currentLabor;
-        const updatedMaterial = materialCost !== undefined ? Number(materialCost) : currentMaterial;
-        const updatedValue = value !== undefined ? Number(value) : currentValue;
-
-        let totalAmount: Prisma.Decimal;
-
-        // El material es un costo interno (margen = venta - costo), no se suma al cobro. Igual que al crear la
-        // orden, lo que se cobra es la mano de obra / venta.
-        // Priority: 1. Mano de obra (si > 0), 2. Explicit value, 3. Existing totalAmount (if not zero), 4. Existing value
-        if (laborCost !== undefined && updatedLabor > 0) {
-            totalAmount = new Prisma.Decimal(updatedLabor);
-        } else if (value !== undefined) {
-            totalAmount = new Prisma.Decimal(updatedValue);
-        } else {
-            const currentTotal = order.totalAmount ? new Prisma.Decimal(order.totalAmount) : new Prisma.Decimal(0);
-            if (currentTotal.isZero() && currentValue > 0) {
-                totalAmount = new Prisma.Decimal(currentValue);
-            } else {
-                totalAmount = currentTotal;
-            }
-        }
-
-        const paidAmount = order.paidAmount ? new Prisma.Decimal(order.paidAmount) : new Prisma.Decimal(0);
-        const balance = totalAmount.sub(paidAmount);
-
-        const isDelivering = (status === 'DELIVERED' || status === 'ENTREGADO' || status === 'ENTREGADO_POSTVENTA');
-        const specs = (order.specifications as any) || {};
-        const isReadyStage = (status && ['REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'LISTO_ENTREGA'].includes(String(status).toUpperCase())) ||
-                             (stage && ['LISTO_ENTREGA'].includes(String(stage).toUpperCase()));
-
-        let finalSpecifications = specifications !== undefined ? specifications : specs;
-        const userName = currentUser?.name || currentUser?.email || 'Joyero';
-
-        if (isReturn) {
-            finalSpecifications = {
-                ...(typeof finalSpecifications === 'object' ? finalSpecifications : {}),
-                returnedByName: userName,
-                returnedBy: {
-                    id: currentUser?.id,
-                    name: userName,
-                    email: currentUser?.email,
-                    role: currentUser?.role,
-                    at: new Date()
-                },
-                returnReason: 'Devuelto por joyero a recepción'
-            };
-        } else if (isReadyStage) {
-            finalSpecifications = {
-                ...(typeof finalSpecifications === 'object' ? finalSpecifications : {}),
-                readyByName: userName,
-                readyBy: {
-                    id: currentUser?.id,
-                    name: userName,
-                    email: currentUser?.email,
-                    role: currentUser?.role,
-                    at: new Date()
-                }
-            };
-        } else if (specs.readyByName && typeof finalSpecifications === 'object' && !finalSpecifications.readyByName) {
-            finalSpecifications.readyByName = specs.readyByName;
-            finalSpecifications.readyBy = specs.readyBy;
-        }
-
+      }
+    } else {
+      const nextStatus = strategy.getNextStatus(order.status);
+      if (nextStatus) {
+        const isReady =
+          nextStatus === 'REPAIR_COMPLETED' ||
+          nextStatus === 'READY_FOR_PICKUP';
         const updated = await this.prisma.order.update({
-            where: { id },
-            data: {
-                pieceType: textOrUndefined(pieceType),
-                value: updatedValue,
-                cost: cost !== undefined ? Number(cost) : undefined,
-                priority,
-                notes,
-                dueDate: dueDate ? new Date(dueDate) : undefined,
-                promisedAt: promisedAt !== undefined ? (promisedAt ? new Date(promisedAt) : null) : undefined,
-                metal: textOrUndefined(metal),
-                color: textOrUndefined(color),
-                karats: textOrUndefined(karats),
-                weight: textOrUndefined(weight),
-                size: textOrUndefined(size),
-                thickness: textOrUndefined(thickness),
-                itemCode: textOrUndefined(itemCode),
-                laborCost: updatedLabor,
-                materialCost: updatedMaterial,
-                totalAmount,
-                balance,
-                specifications: finalSpecifications,
-                clientId,
-                status: statusValue,
-                stage: stageValue,
-                imageUrl,
-                ...(isDelivering ? { deliveredAt: new Date() } : {})
-            }
+          where: { id },
+          data: {
+            status: nextStatus,
+            ...(nextStatus === 'DELIVERED' ? { deliveredAt: new Date() } : {}),
+            ...(isReady
+              ? {
+                  specifications: {
+                    ...specs,
+                    readyByName: userName,
+                    readyBy: {
+                      id: user?.id,
+                      name: userName,
+                      email: user?.email,
+                      role: user?.role,
+                      at: new Date(),
+                    },
+                  },
+                }
+              : {}),
+          },
         });
-
-        if (status && status !== order.status) {
-            this.notifyOrderWorkflowStatus(tenantId, id).catch(err => {
-                console.error('[Workflow WhatsApp Notification Error]', err);
-            });
-        }
-
+        this.notifyOrderWorkflowStatus(tenantId, id).catch((err) => {
+          console.error('[Workflow WhatsApp Notification Error]', err);
+        });
         return updated;
+      }
+    }
+    return order; // No transition possible
+  }
+
+  async updateOrder(
+    tenantId: string,
+    id: string,
+    data: any,
+    currentUser?: any,
+  ) {
+    const order = await this.getOrder(tenantId, id);
+    if (!order) throw new NotFoundException('Order not found');
+
+    const userRole = currentUser?.role;
+    const isAuthorized = isAdminRole(userRole, currentUser?.email);
+
+    const currentStatusUpper = String(order.status || '').toUpperCase();
+    const currentStageUpper = String(order.stage || '').toUpperCase();
+    const statusIdx = STATUS_ORDER[currentStatusUpper];
+    const stageIdx = STATUS_ORDER[currentStageUpper];
+    const currentIdx = Math.max(statusIdx ?? 0, stageIdx ?? 0);
+    const isReceived = currentIdx === 0;
+
+    const isJoyeroUser =
+      currentUser?.role === 'JOYERO' ||
+      String(currentUser?.role || '').toUpperCase() === 'JOYERO' ||
+      String(currentUser?.email || '')
+        .toLowerCase()
+        .includes('joyero') ||
+      String(currentUser?.name || '')
+        .toLowerCase()
+        .includes('joyero');
+
+    if (
+      isJoyeroUser &&
+      (data.promisedAt !== undefined || data.dueDate !== undefined)
+    ) {
+      throw new ForbiddenException(
+        'El rol Joyero no tiene permisos para modificar la fecha de entrega.',
+      );
     }
 
-    async generateAIImage(tenantId: string, id: string) {
-        const order = await this.getOrder(tenantId, id);
-        if (!order) throw new NotFoundException('Order not found');
-
-        // Simulamos la generación con IA. En un caso real llamaríamos a OpenAI/DALL-E.
-        // Por ahora usaremos una imagen de placeholder representativa de joyería
-        const prompt = `Lujosa pieza de joyería: ${order.pieceType}, metal ${order.metal || 'oro'}, color ${order.color || 'natural'}. Estilo premium, fondo oscuro, iluminación cinematográfica.`;
-
-        // Mock URL de una imagen generada (usaremos Unsplash para el demo)
-        const mockImageUrl = `https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=2070&auto=format&fit=crop`;
-
-        return this.prisma.order.update({
-            where: { id },
-            data: { imageUrl: mockImageUrl }
-        });
+    // Si se cambia a devuelto, la orden pasa a RETURNED
+    let isReturn = false;
+    if (data.status) {
+      const sUpper = String(data.status).toUpperCase();
+      if (sUpper === 'RETURNED' || sUpper === 'DEVUELTO') {
+        data.status = 'RETURNED';
+        isReturn = true;
+      }
+    }
+    if (data.stage) {
+      const stUpper = String(data.stage).toUpperCase();
+      if (stUpper === 'RETURNED' || stUpper === 'DEVUELTO') {
+        data.stage = 'RECIBIDO';
+        isReturn = true;
+      }
     }
 
-    async deleteOrder(tenantId: string, id: string) {
-        const order = await this.prisma.order.findUnique({
-            where: { id },
-            include: { queueTicket: true }
-        });
-        if (!order) {
-            throw new NotFoundException('Pedido no encontrado');
+    if (!isAuthorized && currentUser) {
+      // 1. Si no es admin/system y la orden ya no está en RECIBIDO, no se pueden modificar campos de detalle
+      if (!isReceived) {
+        const detailKeys = [
+          'pieceType',
+          'value',
+          'cost',
+          'dueDate',
+          'metal',
+          'color',
+          'karats',
+          'weight',
+          'size',
+          'thickness',
+          'itemCode',
+          'laborCost',
+          'materialCost',
+          'clientId',
+          'priority',
+          'imageUrl',
+        ];
+        const hasDetailChanges = detailKeys.some((k) => data[k] !== undefined);
+        if (hasDetailChanges) {
+          throw new ForbiddenException(
+            'Las órdenes en estado diferente a Recibido solo pueden ser modificadas por Administradores y Sistema.',
+          );
         }
+      }
 
-        if (order.queueTicket) {
-            await this.prisma.queueTicket.update({
-                where: { id: order.queueTicket.id },
-                data: { orderId: null }
-            });
+      // 2. Si se actualiza el workflow (status o stage), no se permite ir hacia atrás excepto en devolución
+      if (data.status && !isReturn) {
+        const newStatusUpper = String(data.status).toUpperCase();
+        const newIdx = STATUS_ORDER[newStatusUpper];
+        if (newIdx !== undefined && newIdx < currentIdx) {
+          throw new ForbiddenException(
+            'No está permitido retroceder el estado del flujo de trabajo.',
+          );
         }
-
-        await this.prisma.payment.deleteMany({
-            where: { orderId: id }
-        });
-
-        return this.prisma.order.delete({
-            where: { id }
-        });
+      }
+      if (data.stage && !isReturn) {
+        const newStageUpper = String(data.stage).toUpperCase();
+        const newIdx = STATUS_ORDER[newStageUpper];
+        if (newIdx !== undefined && newIdx < currentIdx) {
+          throw new ForbiddenException(
+            'No está permitido retroceder el estado del flujo de trabajo.',
+          );
+        }
+      }
     }
 
-    async notifyOrderWorkflowStatus(tenantId: string, id: string) {
-        try {
-            await this.sendOrderWhatsApp(tenantId, id);
-        } catch (error) {
-            console.error('[Workflow WhatsApp Notification]', error);
-        }
+    const {
+      pieceType,
+      value,
+      cost,
+      priority,
+      notes,
+      dueDate,
+      promisedAt,
+      metal,
+      color,
+      karats,
+      weight,
+      size,
+      thickness,
+      itemCode,
+      laborCost,
+      materialCost,
+      specifications,
+      clientId,
+      status,
+      stage,
+      imageUrl,
+    } = data;
+
+    // El modal de edición envía el estado del flujo en `status` y `stage`; `stage` usa otro enum
+    // (OrderStage) y un valor como RECEIVED hacía fallar Prisma con 500. Solo se guarda si es válido.
+    const stageValue =
+      stage !== undefined &&
+      stage !== null &&
+      String(stage).toUpperCase() in OrderStage
+        ? (String(stage).toUpperCase() as OrderStage)
+        : undefined;
+    const statusValue =
+      status !== undefined &&
+      status !== null &&
+      String(status).toUpperCase() in OrderStatus
+        ? (String(status).toUpperCase() as OrderStatus)
+        : undefined;
+    // Los campos de texto del item pueden llegar como número desde datos antiguos
+    const textOrUndefined = (v: any) =>
+      v === undefined || v === null ? undefined : String(v);
+
+    if (clientId !== undefined) {
+      await this.assertClientInTenant(tenantId, clientId);
     }
 
-    async sendOrderWhatsApp(tenantId: string, id: string) {
-        const order = await this.prisma.order.findUnique({
-            where: { id, tenantId },
-            include: { client: true }
-        });
+    // Recalculate totalAmount and balance if financial fields are changing
+    const currentLabor = order.laborCost ? Number(order.laborCost) : 0;
+    const currentMaterial = order.materialCost ? Number(order.materialCost) : 0;
+    const currentValue = order.value ? Number(order.value) : 0;
 
-        if (!order) {
-            throw new NotFoundException('Pedido no encontrado');
-        }
+    const updatedLabor =
+      laborCost !== undefined ? Number(laborCost) : currentLabor;
+    const updatedMaterial =
+      materialCost !== undefined ? Number(materialCost) : currentMaterial;
+    const updatedValue = value !== undefined ? Number(value) : currentValue;
 
-        const specs = (order.specifications as any) || {};
-        const phone = order.client?.phone || specs.clientPhone || specs.phone;
-        if (!phone) {
-            console.warn(`[sendOrderWhatsApp] Order ${id} has no client phone.`);
-            return { success: false, reason: 'El cliente no tiene teléfono configurado' };
-        }
+    let totalAmount: Prisma.Decimal;
 
-        const prefix = order.type === 'REPAIR' ? 'REP' : (order.type === 'MANUFACTURE' ? 'FAB' : (order.type === 'DESIGN' ? 'DIS' : (order.type === 'LASER' ? 'LAS' : (order.type === 'LAYAWAY' ? 'APT' : 'PED'))));
-        const orderCode = specs.orderCode || `${prefix}-${order.id.substring(0, 6).toUpperCase()}`;
-        const clientName = (order.client?.name || specs.clientName || 'Cliente').toUpperCase();
-        const formatDate = (date?: Date | string | null) => {
-            const d = date ? new Date(date) : new Date();
-            return d.toLocaleDateString('es-MX', {
-                timeZone: 'America/Hermosillo',
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
+    // El material es un costo interno (margen = venta - costo), no se suma al cobro. Igual que al crear la
+    // orden, lo que se cobra es la mano de obra / venta.
+    // Priority: 1. Mano de obra (si > 0), 2. Explicit value, 3. Existing totalAmount (if not zero), 4. Existing value
+    if (laborCost !== undefined && updatedLabor > 0) {
+      totalAmount = new Prisma.Decimal(updatedLabor);
+    } else if (value !== undefined) {
+      totalAmount = new Prisma.Decimal(updatedValue);
+    } else {
+      const currentTotal = order.totalAmount
+        ? new Prisma.Decimal(order.totalAmount)
+        : new Prisma.Decimal(0);
+      if (currentTotal.isZero() && currentValue > 0) {
+        totalAmount = new Prisma.Decimal(currentValue);
+      } else {
+        totalAmount = currentTotal;
+      }
+    }
+
+    const paidAmount = order.paidAmount
+      ? new Prisma.Decimal(order.paidAmount)
+      : new Prisma.Decimal(0);
+    const balance = totalAmount.sub(paidAmount);
+
+    const isDelivering =
+      status === 'DELIVERED' ||
+      status === 'ENTREGADO' ||
+      status === 'ENTREGADO_POSTVENTA';
+    const specs = (order.specifications as any) || {};
+    const isReadyStage =
+      (status &&
+        ['REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'LISTO_ENTREGA'].includes(
+          String(status).toUpperCase(),
+        )) ||
+      (stage && ['LISTO_ENTREGA'].includes(String(stage).toUpperCase()));
+
+    let finalSpecifications =
+      specifications !== undefined ? specifications : specs;
+    const userName = currentUser?.name || currentUser?.email || 'Joyero';
+
+    if (isReturn) {
+      finalSpecifications = {
+        ...(typeof finalSpecifications === 'object' ? finalSpecifications : {}),
+        returnedByName: userName,
+        returnedBy: {
+          id: currentUser?.id,
+          name: userName,
+          email: currentUser?.email,
+          role: currentUser?.role,
+          at: new Date(),
+        },
+        returnReason: 'Devuelto por joyero a recepción',
+      };
+    } else if (isReadyStage) {
+      finalSpecifications = {
+        ...(typeof finalSpecifications === 'object' ? finalSpecifications : {}),
+        readyByName: userName,
+        readyBy: {
+          id: currentUser?.id,
+          name: userName,
+          email: currentUser?.email,
+          role: currentUser?.role,
+          at: new Date(),
+        },
+      };
+    } else if (
+      specs.readyByName &&
+      typeof finalSpecifications === 'object' &&
+      !finalSpecifications.readyByName
+    ) {
+      finalSpecifications.readyByName = specs.readyByName;
+      finalSpecifications.readyBy = specs.readyBy;
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id },
+      data: {
+        pieceType: textOrUndefined(pieceType),
+        value: updatedValue,
+        cost: cost !== undefined ? Number(cost) : undefined,
+        priority,
+        notes,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        promisedAt:
+          promisedAt !== undefined
+            ? promisedAt
+              ? new Date(promisedAt)
+              : null
+            : undefined,
+        metal: textOrUndefined(metal),
+        color: textOrUndefined(color),
+        karats: textOrUndefined(karats),
+        weight: textOrUndefined(weight),
+        size: textOrUndefined(size),
+        thickness: textOrUndefined(thickness),
+        itemCode: textOrUndefined(itemCode),
+        laborCost: updatedLabor,
+        materialCost: updatedMaterial,
+        totalAmount,
+        balance,
+        specifications: finalSpecifications,
+        clientId,
+        status: statusValue,
+        stage: stageValue,
+        imageUrl,
+        ...(isDelivering ? { deliveredAt: new Date() } : {}),
+      },
+    });
+
+    if (status && status !== order.status) {
+      this.notifyOrderWorkflowStatus(tenantId, id).catch((err) => {
+        console.error('[Workflow WhatsApp Notification Error]', err);
+      });
+    }
+
+    return updated;
+  }
+
+  async generateAIImage(tenantId: string, id: string) {
+    const order = await this.getOrder(tenantId, id);
+    if (!order) throw new NotFoundException('Order not found');
+
+    // Simulamos la generación con IA. En un caso real llamaríamos a OpenAI/DALL-E.
+    // Por ahora usaremos una imagen de placeholder representativa de joyería
+    const prompt = `Lujosa pieza de joyería: ${order.pieceType}, metal ${order.metal || 'oro'}, color ${order.color || 'natural'}. Estilo premium, fondo oscuro, iluminación cinematográfica.`;
+
+    // Mock URL de una imagen generada (usaremos Unsplash para el demo)
+    const mockImageUrl = `https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=2070&auto=format&fit=crop`;
+
+    return this.prisma.order.update({
+      where: { id },
+      data: { imageUrl: mockImageUrl },
+    });
+  }
+
+  async deleteOrder(tenantId: string, id: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { queueTicket: true },
+    });
+    if (!order) {
+      throw new NotFoundException('Pedido no encontrado');
+    }
+
+    if (order.queueTicket) {
+      await this.prisma.queueTicket.update({
+        where: { id: order.queueTicket.id },
+        data: { orderId: null },
+      });
+    }
+
+    await this.prisma.payment.deleteMany({
+      where: { orderId: id },
+    });
+
+    return this.prisma.order.delete({
+      where: { id },
+    });
+  }
+
+  async notifyOrderWorkflowStatus(tenantId: string, id: string) {
+    try {
+      await this.sendOrderWhatsApp(tenantId, id);
+    } catch (error) {
+      console.error('[Workflow WhatsApp Notification]', error);
+    }
+  }
+
+  async sendOrderWhatsApp(tenantId: string, id: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id, tenantId },
+      include: { client: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Pedido no encontrado');
+    }
+
+    const specs = (order.specifications as any) || {};
+    const phone = order.client?.phone || specs.clientPhone || specs.phone;
+    if (!phone) {
+      console.warn(`[sendOrderWhatsApp] Order ${id} has no client phone.`);
+      return {
+        success: false,
+        reason: 'El cliente no tiene teléfono configurado',
+      };
+    }
+
+    const prefix =
+      order.type === 'REPAIR'
+        ? 'REP'
+        : order.type === 'MANUFACTURE'
+          ? 'FAB'
+          : order.type === 'DESIGN'
+            ? 'DIS'
+            : order.type === 'LASER'
+              ? 'LAS'
+              : order.type === 'LAYAWAY'
+                ? 'APT'
+                : 'PED';
+    const orderCode =
+      specs.orderCode || `${prefix}-${order.id.substring(0, 6).toUpperCase()}`;
+    const clientName = (
+      order.client?.name ||
+      specs.clientName ||
+      'Cliente'
+    ).toUpperCase();
+    const formatDate = (date?: Date | string | null) => {
+      const d = date ? new Date(date) : new Date();
+      return d.toLocaleDateString('es-MX', {
+        timeZone: 'America/Hermosillo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+    };
+
+    const dateStr = formatDate(order.createdAt);
+
+    const getConcepto = (type: string) => {
+      const t = (type || '').toUpperCase();
+      if (t === 'REPAIR') return 'REPARACIÓN';
+      if (t === 'MANUFACTURE') return 'FABRICACIÓN';
+      if (t === 'DESIGN') return 'DISEÑO';
+      if (t === 'LASER') return 'LÁSER';
+      if (t === 'LAYAWAY') return 'APARTADO';
+      return 'VENTA';
+    };
+
+    const getStatusLabel = (status: string) => {
+      const s = (status || '').toUpperCase().trim();
+      // Recibido
+      if (
+        [
+          'RECEIVED',
+          'DRAFT',
+          'NUEVO',
+          'PENDING',
+          'INTERES_LEAD',
+          'RECIBIDO',
+        ].includes(s)
+      )
+        return 'RECIBIDO';
+
+      // En Taller / En Proceso
+      if (
+        [
+          'IN_REPAIR',
+          'IN_PRODUCTION',
+          'IN_PROGRESS',
+          'IN_WORKSHOP',
+          'TALLER',
+          'PRODUCTION',
+          'EN_PROCESO',
+          'EN_PRODUCCION',
+          'CONTROL_CALIDAD',
+          'QUALITY_CHECK',
+          'DIAGNOSIS_PENDING',
+          'WAITING_PARTS',
+          'SPEC_PENDING',
+          'MATERIALS_PENDING',
+          'EN TALLER',
+        ].includes(s)
+      )
+        return 'EN TALLER';
+
+      // Listo / Terminado
+      if (
+        [
+          'REPAIR_COMPLETED',
+          'READY_FOR_PICKUP',
+          'READY',
+          'COMPLETED',
+          'TERMINADO',
+          'LISTO',
+          'LISTO_ENTREGA',
+        ].includes(s)
+      )
+        return 'TERMINADO';
+
+      // Entregado
+      if (['DELIVERED', 'ENTREGADO', 'ENTREGADO_POSTVENTA'].includes(s))
+        return 'ENTREGADO';
+
+      // Devuelto
+      if (['RETURNED', 'DEVUELTO'].includes(s)) return 'DEVUELTO';
+
+      // Cancelado
+      if (['CANCELLED', 'CANCELADO'].includes(s)) return 'CANCELADO';
+
+      // Cotizaciones / Aprobaciones
+      if (['QUOTE_SENT', 'COTIZACION_ENVIADA'].includes(s)) return 'COTIZACIÓN';
+      if (['APPROVED', 'APROBADO_ANTICIPO'].includes(s)) return 'APROBADO';
+      if (['LAYAWAY_OPEN'].includes(s)) return 'APARTADO';
+      if (['LAYAWAY_EXPIRED'].includes(s)) return 'VENCIDO';
+
+      return s.replace(/_/g, ' ');
+    };
+
+    const rawStatus = order.status || (order as any).stage || 'RECIBIDO';
+    const statusLabel = getStatusLabel(rawStatus);
+    const isReceived = statusLabel === 'RECIBIDO' || statusLabel === 'APARTADO';
+    const isReady = statusLabel === 'TERMINADO' || statusLabel === 'LISTO';
+
+    // Regla: Solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp
+    if (!isReceived && !isReady) {
+      console.log(
+        `[sendOrderWhatsApp] Omitido: solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp. Estatus actual: ${statusLabel}`,
+      );
+      return {
+        success: false,
+        reason:
+          'Solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp',
+      };
+    }
+
+    const trackToken = generateTrackToken(order.id);
+    const trackingUrl = `https://luxuryos.pitayacode.io/track/${trackToken}`;
+    const settings = await this.prisma.setting.findMany({
+      where: { tenantId },
+    });
+    const map = settings.reduce(
+      (acc, curr) => ({ ...acc, [curr.key]: curr.value }),
+      {} as Record<string, string>,
+    );
+    const codeType = map['label_code_type'] || 'BARCODE';
+
+    // Usamos el enlace de tracking para el QR (para que al escanear abra el portal) y orderCode para barcode
+    const qrImageUrl =
+      codeType === 'QR'
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`
+        : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
+
+    const pieceItems: any[] =
+      specs.items && specs.items.length > 0
+        ? specs.items
+        : [
+            {
+              item: order.pieceType || 'PIEZA',
+              metal: order.metal,
+              color: order.color,
+              karats: order.karats,
+              weight: order.weight,
+              size: order.size,
+              thickness: order.thickness,
+              description: order.notes,
+            },
+          ];
+
+    const pieceSummaries = pieceItems
+      .map((p, idx) => {
+        const title = (
+          p.item ||
+          p.pieceType ||
+          `Pieza ${idx + 1}`
+        ).toUpperCase();
+        const details: string[] = [];
+        const metalParts = [p.metal, p.karats, p.color].filter(
+          (v) => v && v !== '-',
+        );
+        if (metalParts.length > 0) details.push(metalParts.join(' '));
+        const formatWeight = (w: any) => {
+          const str = String(w || '').trim();
+          if (!str || str === '-') return '';
+          if (/(gr|g|grs|gr\.|g\.)$/i.test(str)) return str;
+          return `${str} GR`;
         };
 
-        const dateStr = formatDate(order.createdAt);
+        if (p.weight && p.weight !== '-') details.push(formatWeight(p.weight));
+        if (p.size && p.size !== '-') details.push(`Med: ${p.size}`);
+        if (p.thickness && p.thickness !== '-') details.push(`${p.thickness}`);
+        const note = p.description || p.notes || p.trabajo || p.work || '';
 
-        const getConcepto = (type: string) => {
-            const t = (type || '').toUpperCase();
-            if (t === 'REPAIR') return 'REPARACIÓN';
-            if (t === 'MANUFACTURE') return 'FABRICACIÓN';
-            if (t === 'DESIGN') return 'DISEÑO';
-            if (t === 'LASER') return 'LÁSER';
-            if (t === 'LAYAWAY') return 'APARTADO';
-            return 'VENTA';
-        };
+        let res = `• *${title}*`;
+        if (details.length > 0) res += ` (${details.join(', ')})`;
+        if (note) res += `\n  _Nota: ${note}_`;
+        return res;
+      })
+      .join('\n');
 
-        const getStatusLabel = (status: string) => {
-            const s = (status || '').toUpperCase().trim();
-            // Recibido
-            if (['RECEIVED', 'DRAFT', 'NUEVO', 'PENDING', 'INTERES_LEAD', 'RECIBIDO'].includes(s)) return 'RECIBIDO';
-            
-            // En Taller / En Proceso
-            if ([
-                'IN_REPAIR', 'IN_PRODUCTION', 'IN_PROGRESS', 'IN_WORKSHOP', 
-                'TALLER', 'PRODUCTION', 'EN_PROCESO', 'EN_PRODUCCION', 
-                'CONTROL_CALIDAD', 'QUALITY_CHECK', 'DIAGNOSIS_PENDING', 
-                'WAITING_PARTS', 'SPEC_PENDING', 'MATERIALS_PENDING', 'EN TALLER'
-            ].includes(s)) return 'EN TALLER';
-            
-            // Listo / Terminado
-            if ([
-                'REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'READY', 'COMPLETED', 
-                'TERMINADO', 'LISTO', 'LISTO_ENTREGA'
-            ].includes(s)) return 'TERMINADO';
-            
-            // Entregado
-            if (['DELIVERED', 'ENTREGADO', 'ENTREGADO_POSTVENTA'].includes(s)) return 'ENTREGADO';
-            
-            // Devuelto
-            if (['RETURNED', 'DEVUELTO'].includes(s)) return 'DEVUELTO';
-
-            // Cancelado
-            if (['CANCELLED', 'CANCELADO'].includes(s)) return 'CANCELADO';
-
-            // Cotizaciones / Aprobaciones
-            if (['QUOTE_SENT', 'COTIZACION_ENVIADA'].includes(s)) return 'COTIZACIÓN';
-            if (['APPROVED', 'APROBADO_ANTICIPO'].includes(s)) return 'APROBADO';
-            if (['LAYAWAY_OPEN'].includes(s)) return 'APARTADO';
-            if (['LAYAWAY_EXPIRED'].includes(s)) return 'VENCIDO';
-
-            return s.replace(/_/g, ' ');
-        };
-
-        const rawStatus = order.status || (order as any).stage || 'RECIBIDO';
-        const statusLabel = getStatusLabel(rawStatus);
-        const isReceived = statusLabel === 'RECIBIDO' || statusLabel === 'APARTADO';
-        const isReady = statusLabel === 'TERMINADO' || statusLabel === 'LISTO';
-
-        // Regla: Solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp
-        if (!isReceived && !isReady) {
-            console.log(`[sendOrderWhatsApp] Omitido: solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp. Estatus actual: ${statusLabel}`);
-            return { success: false, reason: 'Solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp' };
-        }
-
-        const trackToken = generateTrackToken(order.id);
-        const trackingUrl = `https://luxuryos.pitayacode.io/track/${trackToken}`;
-        const settings = await this.prisma.setting.findMany({ where: { tenantId } });
-        const map = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
-        const codeType = map['label_code_type'] || 'BARCODE';
-
-        // Usamos el enlace de tracking para el QR (para que al escanear abra el portal) y orderCode para barcode
-        const qrImageUrl = codeType === 'QR'
-            ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`
-            : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
-
-        const pieceItems: any[] = (specs.items && specs.items.length > 0)
-            ? specs.items
-            : [{
-                item: order.pieceType || 'PIEZA',
-                metal: order.metal,
-                color: order.color,
-                karats: order.karats,
-                weight: order.weight,
-                size: order.size,
-                thickness: order.thickness,
-                description: order.notes
-            }];
-
-        const pieceSummaries = pieceItems.map((p, idx) => {
-            const title = (p.item || p.pieceType || `Pieza ${idx + 1}`).toUpperCase();
-            const details: string[] = [];
-            const metalParts = [p.metal, p.karats, p.color].filter(v => v && v !== '-');
-            if (metalParts.length > 0) details.push(metalParts.join(' '));
-            const formatWeight = (w: any) => {
-                const str = String(w || '').trim();
-                if (!str || str === '-') return '';
-                if (/(gr|g|grs|gr\.|g\.)$/i.test(str)) return str;
-                return `${str} GR`;
-            };
-
-            if (p.weight && p.weight !== '-') details.push(formatWeight(p.weight));
-            if (p.size && p.size !== '-') details.push(`Med: ${p.size}`);
-            if (p.thickness && p.thickness !== '-') details.push(`${p.thickness}`);
-            const note = p.description || p.notes || p.trabajo || p.work || '';
-
-            let res = `• *${title}*`;
-            if (details.length > 0) res += ` (${details.join(', ')})`;
-            if (note) res += `\n  _Nota: ${note}_`;
-            return res;
-        }).join('\n');
-
-        let message = '';
-        if (isReceived) {
-            message = `🔔 *CARED* 🔔
+    let message = '';
+    if (isReceived) {
+      message = `🔔 *CARED* 🔔
 
 *Fecha:* ${dateStr}
 *Cliente:* ${clientName}
@@ -874,8 +1184,8 @@ ${qrImageUrl}
 ${trackingUrl}
 
 Gracias por su preferencia. ✨`;
-        } else if (isReady) {
-            message = `🔔 *CARED* 🔔
+    } else if (isReady) {
+      message = `🔔 *CARED* 🔔
 
 *Fecha:* ${dateStr}
 *Cliente:* ${clientName}
@@ -891,11 +1201,17 @@ ${qrImageUrl}
 ${trackingUrl}
 
 Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
-        }
-
-        console.log(`[sendOrderWhatsApp] Sending WhatsApp notification for ${orderCode} to ${phone}`);
-        const result = await this.notificationService.sendCustomMessage(tenantId, phone, message);
-        console.log(`[sendOrderWhatsApp] Result for ${orderCode}:`, result);
-        return result;
     }
+
+    console.log(
+      `[sendOrderWhatsApp] Sending WhatsApp notification for ${orderCode} to ${phone}`,
+    );
+    const result = await this.notificationService.sendCustomMessage(
+      tenantId,
+      phone,
+      message,
+    );
+    console.log(`[sendOrderWhatsApp] Result for ${orderCode}:`, result);
+    return result;
+  }
 }
