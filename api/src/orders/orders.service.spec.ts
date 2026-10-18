@@ -176,5 +176,36 @@ describe('OrdersService Unit Tests', () => {
         }),
       );
     });
+
+    it('should charge only labor (material is an internal cost) when editing an order', async () => {
+      const mockDbOrder = {
+        id: 'uuid-124',
+        tenantId: 'tenant-1',
+        status: 'RECEIVED',
+        value: 650,
+        totalAmount: 650,
+        paidAmount: 0,
+        laborCost: 650,
+        materialCost: 0,
+        specifications: {},
+      };
+
+      mockPrisma.order.findFirst.mockResolvedValue(mockDbOrder);
+      mockPrisma.order.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...mockDbOrder, ...data }),
+      );
+
+      await service.updateOrder(
+        'tenant-1',
+        'uuid-124',
+        { laborCost: 650, materialCost: 200, value: 650 },
+        { role: 'ADMIN' },
+      );
+
+      const { data } = mockPrisma.order.update.mock.calls[0][0];
+      expect(Number(data.totalAmount)).toBe(650);
+      expect(Number(data.balance)).toBe(650);
+      expect(data.materialCost).toBe(200);
+    });
   });
 });

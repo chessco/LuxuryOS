@@ -298,7 +298,8 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
 
     const laborCost = Number(foundOrder?.laborCost || foundOrder?.value || 0);
     const materialCost = Number(foundOrder?.materialCost || foundOrder?.cost || 0);
-    const totalAmount = Number(foundOrder?.totalAmount || (laborCost + materialCost) || foundOrder?.value || 0);
+    // El material es un costo interno: el cobro es la mano de obra / venta, no labor + material
+    const totalAmount = Number(foundOrder?.totalAmount || laborCost || foundOrder?.value || 0);
     const paidAmount = Number(foundOrder?.paidAmount || 0);
     const pendingAmount = Math.max(0, totalAmount - paidAmount);
     const orderCode = foundOrder?.orderCode || foundOrder?.specifications?.orderCode || `ORD-${foundOrder?.id?.slice(0, 5)}`;

@@ -573,9 +573,11 @@ export class OrdersService {
 
         let totalAmount: Prisma.Decimal;
 
-        // Priority: 1. Explicit labor+material, 2. Explicit value, 3. Existing totalAmount (if not zero), 4. Existing value
-        if (laborCost !== undefined || materialCost !== undefined) {
-            totalAmount = new Prisma.Decimal(updatedLabor + updatedMaterial);
+        // El material es un costo interno (margen = venta - costo), no se suma al cobro. Igual que al crear la
+        // orden, lo que se cobra es la mano de obra / venta.
+        // Priority: 1. Mano de obra (si > 0), 2. Explicit value, 3. Existing totalAmount (if not zero), 4. Existing value
+        if (laborCost !== undefined && updatedLabor > 0) {
+            totalAmount = new Prisma.Decimal(updatedLabor);
         } else if (value !== undefined) {
             totalAmount = new Prisma.Decimal(updatedValue);
         } else {
