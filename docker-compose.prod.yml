@@ -32,6 +32,13 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - PORT=3002
       - NODE_ENV=production
+      # Asistente Aura (PitayaCore). Los valores se definen en el .env del servidor, nunca en el repo.
+      - PITAYACORE_API_URL=${PITAYACORE_API_URL:-}
+      - PITAYACORE_API_KEY=${PITAYACORE_API_KEY:-}
+      # Herramientas de consulta de Aura (solo administradores). Apagado por defecto.
+      - AURA_TOOLS_ENABLED=${AURA_TOOLS_ENABLED:-false}
+      - AURA_TOOLS_SECRET=${AURA_TOOLS_SECRET:-}
+      - AURA_TOOLS_CALLBACK_URL=${AURA_TOOLS_CALLBACK_URL:-}
     networks:
       - pitaya_net
 

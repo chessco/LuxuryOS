@@ -8,3 +8,13 @@ JWT_SECRET=your_long_random_secret_here
 # API Configuration
 PORT=3001
 NODE_ENV=production
+
+# Asistente Aura (PitayaCore)
+PITAYACORE_API_URL=https://pitayacore-api.pitayacode.io/api
+PITAYACORE_API_KEY=your_pitayacore_api_key_here
+
+# Herramientas de consulta de Aura (solo administradores)
+# Generar el secreto con: openssl rand -hex 32
+AURA_TOOLS_ENABLED=false
+AURA_TOOLS_SECRET=your_random_secret_min_32_chars_here
+AURA_TOOLS_CALLBACK_URL=https://luxury-api.pitayacode.io/ai/tools/execute

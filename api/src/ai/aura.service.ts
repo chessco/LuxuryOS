@@ -152,12 +152,32 @@ export class AuraService {
     const cfg = await this.getConfig(ctx.tenantId);
     await this.ensureAgent(cfg);
 
+    const toolsPayload = this.buildToolsPayload(ctx);
+    let data = await this.postChat(cfg, ctx, { message, ...toolsPayload });
+
+    // Si pitayacore no puede enrutar con herramientas (p. ej. el host del callback no está en su allowlist),
+    // devuelve el mensaje del usuario como respuesta. En ese caso se reintenta una vez sin herramientas.
+    if ('tools' in toolsPayload && String(data.content || '').trim() === message.trim()) {
+      this.logger.warn(
+        'pitayacore no pudo usar las herramientas (¿TOOL_CALLBACK_HOSTS no incluye el host del callback?); reintentando sin ellas',
+      );
+      data = await this.postChat(cfg, ctx, { message });
+    }
+
+    return {
+      role: 'assistant' as const,
+      content: data.content || '',
+      conversationId: data.conversationId,
+    };
+  }
+
+  private async postChat(cfg: PitayaCoreConfig, ctx: AuraToolContext, body: Record<string, unknown>): Promise<any> {
     let response: Response;
     try {
       response = await fetch(`${cfg.baseUrl}/agents/${AURA_AGENT_SLUG}/chat`, {
         method: 'POST',
         headers: this.headers(cfg, ctx.email),
-        body: JSON.stringify({ message, ...this.buildToolsPayload(ctx) }),
+        body: JSON.stringify(body),
       });
     } catch (error: any) {
       this.logger.error(`pitayacore no disponible: ${error.message}`);
@@ -175,11 +195,6 @@ export class AuraService {
       );
     }
 
-    const data: any = await response.json().catch(() => ({}));
-    return {
-      role: 'assistant' as const,
-      content: data.content || '',
-      conversationId: data.conversationId,
-    };
+    return response.json().catch(() => ({}));
   }
 }
