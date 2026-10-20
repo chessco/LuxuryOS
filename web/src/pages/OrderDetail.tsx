@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OrdersService } from '../services/orders.service';
+import { UsersService } from '../services/users.service';
 import { OrderType } from '../types';
 import { RepairPanel } from '../components/orders/RepairPanel';
 import { ManufacturePanel } from '../components/orders/ManufacturePanel';
@@ -10,6 +11,9 @@ import { EditOrderModal } from '../components/orders/EditOrderModal';
 import { RepairPrintView } from '../components/orders/RepairPrintView';
 import { LabelPrintModal } from '../components/orders/LabelPrintModal';
 import { ClientWhatsAppModal } from '../components/orders/ClientWhatsAppModal';
+import { DesignStageCard } from '../components/orders/DesignStageCard';
+import { ClientHistoryModal } from '../components/orders/ClientHistoryModal';
+import { QRScannerModal } from '../components/orders/QRScannerModal';
 import { getStatusLabel, formatOrderCode } from './Orders';
 import { RBACService } from '../services/rbac.service';
 
@@ -32,6 +36,9 @@ const OrderDetail: React.FC = () => {
     const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
     const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
     const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+    const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false);
+    const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+    const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
     const [currentStep, setCurrentStep] = useState(2);
     const [notesBuffer, setNotesBuffer] = useState('');
     const [activities, setActivities] = useState<any[]>([]);
@@ -225,65 +232,70 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    useEffect(() => {
-        const fetchOrder = async () => {
-            if (id) {
-                setIsLoading(true);
-                try {
-                    const foundOrder = await OrdersService.getOrder(id);
-                    if (foundOrder) {
-                        setOrder(enrichOrder(foundOrder));
-                        setNotesBuffer(foundOrder.notes || '');
+    const fetchOrder = React.useCallback(async () => {
+        if (id) {
+            setIsLoading(true);
+            try {
+                const foundOrder = await OrdersService.getOrder(id);
+                if (foundOrder) {
+                    setOrder(enrichOrder(foundOrder));
+                    setNotesBuffer(foundOrder.notes || '');
 
-                        // Synthesize Activities
-                        const acts: any[] = [];
+                    // Synthesize Activities
+                    const acts: any[] = [];
 
-                        // 1. Creation
-                        const creatorName = foundOrder.createdBy?.name || foundOrder.specifications?.receivedBy || foundOrder.specifications?.createdByName || "Sistema";
-                        acts.push({
-                            user: creatorName,
-                            action: "recibió / creó el pedido",
-                            target: "",
-                            time: new Date(foundOrder.createdAt).toLocaleString(),
-                            dotColor: "bg-muted-foreground/30"
-                        });
+                    // 1. Creation
+                    const creatorName = foundOrder.createdBy?.name || foundOrder.specifications?.receivedBy || foundOrder.specifications?.createdByName || "Sistema";
+                    acts.push({
+                        user: creatorName,
+                        action: "recibió / creó el pedido",
+                        target: "",
+                        time: new Date(foundOrder.createdAt).toLocaleString(),
+                        dotColor: "bg-muted-foreground/30"
+                    });
 
-                        // 2. Payments
-                        if (foundOrder.payments) {
-                            foundOrder.payments.forEach((p: any) => {
-                                acts.push({
-                                    user: "Tú",
-                                    action: "registraste un pago de",
-                                    target: `${Number(p.amount).toLocaleString()} MXN`,
-                                    time: new Date(p.recordedAt).toLocaleString(),
-                                    dotColor: "bg-emerald-500"
-                                });
+                    // 2. Payments
+                    if (foundOrder.payments) {
+                        foundOrder.payments.forEach((p: any) => {
+                            acts.push({
+                                user: "Tú",
+                                action: "registraste un pago de",
+                                target: `${Number(p.amount).toLocaleString()} MXN`,
+                                time: new Date(p.recordedAt).toLocaleString(),
+                                dotColor: "bg-emerald-500"
                             });
-                        }
-
-                        // 3. Status changes (synthetic if only one history entry)
-                        acts.push({
-                            user: "Tú",
-                            action: "actualizaste el estado a",
-                            target: getStatusLabel(foundOrder.status || foundOrder.orderStatus),
-                            time: foundOrder.updatedAt ? new Date(foundOrder.updatedAt).toLocaleString() : 'Hoy',
-                            dotColor: "bg-indigo-500"
                         });
-
-                        setActivities(acts.reverse()); // Newest first
-                    } else {
-                        setOrder(null);
                     }
-                } catch (error) {
-                    console.error("Failed to fetch order", error);
+
+                    // 3. Status changes (synthetic if only one history entry)
+                    acts.push({
+                        user: "Tú",
+                        action: "actualizaste el estado a",
+                        target: getStatusLabel(foundOrder.status || foundOrder.orderStatus),
+                        time: foundOrder.updatedAt ? new Date(foundOrder.updatedAt).toLocaleString() : 'Hoy',
+                        dotColor: "bg-indigo-500"
+                    });
+
+                    setActivities(acts.reverse()); // Newest first
+                } else {
                     setOrder(null);
-                } finally {
-                    setIsLoading(false);
                 }
+            } catch (error) {
+                console.error("Failed to fetch order", error);
+                setOrder(null);
+            } finally {
+                setIsLoading(false);
             }
-        };
-        fetchOrder();
+        }
     }, [id]);
+
+    useEffect(() => {
+        fetchOrder();
+    }, [fetchOrder]);
+
+    useEffect(() => {
+        UsersService.getAll().then(setAssignableUsers).catch(console.error);
+    }, []);
 
     const handleAdvanceStatus = async () => {
         if (!id) return;
@@ -448,6 +460,13 @@ const OrderDetail: React.FC = () => {
         userNameLower.includes('joyero') ||
         RBACService.getEffectiveRole(user) === 'JOYERO';
 
+    const isDesigner =
+        userRoleUpper === 'DISENADOR' ||
+        userRoleUpper.includes('DISEN') ||
+        userEmailLower.includes('disen') ||
+        userNameLower.includes('disen') ||
+        RBACService.getEffectiveRole(user) === 'DISENADOR';
+
     const isVendedor =
         userRoleUpper === 'VENDEDOR' ||
         userRoleUpper.includes('VEND') ||
@@ -457,10 +476,10 @@ const OrderDetail: React.FC = () => {
         userNameLower.includes('vendedor') ||
         RBACService.getEffectiveRole(user) === 'VENDEDOR';
 
-    const canViewPayments = !isJoyero && RBACService.hasPermission('view_payments', user);
-    const canRegisterPayments = !isJoyero && RBACService.hasPermission('register_payments', user);
+    const canViewPayments = !isJoyero && !isDesigner && RBACService.hasPermission('view_payments', user);
+    const canRegisterPayments = !isJoyero && !isDesigner && RBACService.hasPermission('register_payments', user);
     const canViewLaborCost = RBACService.hasPermission('view_labor_cost', user);
-    const canViewCostsMargins = !isJoyero && !isVendedor && RBACService.hasPermission('view_costs_margins', user);
+    const canViewCostsMargins = !isJoyero && !isDesigner && !isVendedor && RBACService.hasPermission('view_costs_margins', user);
     const canViewClientContact = !isJoyero && RBACService.hasPermission('view_client_contact', user);
     const canViewEnvelope = RBACService.hasPermission('view_envelope_photos', user);
     const canViewTotals = !isJoyero && canViewPayments;
@@ -469,7 +488,7 @@ const OrderDetail: React.FC = () => {
     const stageUpper = String(order.stage || '').toUpperCase();
     const isReceived = (!statusUpper || statusUpper === 'RECEIVED' || statusUpper === 'RECIBIDO' || statusUpper === 'DRAFT' || statusUpper === 'SPEC_PENDING') &&
                        (!stageUpper || stageUpper === 'RECEIVED' || stageUpper === 'RECIBIDO' || stageUpper === 'INTERES_LEAD');
-    const canModifyOrderDetails = isAuthorized || (!isJoyero && RBACService.hasPermission('modify_order_details', user) && isReceived);
+    const canModifyOrderDetails = isAuthorized || (!isJoyero && !isDesigner && RBACService.hasPermission('modify_order_details', user) && isReceived);
     const canEditOrder = isAuthorized || isJoyero || (RBACService.hasPermission('modify_order_details', user) && isReceived);
 
     const fmtDate = (d: any, withTime = false) => new Date(d).toLocaleDateString('es-MX', {
@@ -484,7 +503,8 @@ const OrderDetail: React.FC = () => {
     const isFinishedStatus = ['DELIVERED', 'REPAIR_COMPLETED', 'READY_FOR_PICKUP'].includes(order.status);
     const readyByLabel = order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName
         || (isFinishedStatus && isWorkshopOrder ? 'Joyero' : null);
-    const isDelivered = !!(order.deliveredAt || order.status === 'DELIVERED' || order.status === 'ENTREGADO' || order.stage === 'ENTREGADO_POSTVENTA');
+    const isReturned = Boolean(order.specifications?.isReturnedToClient || order.specifications?.isReturnedNotDone || order.status === 'DEVUELTO');
+    const isDelivered = !isReturned && !!(order.deliveredAt || order.status === 'DELIVERED' || order.status === 'ENTREGADO' || order.stage === 'ENTREGADO_POSTVENTA');
     const deliveredLabel = order.deliveredAt
         ? fmtDate(order.deliveredAt, true)
         : (order.updatedAt ? fmtDate(order.updatedAt, true) : 'Registrado');
@@ -514,20 +534,27 @@ const OrderDetail: React.FC = () => {
                         {/* Title row: code + status + priority */}
                         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                             <h1 className="text-foreground text-4xl sm:text-5xl font-black tracking-tighter font-display">Pedido #{order.orderCode || formatOrderCode(order)}</h1>
-                            <span className={`inline-flex items-center gap-2 px-3.5 py-1.5 border text-[11px] font-black uppercase tracking-widest rounded-full ${statusTone}`}>
-                                <span className="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
-                                {order.statusLabel || order.status}
-                            </span>
+                            {isReturned ? (
+                                <span className="inline-flex items-center gap-2 px-3.5 py-1.5 border text-[11px] font-black uppercase tracking-widest rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                                    <span className="material-symbols-outlined text-[14px]">assignment_return</span>
+                                    Devuelto — No realizado
+                                </span>
+                            ) : (
+                                <span className={`inline-flex items-center gap-2 px-3.5 py-1.5 border text-[11px] font-black uppercase tracking-widest rounded-full ${statusTone}`}>
+                                    <span className="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
+                                    {order.statusLabel || order.status}
+                                </span>
+                            )}
                             <label className="sr-only" htmlFor="order-priority">Prioridad del pedido</label>
                             <select
                                 id="order-priority"
                                 value={priorityKey}
-                                disabled={!canModifyOrderDetails || isJoyero}
+                                disabled={!canModifyOrderDetails || isJoyero || isDesigner}
                                 onChange={async (e) => {
                                     await handleSaveDetails({ priority: e.target.value });
                                 }}
                                 className={`min-h-9 px-3.5 py-1 rounded-full text-[11px] font-black uppercase tracking-widest border transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                                    (!canModifyOrderDetails || isJoyero) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                                    (!canModifyOrderDetails || isJoyero || isDesigner) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
                                 } ${
                                     priorityKey === 'ALTA'
                                         ? 'bg-amber-400 text-black border-amber-500 shadow-md'
@@ -535,7 +562,7 @@ const OrderDetail: React.FC = () => {
                                         ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20'
                                         : 'bg-muted text-muted-foreground border-border font-medium'
                                 }`}
-                                title={isJoyero ? "El rol joyero no puede modificar la prioridad" : (canModifyOrderDetails ? "Haz clic para modificar la prioridad del pedido" : "Solo modificable en estado Recibido o por Administrador")}
+                                title={isJoyero || isDesigner ? "Tu rol no puede modificar la prioridad" : (canModifyOrderDetails ? "Haz clic para modificar la prioridad del pedido" : "Solo modificable en estado Recibido o por Administrador")}
                             >
                                 <option value="BAJA" className="bg-background text-foreground">! BAJA</option>
                                 <option value="MEDIA" className="bg-background text-foreground">! MEDIA</option>
@@ -549,26 +576,46 @@ const OrderDetail: React.FC = () => {
                             <MetaItem icon="history" label="Recibido" value={order.date} />
                             <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
                             <MetaItem icon="event" label="Entrega" value={promisedLabel} tone="emerald" />
+                            {order.specifications?.assignedDesigner && (
+                                <MetaItem
+                                    icon="draw"
+                                    label="Diseñador"
+                                    value={order.specifications?.assignedDesignerName || order.specifications?.assignedDesigner}
+                                    tone="indigo"
+                                />
+                            )}
                             <MetaItem 
                                 icon="assignment_ind" 
-                                label="Asignado a" 
+                                label="Joyero" 
                                 value={order.assignedTo || order.specifications?.assignedTo || order.specifications?.assignedJeweler || order.assignedJeweler || order.jeweler || 'Sin asignar'} 
                                 tone="indigo" 
                             />
                             {readyByLabel && <MetaItem icon="verified" label="Listo por" value={readyByLabel} tone="indigo" />}
-                            {isDelivered && <MetaItem icon="local_shipping" label="Entregado" value={deliveredLabel} tone="emerald" />}
+                            {isReturned ? (
+                                <MetaItem icon="assignment_return" label="Devolución" value="Devuelto al Cliente" tone="neutral" />
+                            ) : isDelivered && (
+                                <MetaItem icon="local_shipping" label="Entregado" value={deliveredLabel} tone="emerald" />
+                            )}
                         </dl>
                     </div>
 
                     {/* Actions: one primary, neutral secondary, danger separated */}
                     <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+                        <button
+                            onClick={() => setIsQRScannerOpen(true)}
+                            className="flex items-center gap-2 bg-indigo-500 text-white hover:bg-indigo-600 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
+                            title="Escanear QR para Cobro o Entrega"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
+                            <span>Escanear QR / Entrega</span>
+                        </button>
                         {canEditOrder && (
                             <button onClick={() => setIsEditModalOpen(true)} className={headerBtnNeutral}>
                                 <span className="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
                                 <span>Editar</span>
                             </button>
                         )}
-                        {!isJoyero && (
+                        {!isJoyero && !isDesigner && (
                             <button onClick={() => setIsLabelPrintOpen(true)} className={headerBtnNeutral}>
                                 <span className="material-symbols-outlined text-[20px]" aria-hidden="true">sell</span>
                                 <span>Etiqueta</span>
@@ -663,6 +710,15 @@ const OrderDetail: React.FC = () => {
 
                         {canViewClientContact && (
                             <div className="flex flex-wrap items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsClientHistoryOpen(true)}
+                                    className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-sm cursor-pointer"
+                                    title="Consultar historial de reparaciones y órdenes anteriores del cliente"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">history</span>
+                                    <span>Historial</span>
+                                </button>
                                 {order.client?.phone && (
                                     <button
                                         type="button"
@@ -685,6 +741,17 @@ const OrderDetail: React.FC = () => {
                     </div>
                 </div>
             </section>
+
+            {/* 1.5 Etapa de Diseño y Doble Asignación (RF-05 / RF-06) */}
+            {(order.specifications?.requiresDesign || order.type === 'DESIGN' || order.type === OrderType.DESIGN || order.specifications?.designCompleted) && (
+                <div className="mb-10">
+                    <DesignStageCard
+                        order={order}
+                        assignableUsers={assignableUsers}
+                        onOrderUpdated={fetchOrder}
+                    />
+                </div>
+            )}
 
             {/* 2. Detalle de Piezas (El Detalle de la Orden) */}
             <section className="bg-card border border-border rounded-[36px] p-8 sm:p-10 backdrop-blur-sm shadow-sm transition-colors mb-10">
@@ -1070,7 +1137,18 @@ const OrderDetail: React.FC = () => {
                 orderCode={order?.orderCode}
             />
 
+            <ClientHistoryModal
+                isOpen={isClientHistoryOpen}
+                onClose={() => setIsClientHistoryOpen(false)}
+                clientId={order?.clientId || order?.client?.id}
+                clientName={order?.clientName || order?.client?.name}
+            />
 
+            <QRScannerModal
+                isOpen={isQRScannerOpen}
+                onClose={() => setIsQRScannerOpen(false)}
+                onOrderUpdated={fetchOrder}
+            />
         </div>
     );
 };

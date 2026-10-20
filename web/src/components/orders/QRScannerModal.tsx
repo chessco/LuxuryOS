@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { OrdersService } from '../../services/orders.service';
 import { PaymentModal } from './PaymentModal';
+import { ClientHistoryModal } from './ClientHistoryModal';
 import { getStatusLabel } from '../../pages/Orders';
+
 
 interface QRScannerModalProps {
     isOpen: boolean;
@@ -30,6 +32,12 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
     const [foundOrder, setFoundOrder] = useState<any | null>(null);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [actionMessage, setActionMessage] = useState<string | null>(null);
+    const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+    const [returnReason, setReturnReason] = useState('');
+    const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false);
+    const [isDelivering, setIsDelivering] = useState(false);
+    const [isReturning, setIsReturning] = useState(false);
+
 
     const user = React.useMemo(() => {
         try {
@@ -294,6 +302,56 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
         if (onOrderUpdated) onOrderUpdated();
     };
 
+    // RF-01: Confirmar entrega física al cliente mediante QR
+    const handleConfirmDelivery = async () => {
+        if (!foundOrder) return;
+        if (!window.confirm('¿Confirmar la entrega física del trabajo al cliente?')) {
+            return;
+        }
+        setIsDelivering(true);
+        try {
+            await OrdersService.deliverOrderViaQr(foundOrder.id);
+            playBeep();
+            setActionMessage('¡Orden entregada con éxito al cliente! 📦✨');
+            const updated = await OrdersService.getOrder(foundOrder.id);
+            setFoundOrder(updated);
+            if (onOrderUpdated) onOrderUpdated();
+        } catch (err: any) {
+            console.error('Error confirming QR delivery:', err);
+            const msg = err?.response?.data?.message || err?.message || 'Error al registrar la entrega';
+            alert(typeof msg === 'string' ? msg : 'Error al registrar la entrega');
+        } finally {
+            setIsDelivering(false);
+        }
+    };
+
+    // RF-02: Devolver sobre / trabajo no realizado al cliente mediante QR
+    const handleConfirmReturnToClient = async () => {
+        if (!foundOrder) return;
+        if (!returnReason.trim()) {
+            alert('Es obligatorio ingresar el motivo de la devolución al cliente.');
+            return;
+        }
+        setIsReturning(true);
+        try {
+            await OrdersService.returnOrderToClientViaQr(foundOrder.id, returnReason.trim());
+            playBeep();
+            setActionMessage('¡Trabajo devuelto físicamente al cliente! (No realizado) ↩️');
+            setIsReturnModalOpen(false);
+            setReturnReason('');
+            const updated = await OrdersService.getOrder(foundOrder.id);
+            setFoundOrder(updated);
+            if (onOrderUpdated) onOrderUpdated();
+        } catch (err: any) {
+            console.error('Error returning order via QR:', err);
+            const msg = err?.response?.data?.message || err?.message || 'Error al registrar la devolución';
+            alert(typeof msg === 'string' ? msg : 'Error al registrar la devolución');
+        } finally {
+            setIsReturning(false);
+        }
+    };
+
+
     if (!isOpen) return null;
 
     const laborCost = Number(foundOrder?.laborCost || foundOrder?.value || 0);
@@ -517,23 +575,130 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                 {/* Role Specific Action Buttons */}
                                 <div className="space-y-3">
                                     <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">
-                                        {isJoyero ? 'Acciones para Joyero' : 'Acciones para Ventas'}
+                                        {isJoyero ? 'Acciones para Joyero' : 'Acciones de Mostrador'}
                                     </div>
 
                                     {!isJoyero ? (
-                                        /* Ventas / Admin Actions: Cobrar (Mandar al Taller eliminado) */
-                                        <div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsPaymentOpen(true)}
-                                                className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all cursor-pointer"
-                                            >
-                                                <span className="material-symbols-outlined text-2xl">payments</span>
-                                                <div className="flex flex-col text-left">
-                                                    <span>Cobrar</span>
-                                                    <span className="text-[9px] font-medium opacity-80">Registrar Pago</span>
-                                                </div>
-                                            </button>
+                                        /* Mostrador / Ventas Actions (RF-01, RF-02) */
+                                        <div className="space-y-3">
+                                            {/* 1. Ya entregado previamente */}
+                                            {(() => {
+                                                const rawStatus = (foundOrder.status || foundOrder.stage || '').toUpperCase();
+                                                const isAlreadyDelivered = rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA' || !!foundOrder.deliveredAt;
+                                                const isReturnedToClient = !!(foundOrder.specifications?.isReturnedToClient || foundOrder.specifications?.isReturnedNotDone);
+                                                const isReadyForDelivery =
+                                                    rawStatus === 'REPAIR_COMPLETED' ||
+                                                    rawStatus === 'READY_FOR_PICKUP' ||
+                                                    rawStatus === 'LISTO_ENTREGA' ||
+                                                    rawStatus === 'TERMINADO' ||
+                                                    rawStatus === 'READY';
+                                                const isJoyeroReturned =
+                                                    rawStatus === 'RETURNED' ||
+                                                    rawStatus === 'CANCELLED' ||
+                                                    foundOrder.specifications?.isReturned === true ||
+                                                    !!foundOrder.specifications?.returnedBy ||
+                                                    !!foundOrder.specifications?.returnReason;
+
+                                                if (isAlreadyDelivered) {
+                                                    return (
+                                                        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="material-symbols-outlined text-[20px]">task_alt</span>
+                                                                <span className="font-black uppercase tracking-wide">Trabajo Entregado al Cliente</span>
+                                                            </div>
+                                                            <p className="text-[11px] opacity-80 pl-7">
+                                                                Entregado el {foundOrder.deliveredAt ? new Date(foundOrder.deliveredAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'recientemente'}
+                                                                {foundOrder.specifications?.deliveredByName ? ` por ${foundOrder.specifications.deliveredByName}` : ''}.
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (isReturnedToClient) {
+                                                    return (
+                                                        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="material-symbols-outlined text-[20px]">assignment_return</span>
+                                                                <span className="font-black uppercase tracking-wide">Devuelto al Cliente — No Realizado</span>
+                                                            </div>
+                                                            <p className="text-[11px] opacity-80 pl-7">
+                                                                Devolución física registrada el {foundOrder.specifications?.returnedToClientAt ? new Date(foundOrder.specifications.returnedToClientAt).toLocaleDateString('es-MX', { timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'recientemente'}
+                                                                {foundOrder.specifications?.returnedToClientByName ? ` por ${foundOrder.specifications.returnedToClientByName}` : ''}.
+                                                            </p>
+                                                            {foundOrder.specifications?.returnReason && (
+                                                                <p className="text-[11px] opacity-90 pl-7 font-normal">
+                                                                    Motivo: {foundOrder.specifications.returnReason}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <>
+                                                        {/* Botón de Cobro de Saldo si hay monto pendiente */}
+                                                        {pendingAmount > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setIsPaymentOpen(true)}
+                                                                className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all cursor-pointer"
+                                                            >
+                                                                <span className="material-symbols-outlined text-2xl">payments</span>
+                                                                <div className="flex flex-col text-left">
+                                                                    <span>Cobrar Saldo Pendiente</span>
+                                                                    <span className="text-[9px] font-medium opacity-90">
+                                                                        Monto a liquidar: ${pendingAmount.toLocaleString()} MXN
+                                                                    </span>
+                                                                </div>
+                                                            </button>
+                                                        )}
+
+                                                        {/* Botón de Entrega Física QR (RF-01) */}
+                                                        {isReadyForDelivery ? (
+                                                            pendingAmount === 0 ? (
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={isDelivering}
+                                                                    onClick={handleConfirmDelivery}
+                                                                    className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
+                                                                >
+                                                                    <span className="material-symbols-outlined text-2xl">local_shipping</span>
+                                                                    <div className="flex flex-col text-left">
+                                                                        <span>{isDelivering ? 'Registrando Entrega...' : 'Confirmar Entrega Física'}</span>
+                                                                        <span className="text-[9px] font-medium opacity-90">Liquidado • Listo para entrega al cliente</span>
+                                                                    </div>
+                                                                </button>
+                                                            ) : (
+                                                                <div className="p-3 bg-muted/60 border border-border rounded-xl text-center text-xs font-bold text-muted-foreground">
+                                                                    ⚠️ Para confirmar la entrega, primero liquide el saldo pendiente (${pendingAmount.toLocaleString()} MXN).
+                                                                </div>
+                                                            )
+                                                        ) : !isJoyeroReturned ? (
+                                                            <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2.5 text-xs text-amber-600 dark:text-amber-400 font-bold">
+                                                                <span className="material-symbols-outlined text-[20px] shrink-0">hourglass_top</span>
+                                                                <span>Pendiente de Producción: La orden no ha sido liberada por el Joyero. No puede ser entregada todavía.</span>
+                                                            </div>
+                                                        ) : null}
+
+                                                        {/* Botón Devolución Trabajo No Realizado (RF-02) */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (isJoyeroReturned) {
+                                                                    setReturnReason(foundOrder.specifications?.returnReason || '');
+                                                                    setIsReturnModalOpen(true);
+                                                                } else {
+                                                                    alert('El trabajo aún no ha sido marcado como "Cancelado" o "Devuelto" por el Joyero. Debe esperar a que el taller registre la cancelación o devolución.');
+                                                                }
+                                                            }}
+                                                            className="w-full py-3 px-4 rounded-xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">assignment_return</span>
+                                                            <span>Cancelar / Devolver trabajo</span>
+                                                        </button>
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     ) : (
                                         /* Joyero Actions: Terminado y Devuelto */
@@ -563,8 +728,18 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                         </div>
                                     )}
 
+                                    {/* Botón Historial del Cliente (RF-04) */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsClientHistoryOpen(true)}
+                                        className="w-full py-2.5 px-4 rounded-xl border border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">history</span>
+                                        <span>Consultar Historial del Cliente</span>
+                                    </button>
+
                                     {/* Auxiliary Actions: Ver Orden & Escanear Otra */}
-                                    <div className="flex gap-2 pt-2">
+                                    <div className="flex gap-2 pt-1">
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -601,6 +776,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                 </motion.div>
             </div>
 
+
             {/* Payment Modal for Cobrar action */}
             {foundOrder && (
                 <PaymentModal
@@ -614,6 +790,81 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                     onRegisterPayment={handleRegisterPayment}
                 />
             )}
+
+            {/* Modal de Motivo de Devolución al Cliente (RF-02) */}
+            {isReturnModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => !isReturning && setIsReturnModalOpen(false)}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+                    />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        className="relative w-full max-w-md bg-card border border-border rounded-3xl p-6 shadow-2xl flex flex-col gap-4 text-foreground cursor-default z-10"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="size-11 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shadow-sm shrink-0">
+                                <span className="material-symbols-outlined text-[24px]">assignment_return</span>
+                            </div>
+                            <div>
+                                <h4 className="font-black text-base uppercase tracking-tight">Devolver sobre al cliente</h4>
+                                <p className="text-muted-foreground text-xs">Trabajo no realizado / cancelado</p>
+                            </div>
+                        </div>
+
+                        <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-xs text-rose-700 dark:text-rose-300 font-medium">
+                            <span className="font-bold">Regla de negocio:</span> Esta acción registrará la entrega física del sobre no realizado. La orden se conservará como <b>"Devuelto — No realizado"</b>.
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                                Motivo de la Devolución <span className="text-rose-500">*</span>
+                            </label>
+                            <textarea
+                                value={returnReason}
+                                onChange={(e) => setReturnReason(e.target.value)}
+                                rows={3}
+                                placeholder="Indique la razón de la devolución o cancelación..."
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 outline-none resize-none"
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="flex gap-2.5 pt-2">
+                            <button
+                                type="button"
+                                disabled={isReturning}
+                                onClick={() => setIsReturnModalOpen(false)}
+                                className="flex-1 py-3 px-4 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isReturning || !returnReason.trim()}
+                                onClick={handleConfirmReturnToClient}
+                                className="flex-1 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                <span>{isReturning ? 'Guardando...' : 'Confirmar Devolución'}</span>
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Modal de Historial de Reparaciones del Cliente (RF-04) */}
+            <ClientHistoryModal
+                isOpen={isClientHistoryOpen}
+                onClose={() => setIsClientHistoryOpen(false)}
+                clientId={foundOrder?.clientId || foundOrder?.client?.id}
+                clientName={foundOrder?.client?.name || foundOrder?.customerName}
+            />
         </AnimatePresence>,
         document.body
     );

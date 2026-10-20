@@ -25,6 +25,11 @@ export class ClientsController {
         return this.clientsService.update(req.user.tenantId, id, body);
     }
 
+    @Get(':id/history')
+    async getClientHistory(@Param('id') id: string, @Request() req) {
+        return this.clientsService.getHistory(req.user.tenantId, id);
+    }
+
     @Delete(':id')
     @UseGuards(RolesGuard)
     @Roles(Role.TENANT_ADMIN)
@@ -32,3 +37,4 @@ export class ClientsController {
         return this.clientsService.delete(req.user.tenantId, id);
     }
 }
+

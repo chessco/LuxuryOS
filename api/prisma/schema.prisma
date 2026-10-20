@@ -28,7 +28,9 @@ enum Role {
   TENANT_USER
   VENDEDOR
   JOYERO
+  DISENADOR
 }
+
 
 model User {
   id           String   @id @default(uuid())

@@ -102,4 +102,86 @@ export class ClientsService {
             where: { id, tenantId },
         });
     }
+
+    async getHistory(tenantId: string, clientId: string) {
+        const client = await this.prisma.client.findFirst({
+            where: { id: clientId, tenantId },
+            include: {
+                orders: {
+                    include: {
+                        createdBy: { select: { id: true, name: true, email: true } },
+                        payments: true,
+                        queueTicket: { select: { id: true, code: true, qrToken: true } },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                },
+            },
+        });
+
+        if (!client) {
+            throw new BadRequestException('Cliente no encontrado en este taller.');
+        }
+
+        const orders = (client.orders || []).map((order) => {
+            const specs = (order.specifications as any) || {};
+            const orderCode = specs.orderCode || `ORD-${order.id.slice(0, 8)}`;
+            const jeweler = specs.assignedTo || specs.assignedJeweler || specs.readyByName || null;
+            const designer = specs.designerName || null;
+            const isReturned = order.status === 'RETURNED' || specs.isReturned === true || specs.isReturnedToClient === true;
+
+            return {
+                id: order.id,
+                orderCode,
+                type: order.type,
+                pieceType: order.pieceType,
+                metal: order.metal,
+                color: order.color,
+                karats: order.karats,
+                weight: order.weight,
+                size: order.size,
+                thickness: order.thickness,
+                itemCode: order.itemCode,
+                laborCost: order.laborCost,
+                materialCost: order.materialCost,
+                notes: order.notes,
+                status: order.status,
+                stage: order.stage,
+                priority: order.priority,
+                paymentStatus: order.paymentStatus,
+                totalAmount: order.totalAmount,
+                paidAmount: order.paidAmount,
+                balance: order.balance,
+                value: order.value,
+                imageUrl: order.imageUrl,
+                specifications: order.specifications,
+                createdAt: order.createdAt,
+                dueDate: order.dueDate,
+                promisedAt: order.promisedAt,
+                deliveredAt: order.deliveredAt,
+                cancelledAt: order.cancelledAt,
+                jeweler,
+                designer,
+                isReturned,
+                returnReason: specs.returnReason || null,
+                returnedToClientAt: specs.returnedToClientAt || null,
+                envelopeImages: specs.envelopeImages || [],
+                payments: order.payments,
+                createdBy: order.createdBy,
+            };
+        });
+
+        return {
+            client: {
+                id: client.id,
+                name: client.name,
+                email: client.email,
+                phone: client.phone,
+                location: client.location,
+                createdAt: client.createdAt,
+            },
+            orders,
+            totalOrders: orders.length,
+        };
+    }
 }
+

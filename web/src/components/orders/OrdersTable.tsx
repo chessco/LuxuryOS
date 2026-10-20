@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStatusLabel, formatOrderCode } from '../../pages/Orders';
 import { OrdersService } from '../../services/orders.service';
+import { getTrafficLight, getUrgencyScore } from '../../utils/trafficLight';
+import { ClientHistoryModal } from './ClientHistoryModal';
 
 interface OrdersTableProps {
     orders: any[];
@@ -37,10 +39,9 @@ const getStatusOptions = (orderType: string, currentStatus?: string, isJoyero?: 
 
     if (isVendedor) {
         const inWorkshopVal = type === 'MANUFACTURE' ? 'IN_PRODUCTION' : (type === 'STANDARD' ? 'EN_PRODUCCION' : 'IN_REPAIR');
-        const deliveredVal = type === 'STANDARD' ? 'ENTREGADO_POSTVENTA' : 'DELIVERED';
+        // RF-01: El usuario de Mostrador no deberá tener disponible la opción manual "Entregado"
         const opts: { value: string; label: string; disabled?: boolean; hidden?: boolean }[] = [
             { value: inWorkshopVal, label: 'EN TALLER' },
-            { value: deliveredVal, label: 'ENTREGADO' },
             { value: 'RETURNED', label: 'DEVUELTO' }
         ];
 
@@ -98,29 +99,27 @@ const getStatusOptions = (orderType: string, currentStatus?: string, isJoyero?: 
         return opts;
     }
 
+    // Default for non-admin: manual delivery not allowed, must be done via QR
     let opts: { value: string; label: string; disabled?: boolean; hidden?: boolean }[] = [];
     if (type === 'REPAIR' || type === 'DESIGN' || type === 'LASER') {
         opts = [
             { value: 'RECEIVED', label: 'RECIBIDO' },
             { value: 'RETURNED', label: 'DEVUELTO' },
             { value: 'IN_REPAIR', label: 'EN TALLER' },
-            { value: 'REPAIR_COMPLETED', label: 'TERMINADO' },
-            { value: 'DELIVERED', label: 'ENTREGADO' }
+            { value: 'REPAIR_COMPLETED', label: 'TERMINADO' }
         ];
     } else if (type === 'MANUFACTURE') {
         opts = [
             { value: 'RECEIVED', label: 'RECIBIDO' },
             { value: 'RETURNED', label: 'DEVUELTO' },
             { value: 'IN_PRODUCTION', label: 'EN TALLER' },
-            { value: 'READY_FOR_PICKUP', label: 'TERMINADO' },
-            { value: 'DELIVERED', label: 'ENTREGADO' }
+            { value: 'READY_FOR_PICKUP', label: 'TERMINADO' }
         ];
     } else if (type === 'LAYAWAY') {
         opts = [
             { value: 'LAYAWAY_OPEN', label: 'APARTADO' },
             { value: 'RETURNED', label: 'DEVUELTO' },
-            { value: 'LAYAWAY_EXPIRED', label: 'VENCIDO' },
-            { value: 'DELIVERED', label: 'ENTREGADO' }
+            { value: 'LAYAWAY_EXPIRED', label: 'VENCIDO' }
         ];
     } else {
         opts = [
@@ -129,13 +128,12 @@ const getStatusOptions = (orderType: string, currentStatus?: string, isJoyero?: 
             { value: 'APROBADO_ANTICIPO', label: 'APROBADO / ANTICIPO' },
             { value: 'RETURNED', label: 'DEVUELTO' },
             { value: 'EN_PRODUCCION', label: 'EN TALLER' },
-            { value: 'CONTROL_CALIDAD', label: 'CONTROL CALIDAD' },
-            { value: 'ENTREGADO_POSTVENTA', label: 'ENTREGADO' }
+            { value: 'CONTROL_CALIDAD', label: 'CONTROL CALIDAD' }
         ];
     }
 
     if (currentStatus && !opts.some(o => o.value === currentStatus)) {
-        opts.unshift({ value: currentStatus, label: getStatusLabel(currentStatus) });
+        opts.unshift({ value: currentStatus, label: getStatusLabel(currentStatus), disabled: true });
     }
     return opts;
 };
@@ -172,6 +170,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
     const navigate = useNavigate();
     const isDeliveredFilter = activeFilter === 'Entregados' || activeFilter === 'Entregado';
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+    const [historyClientModal, setHistoryClientModal] = useState<{ id?: string; name: string } | null>(null);
 
     const user = React.useMemo(() => {
         try {
@@ -222,6 +221,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                 } else if (sortConfig.key === 'value' || sortConfig.key === 'totalAmount' || sortConfig.key === 'laborCost') {
                     aValue = parseFloat(String(a.laborCost || a.value || 0).replace(/[^0-9.-]/g, '')) || 0;
                     bValue = parseFloat(String(b.laborCost || b.value || 0).replace(/[^0-9.-]/g, '')) || 0;
+                } else if (sortConfig.key === 'urgency') {
+                    aValue = getUrgencyScore(a);
+                    bValue = getUrgencyScore(b);
                 } else if (sortConfig.key === 'promisedDate') {
                     aValue = a.promisedDate || '';
                     bValue = b.promisedDate || '';
@@ -289,10 +291,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
     return (
         <div className="w-full px-4 overflow-hidden transition-colors">
             <div className="bg-white dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-900 rounded-[32px] overflow-x-auto custom-scrollbar backdrop-blur-sm shadow-sm dark:shadow-2xl transition-colors">
-                <table className="w-full border-collapse min-w-[900px]">
+                <table className="w-full border-collapse min-w-[950px]">
                     <thead>
                         <tr className="border-b border-zinc-100 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/60 transition-colors">
                             <HeaderTh label="Pedido" sortKey="id" />
+                            <HeaderTh label="Semáforo" sortKey="urgency" />
                             <HeaderTh label="Fecha Entrega" sortKey="promisedDate" />
                             <HeaderTh label="Prioridad" sortKey="priority" />
                             <HeaderTh label="Cliente" sortKey="client" />
@@ -313,6 +316,54 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                 {/* 1. Pedido */}
                                 <td className="px-6 py-5">
                                     <span className="text-zinc-900 dark:text-white text-xs font-black tracking-wider uppercase transition-colors">{order.orderCode || formatOrderCode(order)}</span>
+                                </td>
+
+                                {/* 2. Semáforo de Fechas (RF-03) */}
+                                <td className="px-6 py-5" onClick={stopPropagationTouch}>
+                                    {(() => {
+                                        const traffic = getTrafficLight(order);
+                                        if (traffic.color === 'RED') {
+                                            return (
+                                                <div
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-xs"
+                                                    title={traffic.description}
+                                                >
+                                                    <span className="size-2 rounded-full bg-rose-500 animate-pulse" />
+                                                    <span>{traffic.label}</span>
+                                                </div>
+                                            );
+                                        }
+                                        if (traffic.color === 'YELLOW') {
+                                            return (
+                                                <div
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-xs"
+                                                    title={traffic.description}
+                                                >
+                                                    <span className="size-2 rounded-full bg-amber-500" />
+                                                    <span>{traffic.label}</span>
+                                                </div>
+                                            );
+                                        }
+                                        if (traffic.color === 'GREEN') {
+                                            return (
+                                                <div
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs"
+                                                    title={traffic.description}
+                                                >
+                                                    <span className="size-2 rounded-full bg-emerald-500" />
+                                                    <span>{traffic.label}</span>
+                                                </div>
+                                            );
+                                        }
+                                        return (
+                                            <div
+                                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-muted-foreground bg-muted/40 border border-border/50"
+                                                title={traffic.description}
+                                            >
+                                                <span>{traffic.label}</span>
+                                            </div>
+                                        );
+                                    })()}
                                 </td>
 
                                 {/* 2. Fecha Entrega */}
@@ -407,6 +458,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                             {order.initials}
                                         </div>
                                         <span className="text-zinc-900 dark:text-white text-xs font-bold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors uppercase tracking-tight whitespace-nowrap">{order.client}</span>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setHistoryClientModal({
+                                                    id: order.clientId || order.client?.id,
+                                                    name: order.client?.name || order.client || 'Cliente'
+                                                });
+                                            }}
+                                            className="size-6 rounded-md hover:bg-indigo-500/10 text-muted-foreground hover:text-indigo-500 flex items-center justify-center transition-colors cursor-pointer"
+                                            title="Consultar historial de reparaciones del cliente"
+                                        >
+                                            <span className="material-symbols-outlined text-[15px]">history</span>
+                                        </button>
                                     </div>
                                 </td>
 
@@ -434,9 +499,35 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     {(() => {
+                                        const isReturnedToClient = Boolean(order.specifications?.isReturnedToClient || order.specifications?.isReturnedNotDone);
+                                        if (isReturnedToClient) {
+                                            return (
+                                                <div
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-xs"
+                                                    title={`Devolución física al cliente: ${order.specifications?.returnReason || 'Trabajo no realizado'}`}
+                                                >
+                                                    <span className="material-symbols-outlined text-[13px]">assignment_return</span>
+                                                    <span>Devuelto — No realizado</span>
+                                                </div>
+                                            );
+                                        }
+
                                         const rawStatus = (order.status || order.stage || 'RECEIVED').toUpperCase();
                                         const displayLabel = getStatusLabel(order.statusLabel || rawStatus);
                                         const isDelivered = displayLabel === 'ENTREGADO' || rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA';
+
+                                        if (isDelivered) {
+                                            return (
+                                                <div
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs"
+                                                    title="Trabajo entregado al cliente"
+                                                >
+                                                    <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                                                    <span>Entregado</span>
+                                                </div>
+                                            );
+                                        }
+
                                         const isReady = displayLabel === 'PARA ENTREGA' || displayLabel === 'LISTO' || displayLabel === 'TERMINADO' || rawStatus === 'REPAIR_COMPLETED' || rawStatus === 'READY_FOR_PICKUP' || rawStatus === 'READY';
                                         const isInWorkshop = displayLabel === 'EN TALLER' || displayLabel === 'PRODUCCIÓN' || rawStatus === 'IN_REPAIR' || rawStatus === 'IN_PRODUCTION' || rawStatus === 'EN_PRODUCCION' || rawStatus === 'QUALITY_CHECK';
                                         const isReturned = displayLabel === 'DEVUELTO' || rawStatus === 'RETURNED' || rawStatus === 'DEVUELTO' || order.specifications?.isReturned;
@@ -459,9 +550,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                                 }}
                                                 onClick={(e) => e.stopPropagation()}
                                                 className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest cursor-pointer outline-none border transition-all shadow-sm ${
-                                                    isDelivered
-                                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                                                        : isReady
+                                                    isReady
                                                         ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
                                                         : isInWorkshop
                                                         ? 'bg-yellow-300 dark:bg-yellow-400 text-black border-yellow-500 font-black'
@@ -529,6 +618,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                     </div>
                 )}
             </div>
+
+            <ClientHistoryModal
+                isOpen={Boolean(historyClientModal)}
+                onClose={() => setHistoryClientModal(null)}
+                clientId={historyClientModal?.id}
+                clientName={historyClientModal?.name}
+            />
         </div>
     );
 };

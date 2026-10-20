@@ -48,16 +48,6 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
         }
     };
 
-    const handleNextStatus = async () => {
-        if (currentIndex < REPAIR_STEPS.length - 1) {
-            const nextStatus = REPAIR_STEPS[currentIndex + 1].status;
-            await onUpdateStatus({
-                status: nextStatus,
-                ...(nextStatus === OrderStatus.DELIVERED ? { deliveredAt: new Date().toISOString() } : {})
-            });
-        }
-    };
-
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAuthorized = 
         user.role === 'SYSTEM_ADMIN' || 
@@ -67,6 +57,32 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
         user.role === 'SYSTEM' ||
         String(user.email || '').toLowerCase().includes('system');
 
+    const isDesigner = 
+        user.role === 'DISENADOR' || 
+        user.role === 'DESIGNER' || 
+        String(user.role || '').toUpperCase().includes('DISEN') ||
+        String(user.role || '').toUpperCase().includes('DESIGN');
+
+    const handleNextStatus = async () => {
+        if (currentIndex < REPAIR_STEPS.length - 1) {
+            const nextStatus = REPAIR_STEPS[currentIndex + 1].status;
+            // RF-06: El Diseñador no puede marcar terminado final ni entrega
+            if (isDesigner && (nextStatus === OrderStatus.REPAIR_COMPLETED || nextStatus === OrderStatus.DELIVERED)) {
+                alert('El rol Diseñador no tiene permitido finalizar la orden ni realizar la entrega. Debe marcar "Diseño completado" y asignar al Joyero.');
+                return;
+            }
+            // RF-01: Entrega física debe ser vía QR
+            if (nextStatus === OrderStatus.DELIVERED && !isAuthorized) {
+                alert('La entrega física al cliente debe realizarse escaneando el código QR para validar cobro y registrar la entrega.');
+                return;
+            }
+            await onUpdateStatus({
+                status: nextStatus,
+                ...(nextStatus === OrderStatus.DELIVERED ? { deliveredAt: new Date().toISOString() } : {})
+            });
+        }
+    };
+
     const handleStepClick = async (status: string) => {
         const targetIndex = REPAIR_STEPS.findIndex(s => String(s.status).toUpperCase() === String(status).toUpperCase());
         if (targetIndex === -1 || targetIndex === currentIndex) return;
@@ -74,6 +90,18 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
         // Regla: El workflow puede ser modificado por todos pero no ir hacia atrás (solo ADMIN y SYSTEM)
         if (!isAuthorized && targetIndex < currentIndex) {
             alert('No está permitido retroceder el estado del flujo de trabajo.');
+            return;
+        }
+
+        // RF-06: Restricción para Diseñador
+        if (isDesigner && (status === OrderStatus.REPAIR_COMPLETED || status === OrderStatus.DELIVERED)) {
+            alert('El rol Diseñador no tiene permitido finalizar la orden ni realizar la entrega. Debe marcar "Diseño completado" y asignar al Joyero.');
+            return;
+        }
+
+        // RF-01: Entrega obligatoria vía QR
+        if (status === OrderStatus.DELIVERED && !isAuthorized) {
+            alert('La entrega física al cliente debe realizarse escaneando el código QR para validar cobro y registrar la entrega.');
             return;
         }
 
@@ -239,7 +267,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
                         {isSaving ? 'Guardando...' : 'Guardar Datos Técnicos'}
                     </button>
 
-                    {currentStatus !== OrderStatus.REPAIR_COMPLETED && currentStatus !== OrderStatus.DELIVERED && currentStatus !== OrderStatus.RETURNED && (
+                    {!isDesigner && currentStatus !== OrderStatus.REPAIR_COMPLETED && currentStatus !== OrderStatus.DELIVERED && currentStatus !== OrderStatus.RETURNED && (
                         <button
                             onClick={() => onUpdateStatus({ status: OrderStatus.REPAIR_COMPLETED })}
                             className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"

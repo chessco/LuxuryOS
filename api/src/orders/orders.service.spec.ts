@@ -208,4 +208,201 @@ describe('OrdersService Unit Tests', () => {
       expect(data.materialCost).toBe(200);
     });
   });
+
+  describe('RF-01: deliverOrderViaQr', () => {
+    it('should successfully deliver an order that is ready and paid in full', async () => {
+      const mockOrder = {
+        id: 'ord-del-1',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'REPAIR_COMPLETED',
+        totalAmount: 1000,
+        paidAmount: 1000,
+        balance: 0,
+        specifications: { orderCode: 'REP-10' },
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+      mockPrisma.order.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...mockOrder, ...data }),
+      );
+
+      const result = await service.deliverOrderViaQr('tenant-1', 'ord-del-1', {
+        id: 'u-mostrador',
+        name: 'Vendedor Mostrador',
+        role: 'VENDEDOR',
+      });
+
+      const specs = result.specifications as any;
+      expect(result.status).toBe('DELIVERED');
+      expect(result.deliveredAt).toBeDefined();
+      expect(specs.deliveredByName).toBe('Vendedor Mostrador');
+      expect(specs.deliveryMethod).toBe('QR_SCAN');
+    });
+
+    it('should reject delivery if order has a pending balance', async () => {
+      const mockOrder = {
+        id: 'ord-del-2',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'REPAIR_COMPLETED',
+        totalAmount: 1000,
+        paidAmount: 400,
+        balance: 600,
+        specifications: { orderCode: 'REP-11' },
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.deliverOrderViaQr('tenant-1', 'ord-del-2', {
+          id: 'u-mostrador',
+          role: 'VENDEDOR',
+        }),
+      ).rejects.toThrow('saldo pendiente');
+    });
+
+    it('should reject delivery if order is still in production', async () => {
+      const mockOrder = {
+        id: 'ord-del-3',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'IN_REPAIR',
+        totalAmount: 1000,
+        paidAmount: 1000,
+        balance: 0,
+        specifications: { orderCode: 'REP-12' },
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.deliverOrderViaQr('tenant-1', 'ord-del-3', {
+          id: 'u-mostrador',
+          role: 'VENDEDOR',
+        }),
+      ).rejects.toThrow('pendiente de producción');
+    });
+  });
+
+  describe('RF-02: returnOrderToClientViaQr', () => {
+    it('should register physical return to client when joyero marked returned', async () => {
+      const mockOrder = {
+        id: 'ord-ret-1',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'RETURNED',
+        specifications: {
+          orderCode: 'REP-20',
+          isReturned: true,
+          returnReason: 'No hay refacción disponible',
+        },
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+      mockPrisma.order.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...mockOrder, ...data }),
+      );
+
+      const result = await service.returnOrderToClientViaQr(
+        'tenant-1',
+        'ord-ret-1',
+        { id: 'u-1', name: 'Mostrador 1', role: 'VENDEDOR' },
+        'Cliente recoge sobre sin realizar trabajo',
+      );
+
+      const specs = result.specifications as any;
+      expect(result.status).toBe('RETURNED');
+      expect(specs.isReturnedToClient).toBe(true);
+      expect(specs.isReturnedNotDone).toBe(true);
+      expect(specs.returnReason).toBe(
+        'Cliente recoge sobre sin realizar trabajo',
+      );
+      expect(specs.returnedToClientByName).toBe('Mostrador 1');
+    });
+
+    it('should reject physical return if joyero has not marked as returned or cancelled', async () => {
+      const mockOrder = {
+        id: 'ord-ret-2',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'IN_REPAIR',
+        specifications: { orderCode: 'REP-21' },
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.returnOrderToClientViaQr(
+          'tenant-1',
+          'ord-ret-2',
+          { id: 'u-1', role: 'VENDEDOR' },
+          'Devolucion cliente',
+        ),
+      ).rejects.toThrow('Cancelado');
+    });
+  });
+
+  describe('RF-05 & RF-06: Design flow and restrictions', () => {
+    it('should complete design and record designer data', async () => {
+      const mockOrder = {
+        id: 'ord-dis-1',
+        tenantId: 'tenant-1',
+        type: 'DESIGN',
+        status: 'RECEIVED',
+        specifications: { orderCode: 'DIS-1', requiresDesign: true },
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+      mockPrisma.order.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...mockOrder, ...data }),
+      );
+
+      const result = await service.completeDesign(
+        'tenant-1',
+        'ord-dis-1',
+        { id: 'u-dis', name: 'Diseñador CAD', role: 'DISENADOR' },
+        { notes: 'Modelo 3D STL finalizado', images: ['https://example.com/render.png'] },
+      );
+
+      const specs = result.specifications as any;
+      expect(specs.designCompleted).toBe(true);
+      expect(specs.designNotes).toBe('Modelo 3D STL finalizado');
+      expect(specs.designCompletedByName).toBe('Diseñador CAD');
+    });
+
+
+    it('should prevent assigning to joyero if design is not completed', async () => {
+      const mockOrder = {
+        id: 'ord-dis-2',
+        tenantId: 'tenant-1',
+        type: 'DESIGN',
+        status: 'RECEIVED',
+        specifications: { orderCode: 'DIS-2', requiresDesign: true, designCompleted: false },
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.assignJewelerAfterDesign(
+          'tenant-1',
+          'ord-dis-2',
+          { id: 'u-dis', role: 'DISENADOR' },
+          'Joyero Pedro',
+        ),
+      ).rejects.toThrow('completado');
+    });
+
+    it('should reject designer attempting to mark order as completed or delivered', async () => {
+      const mockOrder = {
+        id: 'ord-dis-3',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'IN_REPAIR',
+      };
+      mockPrisma.order.findUnique.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.moveOrder('ord-dis-3', 'tenant-1', 'REPAIR_COMPLETED', {
+          id: 'u-dis',
+          role: 'DISENADOR',
+          email: 'diseno@cared.mx',
+        }),
+      ).rejects.toThrow('Diseñador no tiene permitido');
+    });
+  });
 });
+

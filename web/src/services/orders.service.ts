@@ -54,5 +54,30 @@ export const OrdersService = {
     async sendWhatsApp(id: string) {
         const response = await api.post(`/kanban/orders/${id}/send-whatsapp`);
         return response.data;
+    },
+
+    async deliverOrderViaQr(id: string) {
+        const cleanId = encodeURIComponent((id || '').trim());
+        const response = await api.post(`/kanban/orders/${cleanId}/deliver`);
+        return response.data;
+    },
+
+    async returnOrderToClientViaQr(id: string, reason: string) {
+        const cleanId = encodeURIComponent((id || '').trim());
+        const response = await api.post(`/kanban/orders/${cleanId}/return-client`, { reason });
+        return response.data;
+    },
+
+    async completeDesign(id: string, designData: { notes?: string; images?: string[] }) {
+        const cleanId = encodeURIComponent((id || '').trim());
+        const response = await api.post(`/kanban/orders/${cleanId}/complete-design`, designData);
+        return response.data;
+    },
+
+    async assignJewelerAfterDesign(id: string, jewelerName: string, jewelerId?: string) {
+        const cleanId = encodeURIComponent((id || '').trim());
+        const response = await api.post(`/kanban/orders/${cleanId}/assign-jeweler`, { jewelerName, jewelerId });
+        return response.data;
     }
 };
+

@@ -12,7 +12,13 @@ import { generateTrackToken, generateHmacToken } from './tracking.util';
 import { OrderStrategyFactory } from './strategies/order-strategy.factory';
 import { NotificationService } from '../queue/notification.service';
 import { SettingsService } from '../settings/settings.service';
-import { isAdminRole } from '../common/roles.util';
+import {
+  isAdminRole,
+  isDesignerRole,
+  isJoyeroRole,
+  isVendedorRole,
+} from '../common/roles.util';
+
 
 const STATUS_ORDER: Record<string, number> = {
   RECEIVED: 0,
@@ -100,7 +106,13 @@ export class OrdersService {
     return columns;
   }
 
-  async moveOrder(id: string, tenantId: string, toStage: any, user?: any) {
+  async moveOrder(
+    id: string,
+    tenantId: string,
+    toStage: any,
+    user?: any,
+    options?: { viaQrDelivery?: boolean },
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { id },
     });
@@ -137,7 +149,43 @@ export class OrdersService {
         : 'RECIBIDO'
       : toStage;
 
+    const isDeliveredTarget =
+      effectiveTarget.toUpperCase() === 'DELIVERED' ||
+      effectiveTarget.toUpperCase() === 'ENTREGADO' ||
+      effectiveTarget.toUpperCase() === 'ENTREGADO_POSTVENTA';
+
+    // RF-01: Entrega física exclusiva vía QR (Mostrador/Ventas no pueden marcarla manualmente)
+    if (
+      isDeliveredTarget &&
+      user &&
+      !isAdminRole(user.role, user.email) &&
+      !options?.viaQrDelivery
+    ) {
+      throw new ForbiddenException(
+        'La entrega física a cliente no se puede realizar manualmente. Debe efectuarse mediante el escaneo del código QR validando saldo y entrega física.',
+      );
+    }
+
+    // RF-06: Restricción para Diseñador (no puede marcar terminado final ni entregado)
+    if (user && isDesignerRole(user.role, user.email, user.name)) {
+      const toStageUp = effectiveTarget.toUpperCase();
+      const isFinalOrDelivered =
+        toStageUp === 'REPAIR_COMPLETED' ||
+        toStageUp === 'READY_FOR_PICKUP' ||
+        toStageUp === 'LISTO_ENTREGA' ||
+        toStageUp === 'TERMINADO' ||
+        toStageUp === 'DELIVERED' ||
+        toStageUp === 'ENTREGADO' ||
+        toStageUp === 'ENTREGADO_POSTVENTA';
+      if (isFinalOrDelivered) {
+        throw new ForbiddenException(
+          'El rol Diseñador no tiene permitido marcar trabajos como terminados o entregados. Su función es completar el diseño y asignar al Joyero.',
+        );
+      }
+    }
+
     if (user && !isAdminRole(user.role, user.email)) {
+
       const isReturnAllowed =
         isReturnAction ||
         (effectiveTarget.toUpperCase() === 'RECEIVED' &&
@@ -545,8 +593,15 @@ export class OrdersService {
   }
 
   async advanceStatus(tenantId: string, id: string, user?: any) {
+    if (user && isDesignerRole(user.role, user.email, user.name)) {
+      throw new ForbiddenException(
+        'El rol Diseñador no tiene permitido avanzar el estado de producción de la orden.',
+      );
+    }
+
     const order = await this.getOrder(tenantId, id);
     if (!order) throw new NotFoundException('Order not found');
+
 
     const strategy = this.strategyFactory.getStrategy(order.type);
     const specs = (order.specifications as any) || {};
@@ -679,8 +734,36 @@ export class OrdersService {
     }
 
     if (!isAuthorized && currentUser) {
+      // RF-01: Entrega física manual bloqueada para no administradores (debe ser vía QR)
+      const targetStatus = String(data.status || '').toUpperCase();
+      const targetStage = String(data.stage || '').toUpperCase();
+      if (
+        targetStatus === 'DELIVERED' ||
+        targetStatus === 'ENTREGADO' ||
+        targetStatus === 'ENTREGADO_POSTVENTA' ||
+        targetStage === 'ENTREGADO_POSTVENTA' ||
+        targetStage === 'ENTREGADO'
+      ) {
+        throw new ForbiddenException(
+          'La entrega física a cliente no se puede realizar manualmente. Debe efectuarse mediante el escaneo del código QR validando saldo y entrega física.',
+        );
+      }
+
+      // RF-06: Restricción para Diseñador (no puede marcar terminado final ni entregado)
+      if (isDesignerRole(userRole, currentUser?.email, currentUser?.name)) {
+        const isFinishing =
+          ['REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'DELIVERED', 'ENTREGADO', 'TERMINADO'].includes(targetStatus) ||
+          ['LISTO_ENTREGA', 'ENTREGADO_POSTVENTA', 'TERMINADO'].includes(targetStage);
+        if (isFinishing) {
+          throw new ForbiddenException(
+            'El rol Diseñador no tiene permitido marcar trabajos como terminados o entregados. Su función es completar el diseño y asignar al Joyero.',
+          );
+        }
+      }
+
       // 1. Si no es admin/system y la orden ya no está en RECIBIDO, no se pueden modificar campos de detalle
       if (!isReceived) {
+
         const detailKeys = [
           'pieceType',
           'value',
@@ -1214,4 +1297,275 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
     console.log(`[sendOrderWhatsApp] Result for ${orderCode}:`, result);
     return result;
   }
+
+  // RF-01: Automatización de entrega mediante código QR
+  async deliverOrderViaQr(tenantId: string, idOrCode: string, user: any) {
+    const order = await this.getOrder(tenantId, idOrCode);
+    if (!order) {
+      throw new NotFoundException('Orden no encontrada');
+    }
+
+    const specs = (order.specifications as any) || {};
+    const currentStatus = String(order.status || '').toUpperCase();
+    const currentStage = String(order.stage || '').toUpperCase();
+
+    // 1. Verificar si ya fue entregada previamente
+    if (
+      order.deliveredAt ||
+      currentStatus === 'DELIVERED' ||
+      currentStage === 'ENTREGADO_POSTVENTA'
+    ) {
+      throw new BadRequestException('Esta orden ya fue entregada anteriormente.');
+    }
+
+    // 2. Verificar si está cancelada o devuelta
+    if (
+      currentStatus === 'CANCELLED' ||
+      currentStatus === 'RETURNED' ||
+      specs.isReturned === true ||
+      specs.isReturnedToClient === true
+    ) {
+      throw new BadRequestException(
+        'No se puede entregar como terminada una orden cancelada o devuelta. Para este caso utilice la opción "Cancelar / Devolver trabajo".',
+      );
+    }
+
+    // 3. Verificar estado de liberación por Joyero / Taller
+    const isReady =
+      currentStatus === 'REPAIR_COMPLETED' ||
+      currentStatus === 'READY_FOR_PICKUP' ||
+      currentStage === 'LISTO_ENTREGA' ||
+      currentStatus === 'READY' ||
+      currentStatus === 'LISTO' ||
+      currentStatus === 'TERMINADO';
+
+    if (!isReady) {
+      throw new BadRequestException(
+        'No se puede entregar una orden pendiente de producción. Debe ser liberada y marcada como Terminada por el Joyero primero.',
+      );
+    }
+
+    // 4. Validar que no exista saldo pendiente
+    const totalAmount = Number(
+      order.totalAmount || order.laborCost || order.value || 0,
+    );
+    const paidAmount = Number(order.paidAmount || 0);
+    const balance = Math.max(0, totalAmount - paidAmount);
+
+    if (balance > 0.01) {
+      throw new BadRequestException(
+        `La orden tiene un saldo pendiente de $${balance.toLocaleString()} MXN. Es obligatorio liquidar el pago antes de confirmar la entrega física.`,
+      );
+    }
+
+    const userName = user?.name || user?.email || 'Mostrador';
+    const now = new Date();
+
+    const updatedSpecs = {
+      ...specs,
+      deliveredByName: userName,
+      deliveredBy: {
+        id: user?.id,
+        name: userName,
+        email: user?.email,
+        role: user?.role,
+        at: now,
+      },
+      deliveryConfirmed: true,
+      deliveryMethod: 'QR_SCAN',
+    };
+
+    const updateData: any = {
+      deliveredAt: now,
+      paymentStatus: 'PAGADO',
+      balance: 0,
+      specifications: updatedSpecs,
+    };
+
+    if (order.type === 'STANDARD') {
+      updateData.stage = 'ENTREGADO_POSTVENTA';
+    } else {
+      updateData.status = 'DELIVERED';
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: order.id },
+      data: updateData,
+    });
+
+    // Notificación opcional de entrega
+    this.notifyOrderWorkflowStatus(tenantId, order.id).catch((err) => {
+      console.error('[Workflow WhatsApp Notification Delivery Error]', err);
+    });
+
+    return updated;
+  }
+
+  // RF-02: Cancelación y devolución de trabajos no realizados
+  async returnOrderToClientViaQr(
+    tenantId: string,
+    idOrCode: string,
+    user: any,
+    reason?: string,
+  ) {
+    const order = await this.getOrder(tenantId, idOrCode);
+    if (!order) {
+      throw new NotFoundException('Orden no encontrada');
+    }
+
+    const specs = (order.specifications as any) || {};
+    const currentStatus = String(order.status || '').toUpperCase();
+
+    // 1. Verificar el estado registrado por el Joyero
+    const isMarkedReturnedOrCancelled =
+      currentStatus === 'RETURNED' ||
+      currentStatus === 'CANCELLED' ||
+      specs.isReturned === true ||
+      !!specs.returnedBy ||
+      !!specs.returnReason;
+
+    if (!isMarkedReturnedOrCancelled) {
+      throw new BadRequestException(
+        'El trabajo debe haber sido marcado como "Cancelado" o "Devuelto" por el Joyero antes de registrar la devolución física al cliente.',
+      );
+    }
+
+    const effectiveReason = (reason || specs.returnReason || '').trim();
+    if (!effectiveReason) {
+      throw new BadRequestException(
+        'Es obligatorio capturar el motivo de la devolución al cliente.',
+      );
+    }
+
+    const userName = user?.name || user?.email || 'Mostrador';
+    const now = new Date();
+
+    const updatedSpecs = {
+      ...specs,
+      isReturnedToClient: true,
+      isReturnedNotDone: true,
+      returnReason: effectiveReason,
+      returnedToClientAt: now,
+      returnedToClientByName: userName,
+      returnedToClientBy: {
+        id: user?.id,
+        name: userName,
+        email: user?.email,
+        role: user?.role,
+        at: now,
+      },
+    };
+
+    // Conservar estado de cancelación o devolución original, sin convertirlo en reparación terminada
+    const updated = await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: currentStatus === 'CANCELLED' ? 'CANCELLED' : 'RETURNED',
+        deliveredAt: now, // Dejará de generar alertas operativas de retraso
+        specifications: updatedSpecs,
+      },
+    });
+
+    return updated;
+  }
+
+  // RF-05: Completar diseño
+  async completeDesign(
+    tenantId: string,
+    id: string,
+    user: any,
+    designData: { notes?: string; images?: string[] },
+  ) {
+    const order = await this.getOrder(tenantId, id);
+    if (!order) throw new NotFoundException('Orden no encontrada');
+
+    const userName = user?.name || user?.email || 'Diseñador';
+    const now = new Date();
+    const specs = (order.specifications as any) || {};
+
+    const updatedSpecs = {
+      ...specs,
+      requiresDesign: true,
+      designCompleted: true,
+      designCompletedAt: now,
+      designCompletedByName: userName,
+      designCompletedBy: {
+        id: user?.id,
+        name: userName,
+        email: user?.email,
+        role: user?.role,
+        at: now,
+      },
+      designNotes:
+        designData?.notes !== undefined ? designData.notes : specs.designNotes,
+      designAttachments:
+        designData?.images || specs.designAttachments || [],
+      designStatus: 'COMPLETED',
+    };
+
+    const updated = await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        specifications: updatedSpecs,
+      },
+    });
+
+    return updated;
+  }
+
+  // RF-05: Asignar a Joyero tras completar diseño
+  async assignJewelerAfterDesign(
+    tenantId: string,
+    id: string,
+    user: any,
+    jewelerName: string,
+    jewelerId?: string,
+  ) {
+    const order = await this.getOrder(tenantId, id);
+    if (!order) throw new NotFoundException('Orden no encontrada');
+
+    const specs = (order.specifications as any) || {};
+    if (!specs.designCompleted && (specs.requiresDesign || order.type === 'DESIGN')) {
+      throw new BadRequestException(
+        'El diseño debe estar marcado como completado antes de poder asignar el trabajo al Joyero.',
+      );
+    }
+
+    if (!jewelerName || !jewelerName.trim()) {
+      throw new BadRequestException('Debe seleccionar un Joyero válido.');
+    }
+
+    const userName = user?.name || user?.email || 'Diseñador';
+    const now = new Date();
+
+    const updatedSpecs = {
+      ...specs,
+      assignedTo: jewelerName.trim(),
+      assignedJeweler: jewelerName.trim(),
+      jewelerId: jewelerId || specs.jewelerId,
+      jewelerAssignedAt: now,
+      jewelerAssignedByName: userName,
+      jewelerAssignedBy: {
+        id: user?.id,
+        name: userName,
+        email: user?.email,
+        role: user?.role,
+        at: now,
+      },
+    };
+
+    const nextStatus =
+      order.type === 'MANUFACTURE' ? 'IN_PRODUCTION' : 'IN_REPAIR';
+
+    const updated = await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: nextStatus,
+        specifications: updatedSpecs,
+      },
+    });
+
+    return updated;
+  }
 }
+

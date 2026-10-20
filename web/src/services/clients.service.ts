@@ -107,5 +107,10 @@ export const ClientsService = {
     },
     delete: async (id: string) => {
         await api.delete(`/clients/${id}`);
+    },
+    getHistory: async (id: string) => {
+        const response = await api.get(`/clients/${id}/history`);
+        return response.data;
     }
 };
+

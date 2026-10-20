@@ -15,6 +15,8 @@ import { LabelPrintModal } from '../components/orders/LabelPrintModal';
 import { PieceSelect } from '../components/orders/PieceSelect';
 import { SelectWithOther } from '../components/orders/SelectWithOther';
 import { UsersService } from '../services/users.service';
+import { ClientHistoryModal } from '../components/orders/ClientHistoryModal';
+import { getTrafficLight, TrafficLightColor } from '../utils/trafficLight';
 
 // --- Interfaces for View ---
 export interface Order {
@@ -158,6 +160,7 @@ const Orders: React.FC = () => {
     }, [user]);
 
     const [activeFilter, setActiveFilter] = useState<string | null>(isJoyero ? 'En Taller' : 'Recibido');
+    const [trafficLightFilter, setTrafficLightFilter] = useState<'ALL' | 'RED' | 'YELLOW' | 'GREEN'>('ALL');
 
     useEffect(() => {
         if (isJoyero && activeFilter === 'Recibido') {
@@ -422,7 +425,10 @@ const Orders: React.FC = () => {
                     department: (newOrder.department || 'Taller Cared').trim(),
                     promisedDate: newOrder.promisedDate || '',
                     assignedTo: (newOrder.assignedTo || '').trim(),
-                    assignedJeweler: (newOrder.assignedTo || '').trim()
+                    assignedJeweler: newOrder.requiresDesign ? undefined : (newOrder.assignedTo || '').trim(),
+                    assignedDesigner: newOrder.requiresDesign ? (newOrder.assignedTo || '').trim() : undefined,
+                    requiresDesign: Boolean(newOrder.requiresDesign || orderType === 'DESIGN'),
+                    designStatus: (newOrder.requiresDesign || orderType === 'DESIGN') ? 'PENDING_DESIGN' : undefined,
                 }
             };
 
@@ -585,7 +591,9 @@ const Orders: React.FC = () => {
             } else if (activeFilter === 'Entregados') {
                 result = result.filter(o => {
                     const label = (o.statusLabel || '').toUpperCase();
-                    return label === 'ENTREGADO';
+                    const rawStatus = (o.status || o.stage || '').toUpperCase();
+                    const isReturnedToClient = Boolean(o.specifications?.isReturnedToClient || o.specifications?.isReturnedNotDone);
+                    return label === 'ENTREGADO' || rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA' || isReturnedToClient;
                 });
             } else if (activeFilter === 'Esta Semana') {
                 const now = new Date();
@@ -610,8 +618,16 @@ const Orders: React.FC = () => {
             }
         }
 
+        // Filtro de semáforo de fechas (RF-03)
+        if (trafficLightFilter && trafficLightFilter !== 'ALL') {
+            result = result.filter(o => {
+                const traffic = getTrafficLight(o);
+                return traffic.color === trafficLightFilter;
+            });
+        }
+
         return result;
-    }, [orders, searchQuery, activeFilter]);
+    }, [orders, searchQuery, activeFilter, trafficLightFilter]);
 
     const filterButtons = isJoyero
         ? ['En Taller', 'Terminado', 'Entregados', 'Esta Semana', 'Devuelto']
@@ -740,10 +756,53 @@ const Orders: React.FC = () => {
                                     </button>
                                 );
                             })}
-                            {(activeFilter || searchQuery) && (
+                            {/* Semáforo Filters (RF-03) */}
+                            <div className="flex items-center gap-1.5 pl-2 border-l border-border/60">
                                 <button
-                                    onClick={() => { setActiveFilter(null); setSearchQuery(''); }}
-                                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all whitespace-nowrap"
+                                    type="button"
+                                    onClick={() => setTrafficLightFilter(trafficLightFilter === 'RED' ? 'ALL' : 'RED')}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border shadow-xs cursor-pointer ${
+                                        trafficLightFilter === 'RED'
+                                            ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-2 ring-rose-500/30'
+                                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20'
+                                    }`}
+                                    title="Filtrar pedidos con fecha de entrega vencida"
+                                >
+                                    <span className="size-2 rounded-full bg-rose-500 animate-pulse" />
+                                    <span>Vencidos</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTrafficLightFilter(trafficLightFilter === 'YELLOW' ? 'ALL' : 'YELLOW')}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border shadow-xs cursor-pointer ${
+                                        trafficLightFilter === 'YELLOW'
+                                            ? 'bg-amber-500 text-black border-amber-500 shadow-md ring-2 ring-amber-500/30'
+                                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
+                                    }`}
+                                    title="Filtrar pedidos por vencer hoy o en los próximos días"
+                                >
+                                    <span className="size-2 rounded-full bg-amber-500" />
+                                    <span>Por Vencer</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTrafficLightFilter(trafficLightFilter === 'GREEN' ? 'ALL' : 'GREEN')}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border shadow-xs cursor-pointer ${
+                                        trafficLightFilter === 'GREEN'
+                                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-500/30'
+                                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                                    }`}
+                                    title="Filtrar pedidos a tiempo"
+                                >
+                                    <span className="size-2 rounded-full bg-emerald-500" />
+                                    <span>A Tiempo</span>
+                                </button>
+                            </div>
+
+                            {(activeFilter || searchQuery || trafficLightFilter !== 'ALL') && (
+                                <button
+                                    onClick={() => { setActiveFilter(null); setSearchQuery(''); setTrafficLightFilter('ALL'); }}
+                                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all whitespace-nowrap cursor-pointer"
                                 >
                                     <span className="material-symbols-outlined text-[16px]">filter_list_off</span>
                                     Limpiar
@@ -882,6 +941,7 @@ const NewOrderDrawer: React.FC<{
     const [phoneSearchValue, setPhoneSearchValue] = useState('');
     const [shouldPrintLabel, setShouldPrintLabel] = useState(false);
     const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
+    const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false);
 
     useEffect(() => {
         UsersService.getAll().then((allUsers: any[]) => {
@@ -938,6 +998,7 @@ const NewOrderDrawer: React.FC<{
         promisedDate: '',
         notes: '',
         imageUrl: '',
+        requiresDesign: orderType === 'DESIGN' || false,
     });
 
     useEffect(() => {
@@ -1093,8 +1154,10 @@ const NewOrderDrawer: React.FC<{
 
         // Sync first item to top-level fields for backward compatibility
         const mainItem = items[0] || {};
+        const requiresDesign = Boolean(formData.requiresDesign || orderType === 'DESIGN');
         const submissionData = {
             ...formData,
+            requiresDesign,
             selectedClientId: selectedClientInfo?.id,
             clientPhone: selectedClientInfo?.phone || initialClientPhone || newClientData.phone,
             newClientPhone: newClientData.phone || initialClientPhone,
@@ -1103,7 +1166,13 @@ const NewOrderDrawer: React.FC<{
             imageUrl: mainItem.imageUrl || formData.imageUrl || '',
             pieceType: mainItem.item,
             notes: formData.notes || '', // Independent order notes
-            specifications: { items },
+            specifications: {
+                items,
+                requiresDesign,
+                designStatus: requiresDesign ? 'PENDING_DESIGN' : undefined,
+                assignedDesigner: requiresDesign ? (formData.assignedTo || undefined) : undefined,
+                assignedJeweler: !requiresDesign ? (formData.assignedTo || undefined) : undefined,
+            },
             shouldPrintLabel: shouldPrintLabel // Flag to open print label preview
         };
 
@@ -1456,6 +1525,16 @@ const NewOrderDrawer: React.FC<{
                                                 <p className="col-span-2 text-[10px] text-muted-foreground">Sin información de contacto registrada</p>
                                             )}
                                         </div>
+
+                                        {/* Botón Historial de Reparaciones (RF-04) */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsClientHistoryOpen(true)}
+                                            className="w-full mt-2 py-2 px-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-indigo-500/20 shadow-xs"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">history</span>
+                                            <span>Consultar Historial de Reparaciones</span>
+                                        </button>
                                     </div>
                                 )}
 
@@ -1801,13 +1880,32 @@ const NewOrderDrawer: React.FC<{
                                     otherPlaceholder="Especificar otra prioridad..."
                                 />
                             </div>
+
+                            {/* Requiere etapa de Diseño (RF-05) */}
+                            <div className="p-3.5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 flex items-center justify-between gap-3 shadow-xs">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="size-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                                        <span className="material-symbols-outlined text-[18px]">palette</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black uppercase tracking-wider text-foreground">Requiere etapa de Diseño</p>
+                                        <p className="text-[10px] text-muted-foreground">La orden pasará primero al Diseñador antes de asignarse al Joyero</p>
+                                    </div>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.requiresDesign || false}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, requiresDesign: e.target.checked }))}
+                                    className="size-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                />
+                            </div>
                         </div>
                     </div>
                 </form>
 
                 {/* Footer Actions */}
                 <div className="p-8 border-t border-border bg-muted/20 grid grid-cols-2 gap-4">
-                    <button type="button" onClick={onClose} className="py-4 rounded-xl text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground transition-all">
+                    <button type="button" onClick={onClose} className="py-4 rounded-xl text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground transition-all cursor-pointer">
                         Cancelar
                     </button>
                     {/* Un solo botón: ventas/admin registran e imprimen la etiqueta; el joyero solo registra */}
@@ -1820,7 +1918,7 @@ const NewOrderDrawer: React.FC<{
                                 form?.requestSubmit();
                             }, 50);
                         }}
-                        className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
+                        className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                     >
                         {!isJoyero && <span className="material-symbols-outlined text-[16px]">print</span>}
                         <span>
@@ -1831,6 +1929,14 @@ const NewOrderDrawer: React.FC<{
                     </button>
                 </div>
             </motion.div>
+
+            {/* Modal de Historial del Cliente desde Nueva Orden (RF-04) */}
+            <ClientHistoryModal
+                isOpen={isClientHistoryOpen}
+                onClose={() => setIsClientHistoryOpen(false)}
+                clientId={selectedClientInfo?.id}
+                clientName={selectedClientInfo?.name || formData.client}
+            />
         </>
     );
 };

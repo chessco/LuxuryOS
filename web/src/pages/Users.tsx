@@ -62,6 +62,7 @@ export default function UsersPage() {
             SYSTEM_ADMIN: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
             TENANT_ADMIN: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
             JOYERO: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+            DISENADOR: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
             VENDEDOR: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
             TENANT_USER: 'bg-muted text-muted-foreground border-border',
         };
@@ -70,6 +71,7 @@ export default function UsersPage() {
             SYSTEM_ADMIN: 'System Admin',
             TENANT_ADMIN: 'Admin',
             JOYERO: 'Joyero',
+            DISENADOR: 'Diseñador',
             VENDEDOR: 'Vendedor',
             TENANT_USER: 'Usuario',
         };
@@ -275,6 +277,7 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
                         >
                             <option value="TENANT_USER">Usuario (Lectura/Escritura básica)</option>
                             <option value="VENDEDOR">Vendedor (Ventas y Pedidos)</option>
+                            <option value="DISENADOR">Diseñador (Modelado 3D y CAD)</option>
                             <option value="JOYERO">Joyero (Encargado del Taller)</option>
                             <option value="TENANT_ADMIN">Administrador (Control total)</option>
                         </select>

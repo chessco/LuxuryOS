@@ -78,6 +78,49 @@ export class OrdersController {
         return this.ordersService.generateAIImage(req.user.tenantId, id);
     }
 
+    @Post('orders/:id/deliver')
+    async deliverOrder(@Param('id') id: string, @Request() req) {
+        return this.ordersService.deliverOrderViaQr(req.user.tenantId, id, req.user);
+    }
+
+    @Post('orders/:id/return-client')
+    async returnOrderToClient(
+        @Param('id') id: string,
+        @Body() body: { reason?: string },
+        @Request() req,
+    ) {
+        return this.ordersService.returnOrderToClientViaQr(
+            req.user.tenantId,
+            id,
+            req.user,
+            body?.reason,
+        );
+    }
+
+    @Post('orders/:id/complete-design')
+    async completeDesign(
+        @Param('id') id: string,
+        @Body() body: any,
+        @Request() req,
+    ) {
+        return this.ordersService.completeDesign(req.user.tenantId, id, req.user, body);
+    }
+
+    @Post('orders/:id/assign-jeweler')
+    async assignJewelerAfterDesign(
+        @Param('id') id: string,
+        @Body() body: { jewelerName: string; jewelerId?: string },
+        @Request() req,
+    ) {
+        return this.ordersService.assignJewelerAfterDesign(
+            req.user.tenantId,
+            id,
+            req.user,
+            body.jewelerName,
+            body.jewelerId,
+        );
+    }
+
     @Delete('orders/:id')
     async deleteOrder(@Param('id') id: string, @Request() req) {
         if (!isAdminRole(req.user?.role, req.user?.email)) {
@@ -91,3 +134,4 @@ export class OrdersController {
         return this.ordersService.sendOrderWhatsApp(req.user.tenantId, id);
     }
 }
+

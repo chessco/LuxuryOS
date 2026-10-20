@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ClientsService } from '../services/clients.service';
 import { useLocation } from 'react-router-dom';
 import { RBACService } from '../services/rbac.service';
+import { ClientHistoryModal } from '../components/orders/ClientHistoryModal';
 
 // Adapting Client interface for the view
 export interface Client {
@@ -24,6 +25,7 @@ export default function ClientsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [historyClient, setHistoryClient] = useState<Client | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const location = useLocation();
 
@@ -210,6 +212,13 @@ export default function ClientsPage() {
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
+                                                    onClick={() => setHistoryClient(client)}
+                                                    className="size-8 rounded-lg hover:bg-indigo-500/10 text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center transition-colors"
+                                                    title="Historial de Reparaciones"
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">history</span>
+                                                </button>
+                                                <button
                                                     onClick={() => openModal(client)}
                                                     className="size-8 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
                                                     title="Editar"
@@ -261,6 +270,13 @@ export default function ClientsPage() {
                     onSave={handleSave}
                 />
             )}
+
+            <ClientHistoryModal
+                isOpen={Boolean(historyClient)}
+                onClose={() => setHistoryClient(null)}
+                clientId={historyClient?.id}
+                clientName={historyClient?.name}
+            />
         </div>
     );
 }
