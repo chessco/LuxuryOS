@@ -107,7 +107,7 @@ export const PieceSelect: React.FC<PieceSelectProps> = ({
                     onChange={handleSelectChange}
                     disabled={disabled}
                     required={required && !showTextInput}
-                    className={`w-full bg-muted/50 border border-border rounded-xl py-3 pl-4 pr-10 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all shadow-inner [color-scheme:light] dark:[color-scheme:dark] ${selectClassName}`}
+                    className={`w-full bg-muted/50 border border-border rounded-xl py-3 pl-4 pr-10 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all shadow-inner [color-scheme:light] dark:[color-scheme:dark] ${selectClassName}`}
                 >
                     <option value="" className="bg-card text-foreground">
                         Seleccionar pieza...
@@ -146,7 +146,7 @@ export const PieceSelect: React.FC<PieceSelectProps> = ({
                             placeholder="Escribe el tipo de pieza..."
                             disabled={disabled}
                             required={required}
-                            className="w-full bg-muted/70 border border-indigo-500/40 focus:border-indigo-500 rounded-xl py-2.5 px-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all shadow-inner"
+                            className="w-full bg-muted/70 border border-indigo-500/40 focus:border-indigo-500 rounded-xl py-2.5 px-3.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition-all shadow-inner"
                         />
                         {value && (
                             <button

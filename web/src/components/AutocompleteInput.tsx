@@ -17,15 +17,17 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({ value, onChange, 
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
         };
     }, []);
 
@@ -82,7 +84,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({ value, onChange, 
                 value={value}
                 onChange={handleInputChange}
                 onFocus={handleFocus}
-                className={`w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 ${icon ? 'pl-12' : 'pl-4'} pr-4 text-sm text-zinc-900 dark:text-white focus:border-indigo-500/50 dark:focus:border-white focus:outline-none transition-all placeholder-zinc-300 dark:placeholder-zinc-700 shadow-sm`}
+                className={`w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 ${icon ? 'pl-12' : 'pl-4'} pr-4 text-base sm:text-sm text-zinc-900 dark:text-white focus:border-indigo-500/50 dark:focus:border-white focus:outline-none transition-all placeholder-zinc-300 dark:placeholder-zinc-700 shadow-sm`}
                 placeholder={placeholder}
                 required={required}
                 autoComplete="off"

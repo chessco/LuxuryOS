@@ -893,30 +893,42 @@ const Orders: React.FC = () => {
 const compressImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.7): Promise<string> => {
     return new Promise((resolve) => {
         const reader = new FileReader();
+        reader.onerror = () => {
+            resolve(''); // Graceful fallback on file reading error
+        };
         reader.onload = (event) => {
+            const resultStr = event.target?.result as string;
             const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                if (width > height) {
-                    if (width > maxWidth) {
-                        height *= maxWidth / width;
-                        width = maxWidth;
-                    }
-                } else {
-                    if (height > maxHeight) {
-                        width *= maxHeight / height;
-                        height = maxHeight;
-                    }
-                }
-                canvas.width = Math.round(width);
-                canvas.height = Math.round(height);
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toDataURL('image/jpeg', quality));
+            img.onerror = () => {
+                // If canvas decode fails (e.g. unsupported image stream), resolve raw string
+                resolve(resultStr || '');
             };
-            img.src = event.target?.result as string;
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width *= maxHeight / height;
+                            height = maxHeight;
+                        }
+                    }
+                    canvas.width = Math.round(width);
+                    canvas.height = Math.round(height);
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                } catch {
+                    resolve(resultStr || '');
+                }
+            };
+            img.src = resultStr;
         };
         reader.readAsDataURL(file);
     });
@@ -942,6 +954,7 @@ const NewOrderDrawer: React.FC<{
     const [shouldPrintLabel, setShouldPrintLabel] = useState(false);
     const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
     const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         UsersService.getAll().then((allUsers: any[]) => {
@@ -1096,8 +1109,8 @@ const NewOrderDrawer: React.FC<{
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const executeSubmit = async (printLabel: boolean) => {
+        if (isSubmitting) return;
 
         if (!formData.client?.trim()) {
             alert("El nombre del cliente es obligatorio para registrar el pedido.");
@@ -1123,15 +1136,17 @@ const NewOrderDrawer: React.FC<{
                 alert(`Por favor, selecciona los quilates para la pieza #${i + 1}.`);
                 return;
             }
-            if (!item.weight?.trim()) {
+            // En Fabricación (MANUFACTURE) el peso, medida y grosor son estrictamente obligatorios.
+            // En Reparaciones, Diseño o Láser la medida y grosor son opcionales.
+            if (orderType === 'MANUFACTURE' && !item.weight?.trim()) {
                 alert(`Por favor, introduce el peso para la pieza #${i + 1}.`);
                 return;
             }
-            if (!item.size?.trim()) {
+            if (orderType === 'MANUFACTURE' && !item.size?.trim()) {
                 alert(`Por favor, introduce la medida para la pieza #${i + 1}.`);
                 return;
             }
-            if (!item.thickness?.trim()) {
+            if (orderType === 'MANUFACTURE' && !item.thickness?.trim()) {
                 alert(`Por favor, introduce el grosor para la pieza #${i + 1}.`);
                 return;
             }
@@ -1173,10 +1188,20 @@ const NewOrderDrawer: React.FC<{
                 assignedDesigner: requiresDesign ? (formData.assignedTo || undefined) : undefined,
                 assignedJeweler: !requiresDesign ? (formData.assignedTo || undefined) : undefined,
             },
-            shouldPrintLabel: shouldPrintLabel // Flag to open print label preview
+            shouldPrintLabel: printLabel
         };
 
-        onSave(submissionData);
+        try {
+            setIsSubmitting(true);
+            await onSave(submissionData);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        executeSubmit(!isJoyero);
     };
 
     return (
@@ -1187,7 +1212,7 @@ const NewOrderDrawer: React.FC<{
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={onClose}
-                className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
+                className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm cursor-pointer"
             />
 
             {/* Drawer */}
@@ -1196,15 +1221,15 @@ const NewOrderDrawer: React.FC<{
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed inset-y-0 right-0 z-[70] w-full max-w-lg bg-background border-l border-border shadow-2xl flex flex-col"
+                className="fixed inset-y-0 right-0 z-[70] w-full max-w-lg bg-background border-l border-border shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden"
             >
                 {/* Header */}
-                <div className="p-8 border-b border-border bg-muted/20">
+                <div className="p-5 sm:p-8 border-b border-border bg-muted/20 shrink-0">
                     <div className="flex items-center justify-between mb-2">
                         <div className="size-10 rounded-xl bg-foreground text-background flex items-center justify-center shadow-lg">
                             <span className="material-symbols-outlined">add_shopping_cart</span>
                         </div>
-                        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+                        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                             <span className="material-symbols-outlined">close</span>
                         </button>
                     </div>
@@ -1226,7 +1251,7 @@ const NewOrderDrawer: React.FC<{
                 </div>
 
                 {/* Form Body */}
-                <form id="new-order-form" className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar" onSubmit={handleSubmit}>
+                <form id="new-order-form" noValidate className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 sm:space-y-8 custom-scrollbar overscroll-contain" onSubmit={handleSubmit}>
                     {/* Section: Cliente */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -1308,7 +1333,7 @@ const NewOrderDrawer: React.FC<{
                                             value={newClientData.name}
                                             onChange={(e) => setNewClientData(prev => ({ ...prev, name: e.target.value }))}
                                             placeholder="Nombre del cliente"
-                                            className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
+                                            className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-base sm:text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
                                             required
                                         />
                                     </div>
@@ -1320,7 +1345,7 @@ const NewOrderDrawer: React.FC<{
                                                 value={newClientData.phone}
                                                 onChange={(e) => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
                                                 placeholder="Ej: 33 1234 5678"
-                                                className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
+                                                className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-base sm:text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
                                             />
                                         </div>
                                         <div className="space-y-1.5">
@@ -1330,7 +1355,7 @@ const NewOrderDrawer: React.FC<{
                                                 value={newClientData.email}
                                                 onChange={(e) => setNewClientData(prev => ({ ...prev, email: e.target.value }))}
                                                 placeholder="correo@ejemplo.com"
-                                                className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
+                                                className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-base sm:text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
                                             />
                                         </div>
                                     </div>
@@ -1445,7 +1470,30 @@ const NewOrderDrawer: React.FC<{
                                         c.phone && c.phone.replace(/\s/g, '').includes(phoneSearchValue.replace(/\s/g, ''))
                                     ).slice(0, 5);
 
-                                    if (matchingClients.length === 0) return null;
+                                    if (matchingClients.length === 0) {
+                                        return (
+                                            <div className="p-4 rounded-2xl bg-muted/40 border border-border space-y-2 animate-in fade-in duration-200">
+                                                <p className="text-xs text-muted-foreground font-medium">
+                                                    No se encontró ningún cliente registrado con el teléfono <strong className="text-foreground">{phoneSearchValue}</strong>.
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setNewClientData({
+                                                            name: '',
+                                                            phone: phoneSearchValue,
+                                                            email: ''
+                                                        });
+                                                        setShowQuickAddClient(true);
+                                                    }}
+                                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition active:scale-95 shadow-sm cursor-pointer"
+                                                >
+                                                    <span className="material-symbols-outlined text-[14px]">person_add</span>
+                                                    Dar de Alta como Nuevo Cliente
+                                                </button>
+                                            </div>
+                                        );
+                                    }
 
                                     return (
                                         <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -1474,7 +1522,7 @@ const NewOrderDrawer: React.FC<{
                                                             setSelectedClientInfo(client);
                                                             setPhoneSearchValue(client.phone);
                                                         }}
-                                                        className="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black uppercase tracking-wider px-3 py-2 rounded-lg transition-all active:scale-95 flex items-center gap-1.5"
+                                                        className="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black uppercase tracking-wider px-3 py-2 rounded-lg transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
                                                     >
                                                         <span className="material-symbols-outlined text-[14px]">check_circle</span>
                                                         Seleccionar
@@ -1553,7 +1601,7 @@ const NewOrderDrawer: React.FC<{
                                                     value={formData.newClientPhone || ''}
                                                     onChange={handleChange}
                                                     placeholder="Ej: 33 1234 5678"
-                                                    className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
+                                                    className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-base sm:text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
@@ -1564,7 +1612,7 @@ const NewOrderDrawer: React.FC<{
                                                     value={formData.newClientEmail || ''}
                                                     onChange={handleChange}
                                                     placeholder="correo@ejemplo.com"
-                                                    className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
+                                                    className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-base sm:text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
                                                 />
                                             </div>
                                         </div>
@@ -1637,20 +1685,52 @@ const NewOrderDrawer: React.FC<{
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Peso (Gr)</label>
-                                        <input value={item.weight} onChange={(e) => handleItemChange(index, 'weight', e.target.value)} onBlur={() => { if (item.weight && !item.weight.toUpperCase().endsWith('GR')) handleItemChange(index, 'weight', `${item.weight.trim()} GR`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="0.00" required />
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                            Peso (Gr) {orderType === 'MANUFACTURE' && <span className="text-red-500 font-bold">*</span>}
+                                        </label>
+                                        <input
+                                            value={item.weight}
+                                            onChange={(e) => handleItemChange(index, 'weight', e.target.value)}
+                                            onBlur={() => { if (item.weight && !item.weight.toUpperCase().endsWith('GR')) handleItemChange(index, 'weight', `${item.weight.trim()} GR`); }}
+                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                            placeholder="0.00"
+                                            required={orderType === 'MANUFACTURE'}
+                                        />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Medida</label>
-                                        <input value={item.size} onChange={(e) => handleItemChange(index, 'size', e.target.value)} onBlur={() => { if (item.size && !item.size.toUpperCase().endsWith('CM')) handleItemChange(index, 'size', `${item.size.trim()} CM`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="7, 18cm" required />
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                            Medida {orderType === 'MANUFACTURE' ? <span className="text-red-500 font-bold">*</span> : <span className="text-muted-foreground/60 font-normal lowercase">(opcional)</span>}
+                                        </label>
+                                        <input
+                                            value={item.size}
+                                            onChange={(e) => handleItemChange(index, 'size', e.target.value)}
+                                            onBlur={() => { if (item.size && !item.size.toUpperCase().endsWith('CM')) handleItemChange(index, 'size', `${item.size.trim()} CM`); }}
+                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                            placeholder={orderType === 'MANUFACTURE' ? "7, 18cm" : "Opcional (ej. 7, 18cm)"}
+                                            required={orderType === 'MANUFACTURE'}
+                                        />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Grosor</label>
-                                        <input value={item.thickness || ''} onChange={(e) => handleItemChange(index, 'thickness', e.target.value)} onBlur={() => { if (item.thickness && !item.thickness.toUpperCase().endsWith('MM')) handleItemChange(index, 'thickness', `${item.thickness.trim()} MM`); }} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="2mm" required />
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                            Grosor {orderType === 'MANUFACTURE' ? <span className="text-red-500 font-bold">*</span> : <span className="text-muted-foreground/60 font-normal lowercase">(opcional)</span>}
+                                        </label>
+                                        <input
+                                            value={item.thickness || ''}
+                                            onChange={(e) => handleItemChange(index, 'thickness', e.target.value)}
+                                            onBlur={() => { if (item.thickness && !item.thickness.toUpperCase().endsWith('MM')) handleItemChange(index, 'thickness', `${item.thickness.trim()} MM`); }}
+                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                            placeholder={orderType === 'MANUFACTURE' ? "2mm" : "Opcional (ej. 2mm)"}
+                                            required={orderType === 'MANUFACTURE'}
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">SKU / Cód</label>
-                                        <input value={item.itemCode} onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none" placeholder="ABC-123" />
+                                        <input
+                                            value={item.itemCode}
+                                            onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
+                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                            placeholder="ABC-123"
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Descripción del Trabajo / Servicio</label>
@@ -1660,7 +1740,7 @@ const NewOrderDrawer: React.FC<{
                                                 handleItemChange(index, 'notes', e.target.value);
                                                 handleItemChange(index, 'description', e.target.value);
                                             }}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none min-h-[80px] resize-none"
+                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none min-h-[80px] resize-none"
                                             placeholder="Soldar broche, ajuste de medida, grabado láser, pulido, etc."
                                         />
                                     </div>
@@ -1807,7 +1887,7 @@ const NewOrderDrawer: React.FC<{
                                     required
                                     value={formData.promisedDate || ''}
                                     onChange={handleChange}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none"
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none min-h-[46px]"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -1816,7 +1896,7 @@ const NewOrderDrawer: React.FC<{
                                     name="notes"
                                     value={formData.notes || ''}
                                     onChange={handleChange}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none min-h-[60px] resize-none"
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none min-h-[60px] resize-none"
                                     placeholder="Notas generales internas de la orden (opcional)..."
                                 />
                             </div>
@@ -1830,7 +1910,7 @@ const NewOrderDrawer: React.FC<{
                                     required
                                     value={formData.value}
                                     onChange={handleChange}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
                                     placeholder="0.00"
                                 />
                             </div>
@@ -1844,7 +1924,7 @@ const NewOrderDrawer: React.FC<{
                                     required
                                     value={formData.cost}
                                     onChange={handleChange}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
+                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
                                     placeholder="0.00"
                                 />
                             </div>
@@ -1855,7 +1935,7 @@ const NewOrderDrawer: React.FC<{
                                         name="assignedTo"
                                         value={formData.assignedTo || ''}
                                         onChange={handleChange as any}
-                                        className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                        className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
                                     >
                                         <option value="">Sin asignar / Pendiente</option>
                                         {assignableUsers.map(u => (
@@ -1904,28 +1984,39 @@ const NewOrderDrawer: React.FC<{
                 </form>
 
                 {/* Footer Actions */}
-                <div className="p-8 border-t border-border bg-muted/20 grid grid-cols-2 gap-4">
-                    <button type="button" onClick={onClose} className="py-4 rounded-xl text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground transition-all cursor-pointer">
+                <div className="p-4 sm:p-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] border-t border-border bg-muted/20 grid grid-cols-2 gap-4 shrink-0">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={isSubmitting}
+                        className="py-3.5 sm:py-4 rounded-xl text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground transition-all cursor-pointer disabled:opacity-50"
+                    >
                         Cancelar
                     </button>
                     {/* Un solo botón: ventas/admin registran e imprimen la etiqueta; el joyero solo registra */}
                     <button
                         type="button"
+                        disabled={isSubmitting}
                         onClick={() => {
-                            setShouldPrintLabel(!isJoyero);
-                            setTimeout(() => {
-                                const form = document.getElementById('new-order-form') as HTMLFormElement;
-                                form?.requestSubmit();
-                            }, 50);
+                            executeSubmit(!isJoyero);
                         }}
-                        className="py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                        className="py-3.5 sm:py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                     >
-                        {!isJoyero && <span className="material-symbols-outlined text-[16px]">print</span>}
-                        <span>
-                            {isJoyero
-                                ? (orderType === 'REPAIR' ? 'Registrar Reparación' : orderType === 'MANUFACTURE' ? 'Registrar Fabricación' : orderType === 'DESIGN' ? 'Registrar Diseño' : orderType === 'LASER' ? 'Registrar Láser' : 'Crear Pedido')
-                                : 'Registrar e Imprimir'}
-                        </span>
+                        {isSubmitting ? (
+                            <>
+                                <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                                <span>Guardando...</span>
+                            </>
+                        ) : (
+                            <>
+                                {!isJoyero && <span className="material-symbols-outlined text-[16px]">print</span>}
+                                <span>
+                                    {isJoyero
+                                        ? (orderType === 'REPAIR' ? 'Registrar Reparación' : orderType === 'MANUFACTURE' ? 'Registrar Fabricación' : orderType === 'DESIGN' ? 'Registrar Diseño' : orderType === 'LASER' ? 'Registrar Láser' : 'Crear Pedido')
+                                        : 'Registrar e Imprimir'}
+                                </span>
+                            </>
+                        )}
                     </button>
                 </div>
             </motion.div>

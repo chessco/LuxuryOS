@@ -23,7 +23,7 @@ export const SelectWithOther: React.FC<SelectWithOtherProps> = ({
     required = false,
     disabled = false,
     className = 'space-y-2',
-    selectClassName = 'w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all'
+    selectClassName = 'w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer transition-all'
 }) => {
     // Verificar si el valor actual coincide con alguna de las opciones predefinidas
     const isStandard = options.some(
@@ -103,7 +103,7 @@ export const SelectWithOther: React.FC<SelectWithOtherProps> = ({
                         placeholder={otherPlaceholder}
                         required={required}
                         disabled={disabled}
-                        className="w-full bg-muted/70 border border-indigo-500/50 rounded-xl py-2.5 px-3.5 pr-9 text-sm text-foreground focus:border-indigo-500 outline-none transition-all placeholder:text-muted-foreground/60 shadow-inner"
+                        className="w-full bg-muted/70 border border-indigo-500/50 rounded-xl py-2.5 px-3.5 pr-9 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none transition-all placeholder:text-muted-foreground/60 shadow-inner"
                     />
                     <button
                         type="button"

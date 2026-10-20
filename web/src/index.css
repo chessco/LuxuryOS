@@ -148,3 +148,11 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
+
+/* iOS Safari Specific Fixes */
+@supports (-webkit-touch-callout: none) {
+    /* Prevent iOS auto zoom on focus by ensuring font-size is at least 16px */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+}
