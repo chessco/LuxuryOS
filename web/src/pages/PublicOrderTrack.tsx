@@ -18,6 +18,7 @@ interface OrderTrackData {
     orderCode: string;
     concept: string;
     pieceType: string;
+    pieces?: string[];
     statusLabel: string;
     createdAt: string;
     deliveredAt: string | null;
@@ -192,9 +193,20 @@ export const PublicOrderTrack: React.FC = () => {
                                 </span>
                             </div>
 
-                            <h2 className="text-2xl font-black text-cared-ink uppercase tracking-tight mb-2">
-                                {order.pieceType}
-                            </h2>
+                            {order.pieces && order.pieces.length > 1 ? (
+                                <ul className="space-y-1 mb-2">
+                                    {order.pieces.map((piece, idx) => (
+                                        <li key={idx} className="flex items-baseline gap-3 text-2xl font-black text-cared-ink uppercase tracking-tight">
+                                            <span className="text-[11px] font-mono font-black text-cared-gold tracking-widest">{String(idx + 1).padStart(2, '0')}</span>
+                                            <span>{piece}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <h2 className="text-2xl font-black text-cared-ink uppercase tracking-tight mb-2">
+                                    {order.pieces?.[0] || order.pieceType}
+                                </h2>
+                            )}
 
                             <div className="flex items-center gap-2 mt-4 pt-4 border-t border-cared-line/50">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-cared-mute">Estado Actual:</span>

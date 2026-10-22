@@ -171,6 +171,22 @@ export class PublicOrdersController {
     return `ORD-${order.id.substring(0, 8).toUpperCase()}`;
   }
 
+  /**
+   * Nombres de todas las piezas de la orden (specifications.items). Si no hay lista,
+   * se usa la pieza principal. Solo se expone el nombre, ningún dato interno.
+   */
+  private displayPieces(order: any): string[] {
+    const items = (order.specifications as any)?.items;
+    const names = Array.isArray(items)
+      ? items
+          .map((it: any) => String(it?.item || '').trim().toUpperCase())
+          .filter(Boolean)
+      : [];
+    return names.length > 0
+      ? names
+      : [(order.pieceType || 'PIEZA DE JOYERÍA').toUpperCase()];
+  }
+
   @Get('track/:id/check')
   async checkOrder(@Param('id') idOrToken: string, @Req() req: any) {
     this.assertRateLimit(req);
@@ -373,6 +389,7 @@ export class PublicOrdersController {
       orderCode: this.displayOrderCode(order),
       concept: getConcepto(order.type),
       pieceType: (order.pieceType || 'PIEZA DE JOYERÍA').toUpperCase(),
+      pieces: this.displayPieces(order),
       statusLabel,
       createdAt: formatDate(order.createdAt),
       deliveredAt: formatDate(order.deliveredAt),
