@@ -142,7 +142,7 @@ export default function UsersPage() {
                                             </div>
                                             <div>
                                                 <p className="text-foreground text-sm font-bold group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{user.name || user.email.split('@')[0].replace('.', ' ')}</p>
-                                                <p className="text-muted-foreground text-[10px] font-medium">{user.email}</p>
+                                                <p className="text-muted-foreground text-[10px] font-medium">{user.username ? `@${user.username} · ` : ''}{user.email}</p>
                                             </div>
                                         </div>
                                     </td>
@@ -198,13 +198,30 @@ export default function UsersPage() {
 const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (data: any) => void }> = ({ user, onClose, onSave }) => {
     const [formData, setFormData] = useState<any>({
         email: user?.email || '',
+        username: user?.username || '',
         name: user?.name || '',
         password: '',
         role: user?.role || 'TENANT_USER',
     });
+    // En el alta, el nombre sigue al usuario mientras no se edite a mano
+    const [nameEdited, setNameEdited] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData((prev: any) => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setFormData((prev: any) => ({
+            ...prev,
+            username: value,
+            ...(!user && !nameEdited ? { name: value } : {}),
+        }));
+    };
+
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setNameEdited(true);
+        setFormData((prev: any) => ({ ...prev, name: e.target.value }));
     };
 
     return (
@@ -229,29 +246,47 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
                 <form className="p-10 space-y-8" onSubmit={(e) => { e.preventDefault(); onSave(formData); }}>
                     <div className="grid grid-cols-2 gap-8">
                         <div className="space-y-3">
+                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest px-1">Usuario</label>
+                            <input
+                                name="username"
+                                value={formData.username}
+                                onChange={handleUsernameChange}
+                                required={!user}
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                minLength={3}
+                                maxLength={30}
+                                pattern="[A-Za-z0-9._\-]{3,30}"
+                                title="De 3 a 30 caracteres: letras, números, punto, guion o guion bajo"
+                                className="w-full bg-muted border border-border rounded-2xl px-6 py-4 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground text-sm"
+                                placeholder="Ej. juancarlos"
+                            />
+                        </div>
+
+                        <div className="space-y-3">
                             <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest px-1">Nombre Completo</label>
                             <input
                                 name="name"
                                 value={formData.name}
-                                onChange={handleChange}
+                                onChange={handleNameChange}
                                 required
                                 className="w-full bg-muted border border-border rounded-2xl px-6 py-4 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground text-sm"
                                 placeholder="Ej. Mateo Robles"
                             />
                         </div>
+                    </div>
 
-                        <div className="space-y-3">
-                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest px-1">Email Institucional</label>
-                            <input
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                required
-                                type="email"
-                                className="w-full bg-muted border border-border rounded-2xl px-6 py-4 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground text-sm"
-                                placeholder="nombre@luxuryos.com"
-                            />
-                        </div>
+                    <div className="space-y-3">
+                        <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest px-1">Email Institucional</label>
+                        <input
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                            type="email"
+                            className="w-full bg-muted border border-border rounded-2xl px-6 py-4 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground text-sm"
+                            placeholder="nombre@luxuryos.com"
+                        />
                     </div>
 
                     <div className="space-y-3">

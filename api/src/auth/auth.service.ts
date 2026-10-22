@@ -21,12 +21,19 @@ export class AuthService {
                 where: { email: normalizedEmail },
             });
         } else {
-            // Username provided without domain: only valid when it identifies exactly one account
-            const matches = await this.prisma.user.findMany({
-                where: { email: { startsWith: `${normalizedEmail}@` } },
-                take: 2,
+            // Nombre de usuario propio (independiente del email): tiene prioridad
+            user = await this.prisma.user.findFirst({
+                where: { username: normalizedEmail },
             });
-            user = matches.length === 1 ? matches[0] : null;
+
+            if (!user) {
+                // Compatibilidad: usuario sin dominio, solo válido si identifica exactamente una cuenta
+                const matches = await this.prisma.user.findMany({
+                    where: { email: { startsWith: `${normalizedEmail}@` } },
+                    take: 2,
+                });
+                user = matches.length === 1 ? matches[0] : null;
+            }
         }
 
         if (user && (await bcrypt.compare(pass, user.passwordHash))) {
@@ -44,6 +51,7 @@ export class AuthService {
             user: {
                 id: user.id,
                 email: user.email,
+                username: user.username,
                 name: user.name,
                 tenantId: user.tenantId,
                 role: user.role,

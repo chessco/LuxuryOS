@@ -37,6 +37,8 @@ model User {
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
   email        String   @unique
+  // Nombre de usuario para iniciar sesión, independiente del email (nullable: usuarios antiguos no lo tienen)
+  username     String?  @unique
   name         String?
   passwordHash String
   role         Role     @default(TENANT_USER)
