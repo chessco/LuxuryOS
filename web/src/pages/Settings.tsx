@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 
-const ThemeOption: React.FC<{ id: 'pitaya' | 'notion', name: string, desc: string, previewClass: string }> = ({ id, name, desc, previewClass }) => {
+const ThemeOption: React.FC<{ id: 'pitaya' | 'notion' | 'cared', name: string, desc: string, previewClass: string }> = ({ id, name, desc, previewClass }) => {
     const { variant, setVariant } = useTheme();
     const isActive = variant === id;
 
@@ -35,7 +35,7 @@ const ThemeOption: React.FC<{ id: 'pitaya' | 'notion', name: string, desc: strin
 };
 
 const SettingsPage: React.FC = () => {
-    const { mode, toggleMode } = useTheme();
+    const { variant, mode, toggleMode } = useTheme();
     const [clearing, setClearing] = useState(false);
     
     // Auth info
@@ -118,6 +118,7 @@ const SettingsPage: React.FC = () => {
                             <h2 className="text-foreground text-lg font-black uppercase tracking-widest font-display transition-colors">Personalización Visual</h2>
                             <p className="text-muted-foreground text-xs font-medium mt-1 uppercase tracking-widest">Selecciona el ADN visual de tu espacio de trabajo</p>
                         </div>
+                        {variant !== 'cared' && (
                         <button
                             onClick={toggleMode}
                             className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-muted border border-border hover:border-primary/50 transition-all shadow-sm"
@@ -129,9 +130,10 @@ const SettingsPage: React.FC = () => {
                                 {mode === 'light' ? 'Modo Oscuro' : 'Modo Claro'}
                             </span>
                         </button>
+                        )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         <ThemeOption
                             id="pitaya"
                             name="Estilo Pitaya"
@@ -143,6 +145,12 @@ const SettingsPage: React.FC = () => {
                             name="Estilo Notion"
                             desc="Minimalismo funcional. Tonos suaves y estética ultra limpia."
                             previewClass={mode === 'dark' ? 'bg-[#1a1a1a]' : 'bg-white border-l-[16px] border-l-[#f7f6f3] border-t border-t-[#f7f6f3]'}
+                        />
+                        <ThemeOption
+                            id="cared"
+                            name="Estilo Cared"
+                            desc="Corporativo oscuro. Negro profundo con acentos dorados."
+                            previewClass="bg-[#0b0b0c] border-t-4 border-t-[#c9a24b]"
                         />
                     </div>
                 </div>
