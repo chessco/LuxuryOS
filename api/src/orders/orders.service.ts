@@ -21,7 +21,6 @@ import {
   isVendedorRole,
 } from '../common/roles.util';
 
-
 const STATUS_ORDER: Record<string, number> = {
   RECEIVED: 0,
   RECIBIDO: 0,
@@ -187,7 +186,6 @@ export class OrdersService {
     }
 
     if (user && !isAdminRole(user.role, user.email)) {
-
       const isReturnAllowed =
         isReturnAction ||
         (effectiveTarget.toUpperCase() === 'RECEIVED' &&
@@ -337,7 +335,8 @@ export class OrdersService {
     material: number;
     hasCosts: boolean;
   } {
-    if (!Array.isArray(items)) return { labor: 0, material: 0, hasCosts: false };
+    if (!Array.isArray(items))
+      return { labor: 0, material: 0, hasCosts: false };
     const num = (v: any) => {
       const n = parseFloat(String(v ?? '').replace(/[^0-9.-]/g, ''));
       return Number.isFinite(n) ? n : 0;
@@ -356,20 +355,29 @@ export class OrdersService {
 
   async savePhotoFile(
     tenantId: string,
-    fileOrBase64: { buffer?: Buffer; originalname?: string; mimetype?: string } | string,
+    fileOrBase64:
+      | { buffer?: Buffer; originalname?: string; mimetype?: string }
+      | string,
   ): Promise<string> {
-    const uploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
+    const uploadsDir =
+      process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
     const tenantUploadsDir = path.join(uploadsDir, tenantId);
     if (!fs.existsSync(tenantUploadsDir)) {
       fs.mkdirSync(tenantUploadsDir, { recursive: true });
     }
 
     if (typeof fileOrBase64 === 'string') {
-      const match = fileOrBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+      const match = fileOrBase64.match(
+        /^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/,
+      );
       if (match) {
         const mime = match[1];
         const data = match[2];
-        const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+        const ext = mime.includes('png')
+          ? 'png'
+          : mime.includes('webp')
+            ? 'webp'
+            : 'jpg';
         const filename = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const filePath = path.join(tenantUploadsDir, filename);
         fs.writeFileSync(filePath, Buffer.from(data, 'base64'));
@@ -377,7 +385,19 @@ export class OrdersService {
       }
       return fileOrBase64;
     } else if (fileOrBase64 && (fileOrBase64 as any).buffer) {
-      const ext = path.extname((fileOrBase64 as any).originalname || '.jpg') || '.jpg';
+      // Solo imágenes: la extensión sale de una lista cerrada para que no se pueda
+      // subir .html/.svg/.js y servirlo desde el dominio de la API.
+      const requestedExt = path
+        .extname((fileOrBase64 as any).originalname || '')
+        .toLowerCase();
+      const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+      const mimetype = String((fileOrBase64 as any).mimetype || '');
+      if (!mimetype.startsWith('image/') || mimetype.includes('svg')) {
+        throw new BadRequestException(
+          'Solo se permiten imágenes (JPG, PNG, WEBP o GIF)',
+        );
+      }
+      const ext = allowedExts.includes(requestedExt) ? requestedExt : '.jpg';
       const filename = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
       const filePath = path.join(tenantUploadsDir, filename);
       fs.writeFileSync(filePath, (fileOrBase64 as any).buffer);
@@ -411,7 +431,8 @@ export class OrdersService {
       if (!sizeVal || !String(sizeVal).trim()) {
         throw new BadRequestException('La medida es obligatoria.');
       }
-      const thicknessVal = data.thickness || data.specifications?.items?.[0]?.thickness;
+      const thicknessVal =
+        data.thickness || data.specifications?.items?.[0]?.thickness;
       if (!thicknessVal || !String(thicknessVal).trim()) {
         throw new BadRequestException('El grosor es obligatorio.');
       }
@@ -477,16 +498,26 @@ export class OrdersService {
     const orderCode = `${prefix}-${sequence}`;
 
     // RF-02: Persistencia robusta de fotografías
-    let photoUrl = data.imageUrl || data.specifications?.items?.[0]?.imageUrl || undefined;
-    if (photoUrl && typeof photoUrl === 'string' && photoUrl.startsWith('data:image/')) {
+    let photoUrl =
+      data.imageUrl || data.specifications?.items?.[0]?.imageUrl || undefined;
+    if (
+      photoUrl &&
+      typeof photoUrl === 'string' &&
+      photoUrl.startsWith('data:image/')
+    ) {
       try {
         photoUrl = await this.savePhotoFile(tenantId, photoUrl);
       } catch (err) {
-        console.error('[OrdersService] Error saving photo to disk, using base64 fallback:', err);
+        console.error(
+          '[OrdersService] Error saving photo to disk, using base64 fallback:',
+          err,
+        );
       }
     }
 
-    const existingEnvelopeImages = Array.isArray(data.specifications?.envelopeImages)
+    const existingEnvelopeImages = Array.isArray(
+      data.specifications?.envelopeImages,
+    )
       ? [...data.specifications.envelopeImages]
       : [];
     if (photoUrl && !existingEnvelopeImages.includes(photoUrl)) {
@@ -738,7 +769,6 @@ export class OrdersService {
     const order = await this.getOrder(tenantId, id);
     if (!order) throw new NotFoundException('Order not found');
 
-
     const strategy = this.strategyFactory.getStrategy(order.type);
     const specs = (order.specifications as any) || {};
     const userName = user?.name || user?.email || 'Joyero';
@@ -888,8 +918,16 @@ export class OrdersService {
       // RF-06: Restricción para Diseñador (no puede marcar terminado final ni entregado)
       if (isDesignerRole(userRole, currentUser?.email, currentUser?.name)) {
         const isFinishing =
-          ['REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'DELIVERED', 'ENTREGADO', 'TERMINADO'].includes(targetStatus) ||
-          ['LISTO_ENTREGA', 'ENTREGADO_POSTVENTA', 'TERMINADO'].includes(targetStage);
+          [
+            'REPAIR_COMPLETED',
+            'READY_FOR_PICKUP',
+            'DELIVERED',
+            'ENTREGADO',
+            'TERMINADO',
+          ].includes(targetStatus) ||
+          ['LISTO_ENTREGA', 'ENTREGADO_POSTVENTA', 'TERMINADO'].includes(
+            targetStage,
+          );
         if (isFinishing) {
           throw new ForbiddenException(
             'El rol Diseñador no tiene permitido marcar trabajos como terminados o entregados. Su función es completar el diseño y asignar al Joyero.',
@@ -899,7 +937,6 @@ export class OrdersService {
 
       // 1. Si no es admin/system y la orden ya no está en RECIBIDO, no se pueden modificar campos de detalle
       if (!isReceived) {
-
         const detailKeys = [
           'pieceType',
           'value',
@@ -1466,7 +1503,9 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
       currentStatus === 'DELIVERED' ||
       currentStage === 'ENTREGADO_POSTVENTA'
     ) {
-      throw new BadRequestException('Esta orden ya fue entregada anteriormente.');
+      throw new BadRequestException(
+        'Esta orden ya fue entregada anteriormente.',
+      );
     }
 
     // 2. Verificar si está cancelada o devuelta
@@ -1574,7 +1613,9 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
       currentStatus === 'DELIVERED' ||
       currentStage === 'ENTREGADO_POSTVENTA'
     ) {
-      throw new BadRequestException('Esta orden ya fue entregada anteriormente.');
+      throw new BadRequestException(
+        'Esta orden ya fue entregada anteriormente.',
+      );
     }
 
     // 2. Verificar si está cancelada o devuelta
@@ -1650,7 +1691,10 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
             orderId: order.id,
             amount: new Prisma.Decimal(pendingBalance),
             method: paymentData?.paymentMethod || 'Efectivo',
-            reference: paymentData?.reference || (paymentData as any)?.notes || 'Liquidación en entrega QR',
+            reference:
+              paymentData?.reference ||
+              (paymentData as any)?.notes ||
+              'Liquidación en entrega QR',
             recordedBy: userName,
           },
         });
@@ -1772,8 +1816,7 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
       },
       designNotes:
         designData?.notes !== undefined ? designData.notes : specs.designNotes,
-      designAttachments:
-        designData?.images || specs.designAttachments || [],
+      designAttachments: designData?.images || specs.designAttachments || [],
       designStatus: 'COMPLETED',
     };
 
@@ -1799,7 +1842,10 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
     if (!order) throw new NotFoundException('Orden no encontrada');
 
     const specs = (order.specifications as any) || {};
-    if (!specs.designCompleted && (specs.requiresDesign || order.type === 'DESIGN')) {
+    if (
+      !specs.designCompleted &&
+      (specs.requiresDesign || order.type === 'DESIGN')
+    ) {
       throw new BadRequestException(
         'El diseño debe estar marcado como completado antes de poder asignar el trabajo al Joyero.',
       );
@@ -1842,4 +1888,3 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
     return updated;
   }
 }
-
