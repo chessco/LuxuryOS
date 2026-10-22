@@ -16,7 +16,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [variant, setVariant] = useState<ThemeVariant>(() => {
         const saved = localStorage.getItem('theme-variant') as ThemeVariant;
-        return (saved && ['pitaya', 'notion', 'cared'].includes(saved)) ? saved : 'pitaya';
+        // Cared es el tema por defecto; quien ya eligió otro estilo conserva su elección
+        return (saved && ['pitaya', 'notion', 'cared'].includes(saved)) ? saved : 'cared';
     });
 
     const [mode, setMode] = useState<ThemeMode>(() => {

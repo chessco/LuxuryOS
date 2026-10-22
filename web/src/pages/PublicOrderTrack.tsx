@@ -88,44 +88,49 @@ export const PublicOrderTrack: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#0b0d10] text-zinc-100 flex flex-col items-center justify-between p-4 sm:p-8 font-sans selection:bg-amber-400 selection:text-black">
+        <div className="theme-cared dark min-h-screen bg-cared-bg text-cared-ink flex flex-col items-center justify-between p-4 sm:p-8 font-sans selection:bg-cared-gold selection:text-black">
             {/* Header / Brand */}
-            <header className="w-full max-w-lg flex flex-col items-center justify-center pt-6 pb-8 border-b border-zinc-800/80">
-                <div className="size-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(251,191,36,0.15)]">
-                    <span className="material-symbols-outlined text-amber-400 text-2xl">diamond</span>
-                </div>
-                <h1 className="text-xl font-black tracking-[0.3em] uppercase text-white">CARED</h1>
-                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500 mt-1">Alta Joyería & Taller Especializado</p>
+            <header className="w-full max-w-lg flex flex-col items-center justify-center pt-6 pb-8 border-b border-cared-line/80">
+                <h1>
+                    <img
+                        src="/cared-logo.png"
+                        alt="CARED"
+                        width={683}
+                        height={338}
+                        className="h-24 sm:h-28 w-auto select-none"
+                        draggable={false}
+                    />
+                </h1>
             </header>
 
             {/* Main Content Area */}
             <main className="w-full max-w-lg my-auto py-8">
                 {initialLoading ? (
-                    <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl p-12 text-center backdrop-blur-xl shadow-2xl flex flex-col items-center gap-4 animate-pulse">
-                        <div className="size-10 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"></div>
-                        <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Verificando enlace del pedido...</p>
+                    <div className="bg-cared-card/60 border border-cared-line rounded-3xl p-12 text-center backdrop-blur-xl shadow-2xl flex flex-col items-center gap-4 animate-pulse">
+                        <div className="size-10 rounded-full border-2 border-cared-gold border-t-transparent animate-spin"></div>
+                        <p className="text-xs font-black uppercase tracking-widest text-cared-mute">Verificando enlace del pedido...</p>
                     </div>
                 ) : globalError || !orderExists ? (
-                    <div className="bg-zinc-900/60 border border-red-500/20 rounded-3xl p-10 text-center backdrop-blur-xl shadow-2xl">
+                    <div className="bg-cared-card/60 border border-red-500/20 rounded-3xl p-10 text-center backdrop-blur-xl shadow-2xl">
                         <span className="material-symbols-outlined text-red-400 text-4xl mb-3">error_outline</span>
-                        <h2 className="text-sm font-black uppercase tracking-widest text-white mb-2">Pedido No Encontrado</h2>
-                        <p className="text-xs text-zinc-400 leading-relaxed max-w-xs mx-auto mb-6">{globalError || 'Verifique el código de orden ingresado.'}</p>
-                        <a href="https://luxuryos.pitayacode.io" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-zinc-800 text-xs font-black uppercase tracking-widest text-zinc-300 hover:text-white border border-zinc-700 transition-all">
+                        <h2 className="text-sm font-black uppercase tracking-widest text-cared-ink mb-2">Pedido No Encontrado</h2>
+                        <p className="text-xs text-cared-mute leading-relaxed max-w-xs mx-auto mb-6">{globalError || 'Verifique el código de orden ingresado.'}</p>
+                        <a href="https://luxuryos.pitayacode.io" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cared-line text-xs font-black uppercase tracking-widest text-cared-ink hover:text-cared-ink border border-cared-line transition-all">
                             Ir al Inicio
                         </a>
                     </div>
                 ) : !order ? (
                     /* Security Gate Verification Card */
-                    <div className="bg-zinc-900/70 border border-zinc-800 rounded-3xl p-8 sm:p-10 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
-                        <div className="size-14 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center mx-auto mb-4 text-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.15)]">
+                    <div className="bg-cared-card/70 border border-cared-line rounded-3xl p-8 sm:p-10 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
+                        <div className="size-14 rounded-2xl bg-cared-gold/10 border border-cared-gold/20 flex items-center justify-center mx-auto mb-4 text-cared-gold shadow-[0_0_20px_rgba(201,162,75,0.15)]">
                             <span className="material-symbols-outlined text-3xl">lock</span>
                         </div>
 
-                        <h2 className="text-base font-black uppercase tracking-wider text-white mb-2">
+                        <h2 className="text-base font-black uppercase tracking-wider text-cared-ink mb-2">
                             Verificación de Seguridad
                         </h2>
-                        <p className="text-xs text-zinc-400 leading-relaxed max-w-xs mx-auto mb-6">
-                            Para consultar el seguimiento en línea, ingrese los <strong className="text-white">últimos 4 dígitos</strong> de su número de teléfono registrado.
+                        <p className="text-xs text-cared-mute leading-relaxed max-w-xs mx-auto mb-6">
+                            Para consultar el seguimiento en línea, ingrese los <strong className="text-cared-ink">últimos 4 dígitos</strong> de su número de teléfono registrado.
                         </p>
 
                         <form onSubmit={handleVerify} className="space-y-6">
@@ -143,7 +148,7 @@ export const PublicOrderTrack: React.FC = () => {
                                         if (verifyError) setVerifyError(null);
                                     }}
                                     placeholder="••••"
-                                    className="w-48 mx-auto text-center tracking-[0.6em] text-3xl font-black py-3 px-4 bg-zinc-950 border border-zinc-700 focus:border-amber-400 rounded-2xl outline-none text-amber-400 transition-all shadow-inner"
+                                    className="w-48 mx-auto text-center tracking-[0.6em] text-3xl font-black py-3 px-4 bg-cared-bg border border-cared-line focus:border-cared-gold rounded-2xl outline-none text-cared-gold transition-all shadow-inner"
                                     autoFocus
                                 />
                             </div>
@@ -157,7 +162,7 @@ export const PublicOrderTrack: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={verifying || phoneDigits.length < 4}
-                                className="w-full py-3.5 px-6 rounded-2xl bg-amber-400 text-black font-black text-xs uppercase tracking-widest hover:bg-amber-300 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-lg shadow-amber-400/10 flex items-center justify-center gap-2"
+                                className="w-full py-3.5 px-6 rounded-2xl bg-cared-gold text-black font-black text-xs uppercase tracking-widest hover:bg-cared-gold/80 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-lg shadow-cared-gold/10 flex items-center justify-center gap-2"
                             >
                                 {verifying ? (
                                     <>
@@ -175,32 +180,32 @@ export const PublicOrderTrack: React.FC = () => {
                     </div>
                 ) : (
                     /* Verified Order Workflow Stepper */
-                    <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl overflow-hidden backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-cared-card/60 border border-cared-line rounded-3xl overflow-hidden backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                         {/* Order Summary Pill */}
-                        <div className="p-6 sm:p-8 border-b border-zinc-800/80 bg-zinc-900/40">
+                        <div className="p-6 sm:p-8 border-b border-cared-line/80 bg-cared-card/40">
                             <div className="flex items-center justify-between gap-4 mb-4">
-                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-400">
+                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-cared-gold">
                                     {order.concept}
                                 </span>
-                                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black tracking-widest bg-zinc-800 border border-zinc-700 text-zinc-300">
+                                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black tracking-widest bg-cared-line border border-cared-line text-cared-ink">
                                     {order.orderCode}
                                 </span>
                             </div>
 
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2">
+                            <h2 className="text-2xl font-black text-cared-ink uppercase tracking-tight mb-2">
                                 {order.pieceType}
                             </h2>
 
-                            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-zinc-800/50">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Estado Actual:</span>
+                            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-cared-line/50">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-cared-mute">Estado Actual:</span>
                                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
                                     order.statusLabel === 'ENTREGADO'
                                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                                         : (order.statusLabel === 'LISTO' || order.statusLabel === 'TERMINADO')
-                                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                        ? 'bg-cared-gold/10 text-cared-gold border-cared-gold/30'
                                         : order.statusLabel === 'EN TALLER'
-                                        ? 'bg-yellow-400 text-black border-yellow-500 font-black'
-                                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
+                                        ? 'bg-cared-gold text-black border-cared-gold font-black'
+                                        : 'bg-cared-gold/10 text-cared-gold border-cared-gold/30'
                                 }`}>
                                     {order.statusLabel}
                                 </span>
@@ -209,11 +214,11 @@ export const PublicOrderTrack: React.FC = () => {
 
                         {/* Progress Stepper Timeline */}
                         <div className="p-6 sm:p-8">
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400 mb-6">
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cared-mute mb-6">
                                 Seguimiento del Flujo
                             </h3>
 
-                            <div className="relative pl-6 space-y-8 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-0.5 before:bg-zinc-800">
+                            <div className="relative pl-6 space-y-8 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-0.5 before:bg-cared-line">
                                 {order.steps.map((step, idx) => {
                                     const isDone = step.isCompleted;
                                     const isCurrent = step.isCurrent;
@@ -223,10 +228,10 @@ export const PublicOrderTrack: React.FC = () => {
                                             {/* Bullet icon indicator */}
                                             <div className={`absolute -left-6 top-0.5 size-6 rounded-full flex items-center justify-center text-xs transition-all ${
                                                 isCurrent
-                                                    ? 'bg-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.6)] ring-4 ring-amber-400/20 font-black'
+                                                    ? 'bg-cared-gold text-black shadow-[0_0_15px_rgba(201,162,75,0.6)] ring-4 ring-cared-gold/20 font-black'
                                                     : isDone
                                                     ? 'bg-emerald-500 text-black font-black'
-                                                    : 'bg-zinc-800 text-zinc-600 border border-zinc-700'
+                                                    : 'bg-cared-line text-cared-mute border border-cared-line'
                                             }`}>
                                                 {isDone && !isCurrent ? (
                                                     <span className="material-symbols-outlined text-[14px]">check</span>
@@ -239,17 +244,17 @@ export const PublicOrderTrack: React.FC = () => {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <h4 className={`text-xs font-black uppercase tracking-wider ${
-                                                        isCurrent ? 'text-amber-400' : isDone ? 'text-white' : 'text-zinc-500'
+                                                        isCurrent ? 'text-cared-gold' : isDone ? 'text-cared-ink' : 'text-cared-mute'
                                                     }`}>
                                                         {step.label}
                                                     </h4>
                                                     {step.date && (
-                                                        <span className="text-[10px] font-mono text-zinc-500">
+                                                        <span className="text-[10px] font-mono text-cared-mute">
                                                             {step.date}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="text-[11px] text-zinc-400 leading-normal mt-1">
+                                                <p className="text-[11px] text-cared-mute leading-normal mt-1">
                                                     {step.description}
                                                 </p>
                                             </div>
@@ -260,28 +265,28 @@ export const PublicOrderTrack: React.FC = () => {
                         </div>
 
                         {/* Digital QR Code Card */}
-                        <div className="p-6 bg-zinc-950/40 border-t border-zinc-800/60 flex flex-col items-center justify-center text-center">
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3">
+                        <div className="p-6 bg-cared-bg/40 border-t border-cared-line/60 flex flex-col items-center justify-center text-center">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cared-mute mb-3">
                                 Código QR Oficial de la Orden
                             </span>
-                            <div className="p-2.5 bg-white rounded-2xl shadow-lg border border-zinc-300 inline-block mb-2">
+                            <div className="p-2.5 bg-white rounded-2xl shadow-lg border border-cared-ink inline-block mb-2">
                                 <img
                                     src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(window.location.href)}`}
                                     alt={`QR ${order.orderCode}`}
                                     className="size-36 object-contain"
                                 />
                             </div>
-                            <span className="text-[11px] font-mono font-black tracking-widest text-amber-400">
+                            <span className="text-[11px] font-mono font-black tracking-widest text-cared-gold">
                                 {order.orderCode}
                             </span>
-                            <p className="text-[9px] text-zinc-500 mt-1 max-w-xs">
+                            <p className="text-[9px] text-cared-mute mt-1 max-w-xs">
                                 Presenta este código QR en sucursal al momento de recoger tu pieza.
                             </p>
                         </div>
 
                         {/* Footer notice inside card */}
-                        <div className="p-4 bg-zinc-950/60 border-t border-zinc-800/60 text-center">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                        <div className="p-4 bg-cared-bg/60 border-t border-cared-line/60 text-center">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-cared-mute">
                                 Actualizado en tiempo real por el equipo de CARED
                             </p>
                         </div>
@@ -290,8 +295,8 @@ export const PublicOrderTrack: React.FC = () => {
             </main>
 
             {/* Public Page Footer */}
-            <footer className="w-full max-w-lg text-center pt-6 border-t border-zinc-800/80">
-                <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+            <footer className="w-full max-w-lg text-center pt-6 border-t border-cared-line/80">
+                <p className="text-[10px] font-bold text-cared-mute uppercase tracking-widest">
                     LuxuryOS &copy; {new Date().getFullYear()} &bull; Todos los derechos reservados
                 </p>
             </footer>

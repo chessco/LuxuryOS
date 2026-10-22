@@ -24,6 +24,15 @@ export default {
                     foreground: "hsl(var(--muted-foreground))",
                 },
                 border: "hsl(var(--border))",
+                // Tokens del tema Cared con soporte de opacidad (bg-cared-card/60, etc.)
+                cared: {
+                    bg: "hsl(var(--background) / <alpha-value>)",
+                    card: "hsl(var(--card) / <alpha-value>)",
+                    line: "hsl(var(--border) / <alpha-value>)",
+                    ink: "hsl(var(--foreground) / <alpha-value>)",
+                    mute: "hsl(var(--muted-foreground) / <alpha-value>)",
+                    gold: "hsl(var(--primary) / <alpha-value>)",
+                },
                 primary: {
                     DEFAULT: "#1152d4",
                     dark: "#0a3691",
