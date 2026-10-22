@@ -943,6 +943,8 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                     pendingAmount={pendingAmount}
                     laborCost={laborCost}
                     materialCost={materialCost}
+                    paidAmount={paidAmount}
+                    payments={paymentsHistory}
                     pieceType={pieceName}
                     onRegisterPayment={handleRegisterPayment}
                 />

@@ -9,19 +9,32 @@ interface PaymentModalProps {
     pendingAmount: number;
     laborCost?: number;
     materialCost?: number;
+    paidAmount?: number;
+    payments?: any[];
     pieceType?: string;
     onRegisterPayment: (amount: number, method: string) => Promise<void>;
 }
+
+const METHOD_LABELS: Record<string, string> = {
+    CARD: 'Tarjeta',
+    CASH: 'Efectivo',
+    TRANSFER: 'Transferencia',
+};
+
+const formatMoney = (n: number) =>
+    `$${Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({ 
     isOpen, 
     onClose, 
     totalAmount, 
     pendingAmount, 
-    laborCost, 
-    materialCost, 
+    laborCost,
+    materialCost,
+    paidAmount,
+    payments,
     pieceType,
-    onRegisterPayment 
+    onRegisterPayment
 }) => {
     const [amount, setAmount] = useState(pendingAmount > 0 ? String(pendingAmount) : '');
     const [method, setMethod] = useState('CARD');
@@ -34,6 +47,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }, [isOpen, pendingAmount]);
 
     if (!isOpen) return null;
+
+    // Información para quien cobra: lo ya pagado (anticipos / pagos parciales) y lo que quedará pendiente
+    const previousPayments = [...(payments || [])].sort(
+        (a, b) => new Date(b.recordedAt || 0).getTime() - new Date(a.recordedAt || 0).getTime(),
+    );
+    const alreadyPaid = paidAmount !== undefined
+        ? Number(paidAmount)
+        : previousPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const amountValue = parseFloat(amount) || 0;
+    const remainingAfter = Math.max(0, pendingAmount - amountValue);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -95,9 +118,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             </div>
                             <h3 className="text-foreground text-xl font-black mb-1 transition-colors">Registrar Pago</h3>
                             <div className="flex flex-col gap-1.5 mt-2">
+                                {totalAmount > 0 && (
+                                    <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between">
+                                        <span>Total de la orden:</span>
+                                        <span className="text-foreground font-mono text-xs font-black">MXN {formatMoney(totalAmount)}</span>
+                                    </p>
+                                )}
+                                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between">
+                                    <span>Pagado / anticipos:</span>
+                                    <span className="text-emerald-500 font-mono text-xs font-black">MXN {formatMoney(alreadyPaid)}</span>
+                                </p>
                                 <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between">
                                     <span>Saldo Pendiente:</span>
-                                    <span className="text-amber-500 font-mono text-xs font-black">MXN ${pendingAmount.toLocaleString()}</span>
+                                    <span className="text-amber-500 font-mono text-xs font-black">MXN {formatMoney(pendingAmount)}</span>
                                 </p>
                                 {(laborCost !== undefined || materialCost !== undefined) && (
                                     <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground pt-1 border-t border-border/40">
@@ -113,6 +146,33 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         </div>
 
                         <form onSubmit={handleSubmit} className="flex-1 p-6 sm:p-8 space-y-6 sm:space-y-8 overflow-y-auto custom-scrollbar">
+                            {/* Pagos anteriores (anticipos y pagos parciales) */}
+                            <div className="space-y-3">
+                                <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] px-1 transition-colors">
+                                    Pagos anteriores {previousPayments.length > 0 && `(${previousPayments.length})`}
+                                </label>
+                                {previousPayments.length === 0 ? (
+                                    <div className="rounded-2xl border border-dashed border-border p-4 text-center text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
+                                        Sin anticipos ni pagos registrados
+                                    </div>
+                                ) : (
+                                    <div className="max-h-[160px] overflow-y-auto space-y-2 pr-1">
+                                        {previousPayments.map((p: any, idx: number) => (
+                                            <div key={p.id || idx} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
+                                                <div>
+                                                    <p className="text-foreground text-sm font-black tabular-nums">{formatMoney(Number(p.amount))} MXN</p>
+                                                    <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
+                                                        {METHOD_LABELS[p.method] || p.method}
+                                                        {p.recordedAt ? ` • ${new Date(p.recordedAt).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}` : ''}
+                                                    </p>
+                                                </div>
+                                                <span className="material-symbols-outlined text-emerald-500 text-[18px]">check_circle</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between px-1">
                                     <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] transition-colors">Monto a Pagar</label>
@@ -144,6 +204,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                                 autoFocus
                                             />
                                         </div>
+                                        {totalAmount > 0 && amountValue > 0 && (
+                                            <p className="px-2 text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
+                                                {remainingAfter > 0
+                                                    ? <>Quedará pendiente: <span className="text-amber-500 font-black">{formatMoney(remainingAfter)} MXN</span></>
+                                                    : <span className="text-emerald-500 font-black">Con este pago la orden queda liquidada</span>}
+                                            </p>
+                                        )}
                                         {totalAmount === 0 && (
                                             <p className="px-2 text-indigo-500 text-[9px] font-bold uppercase tracking-widest animate-pulse">
                                                 Registrando Anticipo (Total pendiente por definir)

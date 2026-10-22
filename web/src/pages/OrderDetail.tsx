@@ -1166,6 +1166,8 @@ const OrderDetail: React.FC = () => {
                         pendingAmount={parseValue(order.balance ?? order.pendingAmount)}
                         laborCost={Number(order.laborCost || order.value || 0)}
                         materialCost={Number(order.materialCost || order.cost || 0)}
+                        paidAmount={parseValue(order.paidAmount)}
+                        payments={order.payments}
                         pieceType={order.pieceType}
                         onRegisterPayment={handleRegisterPayment}
                     />
