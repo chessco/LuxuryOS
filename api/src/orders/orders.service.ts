@@ -328,6 +328,32 @@ export class OrdersService {
     if (!client) throw new BadRequestException('El cliente indicado no existe');
   }
 
+  /**
+   * RF-08: suma mano de obra y material de cada pieza (specifications.items[]).
+   * `hasCosts` es false en órdenes antiguas, que solo traen un costo a nivel de orden.
+   */
+  private sumItemCosts(items: any): {
+    labor: number;
+    material: number;
+    hasCosts: boolean;
+  } {
+    if (!Array.isArray(items)) return { labor: 0, material: 0, hasCosts: false };
+    const num = (v: any) => {
+      const n = parseFloat(String(v ?? '').replace(/[^0-9.-]/g, ''));
+      return Number.isFinite(n) ? n : 0;
+    };
+    const given = (v: any) => v !== undefined && v !== null && v !== '';
+    let hasCosts = false;
+    let labor = 0;
+    let material = 0;
+    for (const it of items) {
+      if (given(it?.laborCost) || given(it?.materialCost)) hasCosts = true;
+      labor += num(it?.laborCost);
+      material += num(it?.materialCost);
+    }
+    return { labor, material, hasCosts };
+  }
+
   async savePhotoFile(
     tenantId: string,
     fileOrBase64: { buffer?: Buffer; originalname?: string; mimetype?: string } | string,
@@ -403,10 +429,25 @@ export class OrdersService {
       }
     }
 
-    const totalAmount = data.totalAmount ?? data.value ?? 0;
+    // RF-08: con costos por pieza, el total es la suma de mano de obra + material de todas las piezas
+    const itemCosts = this.sumItemCosts(data.specifications?.items);
+    const totalAmount = itemCosts.hasCosts
+      ? itemCosts.labor + itemCosts.material
+      : (data.totalAmount ?? data.value ?? 0);
     const paidAmount = 0;
     const balance = totalAmount;
-    const margin = (data.value || 0) - (data.cost || 0);
+    // El material es costo: la utilidad del taller es la mano de obra
+    const margin = itemCosts.hasCosts
+      ? itemCosts.labor
+      : (data.value || 0) - (data.cost || 0);
+    const itemFinancials = itemCosts.hasCosts
+      ? {
+          value: itemCosts.labor,
+          cost: itemCosts.material,
+          laborCost: itemCosts.labor,
+          materialCost: itemCosts.material,
+        }
+      : {};
 
     // Determine initial status from strategy if not provided
     let status = data.status;
@@ -469,6 +510,7 @@ export class OrdersService {
     const created = await this.prisma.order.create({
       data: {
         ...data,
+        ...itemFinancials,
         imageUrl: photoUrl || data.imageUrl || undefined,
         size: data.size ? String(data.size).trim() : undefined,
         thickness: data.thickness ? String(data.thickness).trim() : undefined,
@@ -956,19 +998,30 @@ export class OrdersService {
     const currentMaterial = order.materialCost ? Number(order.materialCost) : 0;
     const currentValue = order.value ? Number(order.value) : 0;
 
-    const updatedLabor =
-      laborCost !== undefined ? Number(laborCost) : currentLabor;
-    const updatedMaterial =
-      materialCost !== undefined ? Number(materialCost) : currentMaterial;
-    const updatedValue = value !== undefined ? Number(value) : currentValue;
+    // RF-08: si la orden trae costos por pieza, los totales salen de la suma de las piezas
+    const itemCosts = this.sumItemCosts(specifications?.items);
+    const updatedLabor = itemCosts.hasCosts
+      ? itemCosts.labor
+      : laborCost !== undefined
+        ? Number(laborCost)
+        : currentLabor;
+    const updatedMaterial = itemCosts.hasCosts
+      ? itemCosts.material
+      : materialCost !== undefined
+        ? Number(materialCost)
+        : currentMaterial;
+    const updatedValue = itemCosts.hasCosts
+      ? itemCosts.labor
+      : value !== undefined
+        ? Number(value)
+        : currentValue;
 
     let totalAmount: Prisma.Decimal;
 
-    // El material es un costo interno (margen = venta - costo), no se suma al cobro. Igual que al crear la
-    // orden, lo que se cobra es la mano de obra / venta.
-    // Priority: 1. Mano de obra (si > 0), 2. Explicit value, 3. Existing totalAmount (if not zero), 4. Existing value
-    if (laborCost !== undefined && updatedLabor > 0) {
-      totalAmount = new Prisma.Decimal(updatedLabor);
+    // RF-08: el total a cobrar es mano de obra + material (suma de todas las piezas).
+    // Priority: 1. Costos por pieza / mano de obra (si > 0), 2. Explicit value, 3. Existing totalAmount (if not zero), 4. Existing value
+    if (itemCosts.hasCosts || (laborCost !== undefined && updatedLabor > 0)) {
+      totalAmount = new Prisma.Decimal(updatedLabor).add(updatedMaterial);
     } else if (value !== undefined) {
       totalAmount = new Prisma.Decimal(updatedValue);
     } else {
@@ -1042,7 +1095,11 @@ export class OrdersService {
       data: {
         pieceType: textOrUndefined(pieceType),
         value: updatedValue,
-        cost: cost !== undefined ? Number(cost) : undefined,
+        cost: itemCosts.hasCosts
+          ? itemCosts.material
+          : cost !== undefined
+            ? Number(cost)
+            : undefined,
         priority,
         notes,
         dueDate: dueDate ? new Date(dueDate) : undefined,

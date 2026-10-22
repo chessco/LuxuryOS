@@ -392,17 +392,22 @@ const Orders: React.FC = () => {
                     itemCode: (item.itemCode || '').toUpperCase().trim(),
                     description: workDesc,
                     notes: workDesc,
-                    imageUrl: item.imageUrl || undefined
+                    imageUrl: item.imageUrl || undefined,
+                    // RF-08: costos por pieza
+                    laborCost: cleanNumber(item.laborCost),
+                    materialCost: cleanNumber(item.materialCost)
                 };
             });
 
             const firstItem = uppercaseItems[0] || {};
+            const laborSum = uppercaseItems.reduce((sum: number, it: any) => sum + it.laborCost, 0);
+            const materialSum = uppercaseItems.reduce((sum: number, it: any) => sum + it.materialCost, 0);
 
             const payload = {
                 pieceType: firstItem.item || '',
-                value: cleanNumber(newOrder.value),
-                cost: cleanNumber(newOrder.cost),
-                totalAmount: cleanNumber(newOrder.value),
+                value: laborSum,
+                cost: materialSum,
+                totalAmount: laborSum + materialSum,
                 margin: 0,
                 priority: newOrder.priority === 'Alta' ? 'ALTA' : (newOrder.priority === 'Baja' ? 'BAJA' : 'MEDIA'),
                 clientId: selectedClient.id,
@@ -417,8 +422,8 @@ const Orders: React.FC = () => {
                 size: firstItem.size || '',
                 thickness: firstItem.thickness || '',
                 itemCode: firstItem.itemCode || '',
-                laborCost: cleanNumber(newOrder.value || newOrder.laborCost),
-                materialCost: cleanNumber(newOrder.materialCost || newOrder.cost),
+                laborCost: laborSum,
+                materialCost: materialSum,
                 notes: newOrder.notes || '',
                 imageUrl: newOrder.imageUrl || undefined,
                 specifications: {
@@ -1032,8 +1037,15 @@ const NewOrderDrawer: React.FC<{
     }, [initialClientName, initialClientPhone]);
 
     const [items, setItems] = useState<any[]>([
-        { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '' }
+        { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', materialCost: '' }
     ]);
+
+    // RF-08: mano de obra y material se capturan por pieza; el total lo calcula el sistema
+    const parseMoney = (v: any) => parseFloat(String(v ?? '').replace(/[^0-9.-]/g, '')) || 0;
+    const laborTotal = items.reduce((sum, it) => sum + parseMoney(it.laborCost), 0);
+    const materialTotal = items.reduce((sum, it) => sum + parseMoney(it.materialCost), 0);
+    const orderTotal = laborTotal + materialTotal;
+    const formatMoney = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`;
 
     const handleItemChange = (index: number, field: string, value: string) => {
         const newItems = [...items];
@@ -1042,7 +1054,7 @@ const NewOrderDrawer: React.FC<{
     };
 
     const addItem = () => {
-        setItems([...items, { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '' }]);
+        setItems([...items, { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', materialCost: '' }]);
     };
 
     const removeItem = (index: number) => {
@@ -1151,20 +1163,19 @@ const NewOrderDrawer: React.FC<{
                 alert('El grosor es obligatorio.');
                 return;
             }
+            // RF-08: mano de obra y material obligatorios en cada pieza
+            if (item.laborCost === undefined || item.laborCost === null || String(item.laborCost).trim() === '') {
+                alert(`El campo Mano de Obra es obligatorio para la pieza #${i + 1}.`);
+                return;
+            }
+            if (item.materialCost === undefined || item.materialCost === null || String(item.materialCost).trim() === '') {
+                alert(`El campo Material es obligatorio para la pieza #${i + 1}.`);
+                return;
+            }
         }
 
         if (!formData.promisedDate) {
             alert('Por favor, especifica la Fecha Compromiso de Entrega para poder guardar la orden.');
-            return;
-        }
-
-        if (formData.value === undefined || formData.value === null || String(formData.value).trim() === '') {
-            alert('El campo Mano de Obra es obligatorio.');
-            return;
-        }
-
-        if (formData.cost === undefined || formData.cost === null || String(formData.cost).trim() === '') {
-            alert('El campo Material es obligatorio.');
             return;
         }
 
@@ -1179,6 +1190,11 @@ const NewOrderDrawer: React.FC<{
             newClientPhone: newClientData.phone || initialClientPhone,
             newClientEmail: newClientData.email,
             ...mainItem,
+            // RF-08: los montos de la orden son la suma de todas las piezas
+            value: laborTotal,
+            cost: materialTotal,
+            laborCost: laborTotal,
+            materialCost: materialTotal,
             imageUrl: mainItem.imageUrl || formData.imageUrl || '',
             pieceType: mainItem.item,
             notes: formData.notes || '', // Independent order notes
@@ -1746,6 +1762,41 @@ const NewOrderDrawer: React.FC<{
                                         />
                                     </div>
 
+                                    {/* RF-08: costos por pieza */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
+                                                <span>Mano de Obra</span>
+                                                <span className="text-red-500 font-bold">*</span>
+                                            </label>
+                                            <input
+                                                inputMode="decimal"
+                                                value={item.laborCost ?? ''}
+                                                onChange={(e) => handleItemChange(index, 'laborCost', e.target.value)}
+                                                className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                                placeholder="0.00"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
+                                                <span>Material</span>
+                                                <span className="text-red-500 font-bold">*</span>
+                                            </label>
+                                            <input
+                                                inputMode="decimal"
+                                                value={item.materialCost ?? ''}
+                                                onChange={(e) => handleItemChange(index, 'materialCost', e.target.value)}
+                                                className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                                placeholder="0.00"
+                                                required
+                                            />
+                                        </div>
+                                        <p className="col-span-2 text-[11px] text-muted-foreground px-1">
+                                            Subtotal de la pieza: <span className="font-black text-foreground">{formatMoney(parseMoney(item.laborCost) + parseMoney(item.materialCost))}</span>
+                                        </p>
+                                    </div>
+
                                     {/* Subir foto de la pieza: Cámara y Galería */}
                                     <div className="space-y-2 pt-1">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
@@ -1901,33 +1952,30 @@ const NewOrderDrawer: React.FC<{
                                     placeholder="Notas generales internas de la orden (opcional)..."
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
-                                    <span>Mano de Obra</span>
-                                    <span className="text-red-500 font-bold">* Obligatorio</span>
-                                </label>
-                                <input
-                                    name="value"
-                                    required
-                                    value={formData.value}
-                                    onChange={handleChange}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
-                                    placeholder="0.00"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
-                                    <span>Material</span>
-                                    <span className="text-red-500 font-bold">* Obligatorio</span>
-                                </label>
-                                <input
-                                    name="cost"
-                                    required
-                                    value={formData.cost}
-                                    onChange={handleChange}
-                                    className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 transition-all outline-none"
-                                    placeholder="0.00"
-                                />
+                            {/* RF-08: resumen de costos por pieza y total de la orden */}
+                            <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-2">
+                                {items.map((it, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-3 text-xs">
+                                        <span className="font-bold text-foreground truncate">
+                                            Pieza #{i + 1}{it.item ? ` · ${it.item}` : ''}
+                                        </span>
+                                        <span className="text-muted-foreground whitespace-nowrap">
+                                            M.O. {formatMoney(parseMoney(it.laborCost))} + Mat. {formatMoney(parseMoney(it.materialCost))}
+                                        </span>
+                                    </div>
+                                ))}
+                                <div className="flex items-center justify-between pt-2 border-t border-border text-xs text-muted-foreground">
+                                    <span className="font-black uppercase tracking-widest text-[9px]">Mano de obra</span>
+                                    <span className="font-mono font-bold text-foreground">{formatMoney(laborTotal)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <span className="font-black uppercase tracking-widest text-[9px]">Material</span>
+                                    <span className="font-mono font-bold text-foreground">{formatMoney(materialTotal)}</span>
+                                </div>
+                                <div className="flex items-center justify-between pt-2 border-t border-border">
+                                    <span className="font-black uppercase tracking-widest text-[10px] text-foreground">Total</span>
+                                    <span className="font-mono font-black text-base text-foreground">{formatMoney(orderTotal)}</span>
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Asignar a</label>

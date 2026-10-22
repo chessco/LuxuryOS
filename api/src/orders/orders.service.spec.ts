@@ -304,7 +304,7 @@ describe('OrdersService Unit Tests', () => {
       );
     });
 
-    it('should charge only labor (material is an internal cost) when editing an order', async () => {
+    it('RF-08: should charge labor + material when editing an order', async () => {
       const mockDbOrder = {
         id: 'uuid-124',
         tenantId: 'tenant-1',
@@ -330,9 +330,50 @@ describe('OrdersService Unit Tests', () => {
       );
 
       const { data } = mockPrisma.order.update.mock.calls[0][0];
-      expect(Number(data.totalAmount)).toBe(650);
-      expect(Number(data.balance)).toBe(650);
+      expect(Number(data.totalAmount)).toBe(850);
+      expect(Number(data.balance)).toBe(850);
       expect(data.materialCost).toBe(200);
+    });
+
+    it('RF-08: should total labor + material of every piece when the order has per-piece costs', async () => {
+      const mockDbOrder = {
+        id: 'uuid-125',
+        tenantId: 'tenant-1',
+        status: 'RECEIVED',
+        value: 0,
+        totalAmount: 0,
+        paidAmount: 0,
+        laborCost: 0,
+        materialCost: 0,
+        specifications: {},
+      };
+
+      mockPrisma.order.findFirst.mockResolvedValue(mockDbOrder);
+      mockPrisma.order.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...mockDbOrder, ...data }),
+      );
+
+      await service.updateOrder(
+        'tenant-1',
+        'uuid-125',
+        {
+          specifications: {
+            items: [
+              { item: 'CADENA', laborCost: 500, materialCost: 300 },
+              { item: 'ANILLO', laborCost: '200', materialCost: '100' },
+            ],
+          },
+        },
+        { role: 'ADMIN' },
+      );
+
+      const { data } = mockPrisma.order.update.mock.calls[0][0];
+      expect(data.laborCost).toBe(700);
+      expect(data.materialCost).toBe(400);
+      expect(data.value).toBe(700);
+      expect(data.cost).toBe(400);
+      expect(Number(data.totalAmount)).toBe(1100);
+      expect(Number(data.balance)).toBe(1100);
     });
   });
 

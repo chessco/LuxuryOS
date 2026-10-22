@@ -886,10 +886,23 @@ const OrderDetail: React.FC = () => {
                                                         {order.specifications.partsNeeded}
                                                     </div>
                                                 )}
+                                                {/* RF-08: costos por pieza */}
+                                                {piece.laborCost !== undefined && piece.laborCost !== null && piece.laborCost !== '' && (
+                                                    <div>
+                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Mano de Obra:</span>
+                                                        <span className="font-bold text-foreground">{Number(piece.laborCost).toLocaleString()} MXN</span>
+                                                    </div>
+                                                )}
                                                 {!isJoyero && !isVendedor && canViewCostsMargins && piece.materialCost && (
                                                     <div>
                                                         <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Costo Material:</span>
                                                         <span className="font-bold text-foreground">{Number(piece.materialCost).toLocaleString()} MXN</span>
+                                                    </div>
+                                                )}
+                                                {!isJoyero && !isVendedor && canViewCostsMargins && (piece.laborCost || piece.materialCost) && (
+                                                    <div>
+                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Subtotal Pieza:</span>
+                                                        <span className="font-bold text-foreground">{((parseFloat(piece.laborCost) || 0) + (parseFloat(piece.materialCost) || 0)).toLocaleString()} MXN</span>
                                                     </div>
                                                 )}
                                             </div>

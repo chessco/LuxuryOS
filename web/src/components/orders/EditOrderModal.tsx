@@ -117,7 +117,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
     };
 
     // Initialize items from specifications or legacy fields
-    const initialItems = order.specifications?.items?.map((it: any) => ({
+    const baseItems = order.specifications?.items?.map((it: any) => ({
         ...it,
         description: it.description || it.notes || it.trabajo || order.description || ''
     })) || [
@@ -134,7 +134,23 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         }
     ];
 
+    // RF-08: órdenes antiguas con un solo costo a nivel de orden: se asigna a la primera pieza
+    const isGiven = (v: any) => v !== undefined && v !== null && v !== '';
+    const hasItemCosts = baseItems.some((it: any) => isGiven(it.laborCost) || isGiven(it.materialCost));
+    const initialItems = hasItemCosts
+        ? baseItems
+        : baseItems.map((it: any, i: number) => ({
+            ...it,
+            laborCost: i === 0 ? Number(order.laborCost || order.value || 0) : 0,
+            materialCost: i === 0 ? Number(order.materialCost || order.cost || 0) : 0
+        }));
+
     const [items, setItems] = useState<any[]>(initialItems);
+
+    const parseMoney = (v: any) => parseFloat(String(v ?? '').replace(/[^0-9.-]/g, '')) || 0;
+    const laborTotal = items.reduce((sum, it) => sum + parseMoney(it.laborCost), 0);
+    const materialTotal = items.reduce((sum, it) => sum + parseMoney(it.materialCost), 0);
+    const formatMoney = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`;
     const [isSaving, setIsSaving] = useState(false);
 
     const handleItemChange = (index: number, field: string, value: string) => {
@@ -144,7 +160,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
     };
 
     const addItem = () => {
-        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', description: '' }]);
+        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', description: '', laborCost: 0, materialCost: 0 }]);
     };
 
     const removeItem = (index: number) => {
@@ -157,11 +173,6 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         e.preventDefault();
         setIsSaving(true);
         try {
-            const cleanNumber = (val: any) => {
-                const str = String(val || '0').replace(/[^0-9.-]/g, '');
-                return parseFloat(str) || 0;
-            };
-
             // Sync first item to top-level fields for consistency/listing
             const syncedItems = items.map((it: any) => {
                 const desc = it.description || it.notes || '';
@@ -177,11 +188,12 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                 status: formData.status,
                 stage: formData.status,
                 priority: isJoyero ? (order.priority || 'MEDIA').toUpperCase() : formData.priority,
-                value: cleanNumber(formData.value),
-                cost: cleanNumber(formData.cost),
-                totalAmount: cleanNumber(formData.value), // Ensure totalAmount is synced
-                laborCost: cleanNumber(formData.laborCost),
-                materialCost: cleanNumber(formData.materialCost),
+                // RF-08: los montos de la orden son la suma de las piezas; total = mano de obra + material
+                value: laborTotal,
+                cost: materialTotal,
+                totalAmount: laborTotal + materialTotal,
+                laborCost: laborTotal,
+                materialCost: materialTotal,
                 promisedAt: formData.promisedDate ? new Date(formData.promisedDate) : undefined,
                 dueDate: formData.promisedDate ? new Date(formData.promisedDate) : (formData.dueDate ? new Date(formData.dueDate) : undefined),
                 ...mainItem, // metal, color, etc.
@@ -449,6 +461,19 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                             placeholder="Ajuste, pulido, etc."
                                         />
                                     </div>
+                                    {/* RF-08: costos por pieza */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Mano de Obra (MXN)</label>
+                                            <input type="number" inputMode="decimal" value={item.laborCost ?? ''} onChange={(e) => handleItemChange(index, 'laborCost', e.target.value)} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner" placeholder="0.00" />
+                                        </div>
+                                        {canSeeCost && (
+                                            <div className="space-y-2">
+                                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Material (MXN)</label>
+                                                <input type="number" inputMode="decimal" value={item.materialCost ?? ''} onChange={(e) => handleItemChange(index, 'materialCost', e.target.value)} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner" placeholder="0.00" />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -461,16 +486,23 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                             {canSeeCost ? 'Valores y Costos' : 'Valores'}
                         </h3>
                         <div className="flex flex-col gap-4">
-                            <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Mano de Obra (MXN)</label>
-                                <input type="number" value={formData.laborCost} onChange={(e) => setFormData({ ...formData, laborCost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
-                            </div>
-                            {canSeeCost && (
-                                <div className="space-y-2">
-                                    <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Material (MXN)</label>
-                                    <input type="number" value={formData.materialCost} onChange={(e) => setFormData({ ...formData, materialCost: e.target.value })} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 transition-all outline-none shadow-inner" />
+                            {/* RF-08: total calculado a partir de las piezas */}
+                            <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-2">
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <span className="font-black uppercase tracking-widest text-[9px]">Mano de obra</span>
+                                    <span className="font-mono font-bold text-foreground">{formatMoney(laborTotal)}</span>
                                 </div>
-                            )}
+                                {canSeeCost && (
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                        <span className="font-black uppercase tracking-widest text-[9px]">Material</span>
+                                        <span className="font-mono font-bold text-foreground">{formatMoney(materialTotal)}</span>
+                                    </div>
+                                )}
+                                <div className="flex items-center justify-between pt-2 border-t border-border">
+                                    <span className="font-black uppercase tracking-widest text-[10px] text-foreground">Total</span>
+                                    <span className="font-mono font-black text-base text-foreground">{formatMoney(laborTotal + materialTotal)}</span>
+                                </div>
+                            </div>
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Asignar a</label>
                                 <div className="relative">

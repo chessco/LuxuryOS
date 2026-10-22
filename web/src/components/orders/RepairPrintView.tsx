@@ -169,13 +169,13 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                                         <div className="col-span-3 flex items-end gap-2 text-[10px]">
                                             <span className="font-bold whitespace-nowrap">Mano de obra</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
-                                                {Number((idx === 0 ? order.value : 0) || piece.laborCost || 0).toLocaleString()} MXN
+                                                {Number(piece.laborCost || (idx === 0 && !piece.materialCost ? order.value : 0) || 0).toLocaleString()} MXN
                                             </div>
                                         </div>
                                         <div className="col-span-3 flex items-end gap-2 text-[10px]">
                                             <span className="font-bold">Material</span>
                                             <div className="flex-1 border-b border-dotted border-zinc-500 min-h-[20px] pb-0.5">
-                                                {Number((idx === 0 ? order.cost : 0) || piece.materialCost || 0).toLocaleString()} MXN
+                                                {Number(piece.materialCost || (idx === 0 && !piece.laborCost ? order.cost : 0) || 0).toLocaleString()} MXN
                                             </div>
                                         </div>
                                     </div>
