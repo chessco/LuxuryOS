@@ -179,7 +179,11 @@ export class PublicOrdersController {
     const items = (order.specifications as any)?.items;
     const names = Array.isArray(items)
       ? items
-          .map((it: any) => String(it?.item || '').trim().toUpperCase())
+          .map((it: any) =>
+            String(it?.item || '')
+              .trim()
+              .toUpperCase(),
+          )
           .filter(Boolean)
       : [];
     return names.length > 0

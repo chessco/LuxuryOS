@@ -524,7 +524,10 @@ describe('OrdersService Unit Tests', () => {
         'tenant-1',
         'ord-dis-1',
         { id: 'u-dis', name: 'Diseñador CAD', role: 'DISENADOR' },
-        { notes: 'Modelo 3D STL finalizado', images: ['https://example.com/render.png'] },
+        {
+          notes: 'Modelo 3D STL finalizado',
+          images: ['https://example.com/render.png'],
+        },
       );
 
       const specs = result.specifications as any;
@@ -533,14 +536,17 @@ describe('OrdersService Unit Tests', () => {
       expect(specs.designCompletedByName).toBe('Diseñador CAD');
     });
 
-
     it('should prevent assigning to joyero if design is not completed', async () => {
       const mockOrder = {
         id: 'ord-dis-2',
         tenantId: 'tenant-1',
         type: 'DESIGN',
         status: 'RECEIVED',
-        specifications: { orderCode: 'DIS-2', requiresDesign: true, designCompleted: false },
+        specifications: {
+          orderCode: 'DIS-2',
+          requiresDesign: true,
+          designCompleted: false,
+        },
       };
       mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
 
@@ -586,7 +592,10 @@ describe('OrdersService Unit Tests', () => {
         specifications: { orderCode: 'REP-125' },
       };
       mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
-      mockPrisma.payment.create.mockResolvedValue({ id: 'pay-1', amount: 1500 });
+      mockPrisma.payment.create.mockResolvedValue({
+        id: 'pay-1',
+        amount: 1500,
+      });
       mockPrisma.order.update.mockImplementation(({ data }) =>
         Promise.resolve({ ...mockOrder, ...data }),
       );
@@ -723,4 +732,3 @@ describe('OrdersService Unit Tests', () => {
     });
   });
 });
-

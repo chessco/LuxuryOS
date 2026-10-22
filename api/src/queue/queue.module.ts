@@ -9,9 +9,13 @@ import { WhatsAppWebhookController } from './whatsapp-webhook.controller';
 import { NotificationStatusController } from './notification-status.controller';
 
 @Module({
-    imports: [OrdersModule, SettingsModule],
-    controllers: [QueueController, WhatsAppWebhookController, NotificationStatusController],
-    providers: [QueueService, QueueGateway, NotificationService],
-    exports: [QueueService],
+  imports: [OrdersModule, SettingsModule],
+  controllers: [
+    QueueController,
+    WhatsAppWebhookController,
+    NotificationStatusController,
+  ],
+  providers: [QueueService, QueueGateway, NotificationService],
+  exports: [QueueService],
 })
-export class QueueModule { }
+export class QueueModule {}
