@@ -90,7 +90,7 @@ export const PublicOrderTrack: React.FC = () => {
     return (
         <div className="theme-cared dark min-h-screen bg-cared-bg text-cared-ink flex flex-col items-center justify-between p-4 sm:p-8 font-sans selection:bg-cared-gold selection:text-black">
             {/* Header / Brand */}
-            <header className="w-full max-w-lg flex flex-col items-center justify-center pt-6 pb-8 border-b border-cared-line/80">
+            <header className="w-full max-w-lg flex flex-col items-center justify-center pt-6 pb-8">
                 <h1>
                     <img
                         src="/cared-logo.png"
