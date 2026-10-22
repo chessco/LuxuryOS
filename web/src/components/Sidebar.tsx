@@ -131,8 +131,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                         <img
                             src="/cared-logo.png"
                             alt={atelierName}
-                            width={683}
-                            height={338}
+                            width={655}
+                            height={310}
                             className="h-14 w-auto select-none invert dark:invert-0"
                             draggable={false}
                         />

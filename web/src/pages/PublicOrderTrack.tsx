@@ -95,8 +95,8 @@ export const PublicOrderTrack: React.FC = () => {
                     <img
                         src="/cared-logo.png"
                         alt="CARED"
-                        width={683}
-                        height={338}
+                        width={655}
+                        height={310}
                         className="h-24 sm:h-28 w-auto select-none"
                         draggable={false}
                     />

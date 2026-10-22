@@ -170,14 +170,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                 >
                     <span className="material-symbols-outlined text-[22px]">menu</span>
                 </button>
-                <Link to="/orders?type=REPAIR" className="flex items-center pl-1 cursor-pointer" aria-label={atelierName}>
+                <Link to="/orders?type=REPAIR" className="flex items-center self-center pl-2 pr-3 cursor-pointer" aria-label={atelierName}>
                     {/* Logo corporativo (blanco): en temas claros se invierte a negro */}
                     <img
                         src="/cared-logo.png"
                         alt={atelierName}
-                        width={683}
-                        height={338}
-                        className="h-14 w-auto select-none invert dark:invert-0"
+                        width={655}
+                        height={310}
+                        className="h-11 w-auto select-none invert dark:invert-0"
                         draggable={false}
                     />
                 </Link>
