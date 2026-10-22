@@ -391,7 +391,8 @@ const Orders: React.FC = () => {
                     thickness: (item.thickness || '').toUpperCase().trim(),
                     itemCode: (item.itemCode || '').toUpperCase().trim(),
                     description: workDesc,
-                    notes: workDesc
+                    notes: workDesc,
+                    imageUrl: item.imageUrl || undefined
                 };
             });
 
@@ -1136,18 +1137,18 @@ const NewOrderDrawer: React.FC<{
                 alert(`Por favor, selecciona los quilates para la pieza #${i + 1}.`);
                 return;
             }
-            // En Fabricación (MANUFACTURE) el peso, medida y grosor son estrictamente obligatorios.
-            // En Reparaciones, Diseño o Láser la medida y grosor son opcionales.
+            // En Fabricación (MANUFACTURE) el peso es obligatorio.
             if (orderType === 'MANUFACTURE' && !item.weight?.trim()) {
                 alert(`Por favor, introduce el peso para la pieza #${i + 1}.`);
                 return;
             }
-            if (orderType === 'MANUFACTURE' && !item.size?.trim()) {
-                alert(`Por favor, introduce la medida para la pieza #${i + 1}.`);
+            // RF-01: Medida y grosor obligatorios en formularios de registro de órdenes
+            if (!item.size || !item.size.trim()) {
+                alert('La medida es obligatoria.');
                 return;
             }
-            if (orderType === 'MANUFACTURE' && !item.thickness?.trim()) {
-                alert(`Por favor, introduce el grosor para la pieza #${i + 1}.`);
+            if (!item.thickness || !item.thickness.trim()) {
+                alert('El grosor es obligatorio.');
                 return;
             }
         }
@@ -1699,28 +1700,28 @@ const NewOrderDrawer: React.FC<{
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
-                                            Medida {orderType === 'MANUFACTURE' ? <span className="text-red-500 font-bold">*</span> : <span className="text-muted-foreground/60 font-normal lowercase">(opcional)</span>}
+                                            Medida <span className="text-red-500 font-bold">*</span>
                                         </label>
                                         <input
                                             value={item.size}
                                             onChange={(e) => handleItemChange(index, 'size', e.target.value)}
                                             onBlur={() => { if (item.size && !item.size.toUpperCase().endsWith('CM')) handleItemChange(index, 'size', `${item.size.trim()} CM`); }}
                                             className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
-                                            placeholder={orderType === 'MANUFACTURE' ? "7, 18cm" : "Opcional (ej. 7, 18cm)"}
-                                            required={orderType === 'MANUFACTURE'}
+                                            placeholder="Ej. 7, 18cm"
+                                            required
                                         />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
-                                            Grosor {orderType === 'MANUFACTURE' ? <span className="text-red-500 font-bold">*</span> : <span className="text-muted-foreground/60 font-normal lowercase">(opcional)</span>}
+                                            Grosor <span className="text-red-500 font-bold">*</span>
                                         </label>
                                         <input
                                             value={item.thickness || ''}
                                             onChange={(e) => handleItemChange(index, 'thickness', e.target.value)}
                                             onBlur={() => { if (item.thickness && !item.thickness.toUpperCase().endsWith('MM')) handleItemChange(index, 'thickness', `${item.thickness.trim()} MM`); }}
                                             className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
-                                            placeholder={orderType === 'MANUFACTURE' ? "2mm" : "Opcional (ej. 2mm)"}
-                                            required={orderType === 'MANUFACTURE'}
+                                            placeholder="Ej. 2mm"
+                                            required
                                         />
                                     </div>
                                     <div className="space-y-2">

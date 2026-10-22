@@ -62,6 +62,39 @@ export const OrdersService = {
         return response.data;
     },
 
+    async settleAndDeliverOrderViaQr(
+        id: string,
+        paymentOrOptions?: string | { paymentMethod?: string; notes?: string; reference?: string },
+        reference?: string
+    ) {
+        const cleanId = encodeURIComponent((id || '').trim());
+        const payload = typeof paymentOrOptions === 'object' && paymentOrOptions !== null
+            ? paymentOrOptions
+            : { paymentMethod: paymentOrOptions, reference };
+        const response = await api.post(`/kanban/orders/${cleanId}/settle-and-deliver`, payload);
+        return response.data;
+    },
+
+    async uploadPhoto(fileOrBase64: File | string) {
+        if (typeof fileOrBase64 === 'string') {
+            const response = await api.post('/kanban/orders/upload-photo', { base64: fileOrBase64 });
+            return response.data;
+        } else {
+            const formData = new FormData();
+            formData.append('file', fileOrBase64);
+            const response = await api.post('/kanban/orders/upload-photo', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            return response.data;
+        }
+    },
+
+    async getPayments(orderId: string) {
+        const cleanId = encodeURIComponent((orderId || '').trim());
+        const response = await api.get(`/payments/order/${cleanId}`);
+        return response.data;
+    },
+
     async returnOrderToClientViaQr(id: string, reason: string) {
         const cleanId = encodeURIComponent((id || '').trim());
         const response = await api.post(`/kanban/orders/${cleanId}/return-client`, { reason });

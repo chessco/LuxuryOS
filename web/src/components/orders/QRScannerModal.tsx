@@ -38,6 +38,15 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
     const [isDelivering, setIsDelivering] = useState(false);
     const [isReturning, setIsReturning] = useState(false);
 
+    // RF-03 & RF-04: Liquidar y Entregar en un solo escaneo + Consultar Pagos
+    const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
+    const [settleMethod, setSettleMethod] = useState<'CASH' | 'CARD' | 'TRANSFER'>('CASH');
+    const [settleNotes, setSettleNotes] = useState('');
+    const [isSettling, setIsSettling] = useState(false);
+    const [isPaymentsHistoryOpen, setIsPaymentsHistoryOpen] = useState(false);
+    const [paymentsHistory, setPaymentsHistory] = useState<any[]>([]);
+    const [isLoadingPayments, setIsLoadingPayments] = useState(false);
+
 
     const user = React.useMemo(() => {
         try {
@@ -293,26 +302,58 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
         }
     };
 
+    // RF-03 Flujo B: Registrar abono sin entregar el trabajo
     const handleRegisterPayment = async (amount: number, method: string) => {
         if (!foundOrder) return;
         await OrdersService.registerPayment(foundOrder.id, amount, method);
-        setActionMessage(`¡Pago de $${amount.toLocaleString()} MXN registrado con éxito! 💳`);
+        playBeep();
+        setActionMessage(`¡Abono de $${amount.toLocaleString()} MXN registrado con éxito! Saldo actualizado. (Trabajo NO entregado) 💳`);
         const updated = await OrdersService.getOrder(foundOrder.id);
         setFoundOrder(updated);
         if (onOrderUpdated) onOrderUpdated();
     };
 
-    // RF-01: Confirmar entrega física al cliente mediante QR
+    // RF-03 Flujo A: Liquidar saldo pendiente y entregar físicamente en un solo escaneo
+    const handleSettleAndDeliver = async () => {
+        if (!foundOrder) return;
+        setIsSettling(true);
+        try {
+            const res = await OrdersService.settleAndDeliverOrderViaQr(foundOrder.id, {
+                paymentMethod: settleMethod,
+                notes: settleNotes?.trim() || undefined,
+            });
+            playBeep();
+            const settled = res?.settledAmount ?? pendingAmount;
+            setActionMessage(
+                settled > 0
+                    ? `¡Orden liquidada ($${settled.toLocaleString()} MXN) y entregada al cliente con éxito en un solo escaneo! 📦✨`
+                    : '¡Orden entregada físicamente al cliente con éxito! 📦✨'
+            );
+            setIsSettleModalOpen(false);
+            setSettleNotes('');
+            const updated = await OrdersService.getOrder(foundOrder.id);
+            setFoundOrder(updated);
+            if (onOrderUpdated) onOrderUpdated();
+        } catch (err: any) {
+            console.error('Error settling and delivering via QR:', err);
+            const msg = err?.response?.data?.message || err?.message || 'Error al liquidar y entregar la orden';
+            alert(typeof msg === 'string' ? msg : 'Error al liquidar y entregar la orden');
+        } finally {
+            setIsSettling(false);
+        }
+    };
+
+    // RF-03 Flujo C: Confirmar entrega física cuando la orden ya está liquidada (saldo = 0)
     const handleConfirmDelivery = async () => {
         if (!foundOrder) return;
-        if (!window.confirm('¿Confirmar la entrega física del trabajo al cliente?')) {
+        if (!window.confirm('¿Confirmar la entrega física del trabajo al cliente? (Orden liquidada con saldo en cero)')) {
             return;
         }
         setIsDelivering(true);
         try {
-            await OrdersService.deliverOrderViaQr(foundOrder.id);
+            await OrdersService.settleAndDeliverOrderViaQr(foundOrder.id);
             playBeep();
-            setActionMessage('¡Orden entregada con éxito al cliente! 📦✨');
+            setActionMessage('¡Entrega física confirmada con éxito! (Orden liquidada) 📦✨');
             const updated = await OrdersService.getOrder(foundOrder.id);
             setFoundOrder(updated);
             if (onOrderUpdated) onOrderUpdated();
@@ -322,6 +363,22 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
             alert(typeof msg === 'string' ? msg : 'Error al registrar la entrega');
         } finally {
             setIsDelivering(false);
+        }
+    };
+
+    // RF-04: Consultar historial de pagos del trabajo
+    const handleOpenPaymentsHistory = async () => {
+        if (!foundOrder) return;
+        setIsPaymentsHistoryOpen(true);
+        setIsLoadingPayments(true);
+        try {
+            const payments = await OrdersService.getPayments(foundOrder.id);
+            setPaymentsHistory(Array.isArray(payments) ? payments : []);
+        } catch (err) {
+            console.error('Error fetching payments:', err);
+            setPaymentsHistory(foundOrder.specifications?.payments || []);
+        } finally {
+            setIsLoadingPayments(false);
         }
     };
 
@@ -529,44 +586,112 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                     </div>
                                 )}
 
-                                {/* Order Summary Card */}
-                                <div className="bg-muted/40 border border-border rounded-2xl p-5 space-y-3 shadow-inner">
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-mono text-base font-black text-indigo-600 dark:text-indigo-400">
+                                {/* Tabla Resumen RF-04 */}
+                                <div className="bg-muted/40 border border-border rounded-2xl overflow-hidden shadow-inner">
+                                    <div className="p-3.5 bg-muted/60 border-b border-border flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="material-symbols-outlined text-indigo-500 text-[18px]">receipt_long</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                                Resumen de Mostrador
+                                            </span>
+                                        </div>
+                                        <span className="font-mono text-sm font-black text-indigo-600 dark:text-indigo-400">
                                             {orderCode}
                                         </span>
-                                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-zinc-200 dark:bg-zinc-800 text-foreground">
-                                            {getStatusLabel(foundOrder.status || foundOrder.stage)}
-                                        </span>
                                     </div>
-                                    <div className="text-sm font-black uppercase tracking-tight text-foreground truncate">
-                                        {clientName}
-                                    </div>
-                                    
-                                    {/* Desglose: Pieza, Mano de Obra y Material */}
-                                    <div className="pt-2 border-t border-border/60 flex flex-col gap-2.5">
-                                        <div className="text-xs font-bold text-foreground">
-                                            {pieceName}
+
+                                    {/* Tabla con los conceptos exactos requeridos por RF-04 */}
+                                    <div className="divide-y divide-border/60 text-xs">
+                                        <div className="flex items-center justify-between p-2.5 px-4 hover:bg-muted/30 transition-colors">
+                                            <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Orden</span>
+                                            <span className="font-mono font-black text-foreground">{orderCode}</span>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 text-xs bg-background/60 p-3 rounded-xl border border-border/50">
+                                        <div className="flex items-center justify-between p-2.5 px-4 hover:bg-muted/30 transition-colors">
+                                            <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Cliente</span>
+                                            <span className="font-black text-foreground uppercase truncate max-w-[220px]">{clientName}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-2.5 px-4 hover:bg-muted/30 transition-colors">
+                                            <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Total</span>
+                                            <span className="font-mono font-black text-foreground">${totalAmount.toLocaleString()} MXN</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-2.5 px-4 hover:bg-muted/30 transition-colors">
+                                            <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Abonos registrados</span>
+                                            <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">${paidAmount.toLocaleString()} MXN</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-2.5 px-4 bg-amber-500/5">
+                                            <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Saldo pendiente</span>
+                                            <span className={`font-mono font-black ${pendingAmount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                                ${pendingAmount.toLocaleString()} MXN
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-2.5 px-4 hover:bg-muted/30 transition-colors">
+                                            <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Trabajo</span>
                                             <div>
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">Mano de Obra</span>
-                                                <span className="font-mono font-black text-foreground text-sm">${laborCost.toLocaleString()} MXN</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block">Material</span>
-                                                <span className="font-mono font-black text-foreground text-sm">${materialCost.toLocaleString()} MXN</span>
+                                                {(() => {
+                                                    const rawStatus = (foundOrder.status || foundOrder.stage || '').toUpperCase();
+                                                    const isReadyForDelivery =
+                                                        rawStatus === 'REPAIR_COMPLETED' ||
+                                                        rawStatus === 'READY_FOR_PICKUP' ||
+                                                        rawStatus === 'LISTO_ENTREGA' ||
+                                                        rawStatus === 'TERMINADO' ||
+                                                        rawStatus === 'READY';
+                                                    const isJoyeroReturned =
+                                                        rawStatus === 'RETURNED' ||
+                                                        rawStatus === 'CANCELLED' ||
+                                                        foundOrder.specifications?.isReturned === true;
+
+                                                    if (isReadyForDelivery) {
+                                                        return (
+                                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                                                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                                Listo para entrega
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (isJoyeroReturned) {
+                                                        return (
+                                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                                                                Cancelado / Devuelto
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                                            {getStatusLabel(foundOrder.status || foundOrder.stage)}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
-                                        <div className="flex items-center justify-between text-xs pt-1">
-                                            <span className="font-black uppercase tracking-wider text-muted-foreground text-[10px]">Total Pedido:</span>
-                                            <div className="text-right">
-                                                <span className="font-black text-foreground font-mono text-sm">${totalAmount.toLocaleString()} MXN</span>
-                                                {pendingAmount > 0 ? (
-                                                    <span className="text-amber-500 font-bold ml-2 text-[11px]">(Pendiente: ${pendingAmount.toLocaleString()} MXN)</span>
-                                                ) : (
-                                                    <span className="text-emerald-500 font-bold ml-2 text-[11px]">(Liquidado)</span>
-                                                )}
+                                        <div className="flex items-center justify-between p-2.5 px-4 hover:bg-muted/30 transition-colors">
+                                            <span className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">Entrega física</span>
+                                            <div>
+                                                {(() => {
+                                                    const rawStatus = (foundOrder.status || foundOrder.stage || '').toUpperCase();
+                                                    const isAlreadyDelivered = rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA' || !!foundOrder.deliveredAt;
+                                                    const isReturnedToClient = !!(foundOrder.specifications?.isReturnedToClient || foundOrder.specifications?.isReturnedNotDone);
+
+                                                    if (isAlreadyDelivered) {
+                                                        return (
+                                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                                                <span className="material-symbols-outlined text-[12px]">check</span>
+                                                                Entregado
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (isReturnedToClient) {
+                                                        return (
+                                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                                                                Devuelto al Cliente
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-muted text-muted-foreground border border-border">
+                                                            Pendiente
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
@@ -579,9 +704,8 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                     </div>
 
                                     {!isJoyero ? (
-                                        /* Mostrador / Ventas Actions (RF-01, RF-02) */
+                                        /* Mostrador Actions: RF-03 & RF-04 */
                                         <div className="space-y-3">
-                                            {/* 1. Ya entregado previamente */}
                                             {(() => {
                                                 const rawStatus = (foundOrder.status || foundOrder.stage || '').toUpperCase();
                                                 const isAlreadyDelivered = rawStatus === 'DELIVERED' || rawStatus === 'ENTREGADO_POSTVENTA' || !!foundOrder.deliveredAt;
@@ -636,66 +760,89 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
 
                                                 return (
                                                     <>
-                                                        {/* Botón de Cobro de Saldo si hay monto pendiente */}
-                                                        {pendingAmount > 0 && (
+                                                        {/* RF-03 Flujo A: Botón Liquidar y Entregar (Un solo escaneo) */}
+                                                        {isReadyForDelivery && pendingAmount > 0 && (
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setIsPaymentOpen(true)}
-                                                                className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-wider shadow-lg active:scale-95 transition-all cursor-pointer"
+                                                                onClick={() => {
+                                                                    setSettleMethod('CASH');
+                                                                    setIsSettleModalOpen(true);
+                                                                }}
+                                                                className="w-full flex items-center justify-between p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-emerald-600/25 active:scale-95 transition-all cursor-pointer group"
                                                             >
-                                                                <span className="material-symbols-outlined text-2xl">payments</span>
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="size-10 rounded-xl bg-white/20 flex items-center justify-center">
+                                                                        <span className="material-symbols-outlined text-2xl">point_of_sale</span>
+                                                                    </div>
+                                                                    <div className="flex flex-col text-left">
+                                                                        <span className="text-sm">Liquidar y entregar</span>
+                                                                        <span className="text-[10px] font-medium opacity-90">
+                                                                            Cobrar saldo (${pendingAmount.toLocaleString()} MXN) y entregar
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <span className="material-symbols-outlined text-xl group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                                                            </button>
+                                                        )}
+
+                                                        {/* RF-03 Flujo C: Botón Confirmar Entrega (Cuando saldo es 0 y trabajo liberado) */}
+                                                        {isReadyForDelivery && pendingAmount === 0 && (
+                                                            <button
+                                                                type="button"
+                                                                disabled={isDelivering}
+                                                                onClick={handleConfirmDelivery}
+                                                                className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-emerald-600/25 active:scale-95 transition-all cursor-pointer"
+                                                            >
+                                                                <span className="material-symbols-outlined text-2xl">task_alt</span>
                                                                 <div className="flex flex-col text-left">
-                                                                    <span>Cobrar Saldo Pendiente</span>
-                                                                    <span className="text-[9px] font-medium opacity-90">
-                                                                        Monto a liquidar: ${pendingAmount.toLocaleString()} MXN
-                                                                    </span>
+                                                                    <span>{isDelivering ? 'Registrando Entrega...' : 'Confirmar Entrega'}</span>
+                                                                    <span className="text-[9px] font-medium opacity-90">Saldo liquidado ($0 MXN) • Entregar al cliente</span>
                                                                 </div>
                                                             </button>
                                                         )}
 
-                                                        {/* Botón de Entrega Física QR (RF-01) */}
-                                                        {isReadyForDelivery ? (
-                                                            pendingAmount === 0 ? (
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={isDelivering}
-                                                                    onClick={handleConfirmDelivery}
-                                                                    className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
-                                                                >
-                                                                    <span className="material-symbols-outlined text-2xl">local_shipping</span>
-                                                                    <div className="flex flex-col text-left">
-                                                                        <span>{isDelivering ? 'Registrando Entrega...' : 'Confirmar Entrega Física'}</span>
-                                                                        <span className="text-[9px] font-medium opacity-90">Liquidado • Listo para entrega al cliente</span>
-                                                                    </div>
-                                                                </button>
-                                                            ) : (
-                                                                <div className="p-3 bg-muted/60 border border-border rounded-xl text-center text-xs font-bold text-muted-foreground">
-                                                                    ⚠️ Para confirmar la entrega, primero liquide el saldo pendiente (${pendingAmount.toLocaleString()} MXN).
-                                                                </div>
-                                                            )
-                                                        ) : !isJoyeroReturned ? (
+                                                        {/* Advertencia si no está liberado por el Joyero */}
+                                                        {!isReadyForDelivery && !isJoyeroReturned && (
                                                             <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2.5 text-xs text-amber-600 dark:text-amber-400 font-bold">
                                                                 <span className="material-symbols-outlined text-[20px] shrink-0">hourglass_top</span>
-                                                                <span>Pendiente de Producción: La orden no ha sido liberada por el Joyero. No puede ser entregada todavía.</span>
+                                                                <span>Pendiente de Producción: La orden no ha sido liberada por el taller. No puede entregarse todavía.</span>
                                                             </div>
-                                                        ) : null}
+                                                        )}
 
-                                                        {/* Botón Devolución Trabajo No Realizado (RF-02) */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                if (isJoyeroReturned) {
+                                                        {/* RF-03 Flujo B: Botón Registrar Abono (sin entregar) */}
+                                                        {pendingAmount > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setIsPaymentOpen(true)}
+                                                                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer"
+                                                            >
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="material-symbols-outlined text-xl">payments</span>
+                                                                    <div className="flex flex-col text-left">
+                                                                        <span>Registrar abono</span>
+                                                                        <span className="text-[9px] font-medium opacity-90">
+                                                                            Recibir pago parcial sin entregar el trabajo
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <span className="text-xs font-mono font-black">${pendingAmount.toLocaleString()} pendiente</span>
+                                                            </button>
+                                                        )}
+
+                                                        {/* Botón Devolución Trabajo No Realizado */}
+                                                        {isJoyeroReturned && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
                                                                     setReturnReason(foundOrder.specifications?.returnReason || '');
                                                                     setIsReturnModalOpen(true);
-                                                                } else {
-                                                                    alert('El trabajo aún no ha sido marcado como "Cancelado" o "Devuelto" por el Joyero. Debe esperar a que el taller registre la cancelación o devolución.');
-                                                                }
-                                                            }}
-                                                            className="w-full py-3 px-4 rounded-xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
-                                                        >
-                                                            <span className="material-symbols-outlined text-[18px]">assignment_return</span>
-                                                            <span>Cancelar / Devolver trabajo</span>
-                                                        </button>
+                                                                }}
+                                                                className="w-full py-3 px-4 rounded-xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">assignment_return</span>
+                                                                <span>Cancelar / Devolver trabajo al cliente</span>
+                                                            </button>
+                                                        )}
                                                     </>
                                                 );
                                             })()}
@@ -728,7 +875,17 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                         </div>
                                     )}
 
-                                    {/* Botón Historial del Cliente (RF-04) */}
+                                    {/* RF-04: Botón Consultar Pagos (Historial financiero) */}
+                                    <button
+                                        type="button"
+                                        onClick={handleOpenPaymentsHistory}
+                                        className="w-full py-2.5 px-4 rounded-xl border border-border bg-muted/40 hover:bg-muted text-foreground text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+                                        <span>Consultar pagos e historial financiero</span>
+                                    </button>
+
+                                    {/* Botón Historial del Cliente */}
                                     <button
                                         type="button"
                                         onClick={() => setIsClientHistoryOpen(true)}
@@ -865,6 +1022,229 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                 clientId={foundOrder?.clientId || foundOrder?.client?.id}
                 clientName={foundOrder?.client?.name || foundOrder?.customerName}
             />
+
+            {/* Modal RF-03 Flujo A: Liquidar y Entregar en un solo escaneo */}
+            {isSettleModalOpen && (
+                <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => !isSettling && setIsSettleModalOpen(false)}
+                        className="fixed inset-0 bg-black/70 backdrop-blur-xs"
+                    />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        className="relative w-full max-w-md bg-card border border-border rounded-3xl p-6 shadow-2xl flex flex-col gap-4 text-foreground cursor-default z-10"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="size-11 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 shadow-sm shrink-0">
+                                <span className="material-symbols-outlined text-[24px]">point_of_sale</span>
+                            </div>
+                            <div>
+                                <h4 className="font-black text-base uppercase tracking-tight">Liquidar y Entregar</h4>
+                                <p className="text-muted-foreground text-xs">{orderCode} — {clientName}</p>
+                            </div>
+                        </div>
+
+                        {/* Resumen del Saldo */}
+                        <div className="p-4 bg-muted/50 border border-border rounded-2xl space-y-2">
+                            <div className="flex items-center justify-between text-xs font-bold">
+                                <span className="text-muted-foreground uppercase text-[10px] tracking-wider">Monto a liquidar:</span>
+                                <span className="font-mono text-xl font-black text-emerald-600 dark:text-emerald-400">
+                                    ${pendingAmount.toLocaleString()} MXN
+                                </span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground font-medium">
+                                Al confirmar, se registrará el pago restante de ${pendingAmount.toLocaleString()} MXN y la orden quedará marcada como <strong>Entregada</strong> en una sola operación.
+                            </p>
+                        </div>
+
+                        {/* Selector de Método de Pago */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                                Método de Pago
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {[
+                                    { id: 'CASH', label: 'Efectivo', icon: 'payments' },
+                                    { id: 'CARD', label: 'Tarjeta', icon: 'credit_card' },
+                                    { id: 'TRANSFER', label: 'Transfer.', icon: 'account_balance' },
+                                ].map((m) => (
+                                    <button
+                                        key={m.id}
+                                        type="button"
+                                        onClick={() => setSettleMethod(m.id as any)}
+                                        className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                            settleMethod === m.id
+                                                ? 'bg-foreground border-foreground text-background shadow-md'
+                                                : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+                                        }`}
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">{m.icon}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-wider">{m.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Notas opcionales */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                                Referencia o Notas (Opcional)
+                            </label>
+                            <input
+                                type="text"
+                                value={settleNotes}
+                                onChange={(e) => setSettleNotes(e.target.value)}
+                                placeholder="Ej: Folio terminal / transferencia"
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none"
+                            />
+                        </div>
+
+                        {/* Acciones */}
+                        <div className="flex gap-2.5 pt-2">
+                            <button
+                                type="button"
+                                disabled={isSettling}
+                                onClick={() => setIsSettleModalOpen(false)}
+                                className="flex-1 py-3 px-4 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isSettling}
+                                onClick={handleSettleAndDeliver}
+                                className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                                <span>{isSettling ? 'Procesando...' : 'Confirmar y Entregar'}</span>
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Modal RF-04: Historial Financiero / Consultar Pagos */}
+            {isPaymentsHistoryOpen && (
+                <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setIsPaymentsHistoryOpen(false)}
+                        className="fixed inset-0 bg-black/70 backdrop-blur-xs"
+                    />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        className="relative w-full max-w-lg max-h-[85vh] bg-card border border-border rounded-3xl p-6 shadow-2xl flex flex-col gap-4 text-foreground cursor-default z-10 overflow-hidden"
+                    >
+                        <div className="flex items-center justify-between pb-3 border-b border-border">
+                            <div className="flex items-center gap-3">
+                                <div className="size-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/20 shadow-sm shrink-0">
+                                    <span className="material-symbols-outlined text-[22px]">receipt_long</span>
+                                </div>
+                                <div>
+                                    <h4 className="font-black text-base uppercase tracking-tight">Historial Financiero</h4>
+                                    <p className="text-muted-foreground text-xs">{orderCode} — {clientName}</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsPaymentsHistoryOpen(false)}
+                                className="size-8 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">close</span>
+                            </button>
+                        </div>
+
+                        {/* Desglose rápido */}
+                        <div className="grid grid-cols-3 gap-2 text-center p-3 rounded-2xl bg-muted/40 border border-border/60">
+                            <div>
+                                <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground block">Total</span>
+                                <span className="font-mono font-black text-xs sm:text-sm text-foreground">${totalAmount.toLocaleString()} MXN</span>
+                            </div>
+                            <div>
+                                <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground block">Abonado</span>
+                                <span className="font-mono font-black text-xs sm:text-sm text-emerald-600 dark:text-emerald-400">${paidAmount.toLocaleString()} MXN</span>
+                            </div>
+                            <div>
+                                <span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground block">Pendiente</span>
+                                <span className={`font-mono font-black text-xs sm:text-sm ${pendingAmount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                    ${pendingAmount.toLocaleString()} MXN
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Lista de Pagos */}
+                        <div className="space-y-2 overflow-y-auto flex-1 max-h-[300px] pr-1">
+                            {isLoadingPayments ? (
+                                <div className="py-8 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                                    <span className="material-symbols-outlined text-2xl animate-spin text-indigo-500">sync</span>
+                                    <span className="text-xs font-bold uppercase tracking-wider">Cargando pagos...</span>
+                                </div>
+                            ) : paymentsHistory.length === 0 ? (
+                                <div className="py-8 text-center p-4 border border-dashed border-border rounded-2xl text-muted-foreground space-y-1">
+                                    <span className="material-symbols-outlined text-3xl opacity-50">payments</span>
+                                    <p className="text-xs font-bold">No hay pagos o abonos registrados para esta orden.</p>
+                                    <p className="text-[10px] opacity-70">Los abonos registrados en mostrador aparecerán aquí.</p>
+                                </div>
+                            ) : (
+                                paymentsHistory.map((p, idx) => {
+                                    const methodLabel =
+                                        p.method === 'CASH' ? 'Efectivo' :
+                                        p.method === 'CARD' ? 'Tarjeta' :
+                                        p.method === 'TRANSFER' ? 'Transferencia' : (p.method || 'Pago');
+                                    const dateFormatted = p.recordedAt || p.createdAt
+                                        ? new Date(p.recordedAt || p.createdAt).toLocaleDateString('es-MX', {
+                                            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                          })
+                                        : 'Fecha no registrada';
+
+                                    return (
+                                        <div key={p.id || idx} className="p-3.5 rounded-2xl bg-muted/30 border border-border/60 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                                    <span className="material-symbols-outlined text-[18px]">paid</span>
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono font-black text-sm text-foreground">
+                                                            ${Number(p.amount || 0).toLocaleString()} MXN
+                                                        </span>
+                                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-zinc-200 dark:bg-zinc-800 text-foreground">
+                                                            {methodLabel}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                        {dateFormatted} {p.reference ? `• Ref: ${p.reference}` : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="pt-2 border-t border-border flex justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setIsPaymentsHistoryOpen(false)}
+                                className="px-5 py-2.5 rounded-xl bg-foreground text-background text-xs font-black uppercase tracking-wider hover:opacity-90 transition-all cursor-pointer"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </AnimatePresence>,
         document.body
     );

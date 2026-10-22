@@ -98,5 +98,9 @@ export class CreateOrderDto {
   dueDate?: string;
 
   @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
   specifications?: any; // JSON
 }

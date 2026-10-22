@@ -8,6 +8,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OrderStage, OrderStatus, Prisma } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { generateTrackToken, generateHmacToken } from './tracking.util';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import { OrderStrategyFactory } from './strategies/order-strategy.factory';
 import { NotificationService } from '../queue/notification.service';
@@ -326,6 +328,38 @@ export class OrdersService {
     if (!client) throw new BadRequestException('El cliente indicado no existe');
   }
 
+  async savePhotoFile(
+    tenantId: string,
+    fileOrBase64: { buffer?: Buffer; originalname?: string; mimetype?: string } | string,
+  ): Promise<string> {
+    const uploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
+    const tenantUploadsDir = path.join(uploadsDir, tenantId);
+    if (!fs.existsSync(tenantUploadsDir)) {
+      fs.mkdirSync(tenantUploadsDir, { recursive: true });
+    }
+
+    if (typeof fileOrBase64 === 'string') {
+      const match = fileOrBase64.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+      if (match) {
+        const mime = match[1];
+        const data = match[2];
+        const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+        const filename = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const filePath = path.join(tenantUploadsDir, filename);
+        fs.writeFileSync(filePath, Buffer.from(data, 'base64'));
+        return `/uploads/${tenantId}/${filename}`;
+      }
+      return fileOrBase64;
+    } else if (fileOrBase64 && (fileOrBase64 as any).buffer) {
+      const ext = path.extname((fileOrBase64 as any).originalname || '.jpg') || '.jpg';
+      const filename = `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
+      const filePath = path.join(tenantUploadsDir, filename);
+      fs.writeFileSync(filePath, (fileOrBase64 as any).buffer);
+      return `/uploads/${tenantId}/${filename}`;
+    }
+    return '';
+  }
+
   async createOrder(tenantId: string, data: CreateOrderDto, userId?: string) {
     await this.assertClientInTenant(tenantId, data.clientId);
     if (
@@ -337,6 +371,38 @@ export class OrdersService {
         'La fecha compromiso de entrega es obligatoria para registrar la orden.',
       );
     }
+
+    const type = data.type || 'STANDARD';
+    const isWorkshopJob =
+      type === 'REPAIR' ||
+      type === 'MANUFACTURE' ||
+      type === 'DESIGN' ||
+      type === 'LASER';
+
+    // RF-01: Medida y grosor obligatorios en trabajos técnicos
+    if (isWorkshopJob) {
+      const sizeVal = data.size || data.specifications?.items?.[0]?.size;
+      if (!sizeVal || !String(sizeVal).trim()) {
+        throw new BadRequestException('La medida es obligatoria.');
+      }
+      const thicknessVal = data.thickness || data.specifications?.items?.[0]?.thickness;
+      if (!thicknessVal || !String(thicknessVal).trim()) {
+        throw new BadRequestException('El grosor es obligatorio.');
+      }
+
+      if (Array.isArray(data.specifications?.items)) {
+        for (let i = 0; i < data.specifications.items.length; i++) {
+          const it = data.specifications.items[i];
+          if (!it.size || !String(it.size).trim()) {
+            throw new BadRequestException('La medida es obligatoria.');
+          }
+          if (!it.thickness || !String(it.thickness).trim()) {
+            throw new BadRequestException('El grosor es obligatorio.');
+          }
+        }
+      }
+    }
+
     const totalAmount = data.totalAmount ?? data.value ?? 0;
     const paidAmount = 0;
     const balance = totalAmount;
@@ -351,7 +417,6 @@ export class OrdersService {
       }
     }
 
-    const type = data.type || 'STANDARD';
     const count = await this.prisma.order.count({
       where: { tenantId, type },
     });
@@ -370,14 +435,43 @@ export class OrdersService {
                 : 'PED';
     const orderCode = `${prefix}-${sequence}`;
 
+    // RF-02: Persistencia robusta de fotografías
+    let photoUrl = data.imageUrl || data.specifications?.items?.[0]?.imageUrl || undefined;
+    if (photoUrl && typeof photoUrl === 'string' && photoUrl.startsWith('data:image/')) {
+      try {
+        photoUrl = await this.savePhotoFile(tenantId, photoUrl);
+      } catch (err) {
+        console.error('[OrdersService] Error saving photo to disk, using base64 fallback:', err);
+      }
+    }
+
+    const existingEnvelopeImages = Array.isArray(data.specifications?.envelopeImages)
+      ? [...data.specifications.envelopeImages]
+      : [];
+    if (photoUrl && !existingEnvelopeImages.includes(photoUrl)) {
+      existingEnvelopeImages.unshift(photoUrl);
+    }
+
+    const updatedItems = Array.isArray(data.specifications?.items)
+      ? data.specifications.items.map((it: any, idx: number) => ({
+          ...it,
+          imageUrl: idx === 0 && photoUrl ? photoUrl : it.imageUrl || undefined,
+        }))
+      : undefined;
+
     const specifications = {
       ...(typeof data.specifications === 'object' ? data.specifications : {}),
       orderCode,
+      envelopeImages: existingEnvelopeImages,
+      ...(updatedItems ? { items: updatedItems } : {}),
     };
 
     const created = await this.prisma.order.create({
       data: {
         ...data,
+        imageUrl: photoUrl || data.imageUrl || undefined,
+        size: data.size ? String(data.size).trim() : undefined,
+        thickness: data.thickness ? String(data.thickness).trim() : undefined,
         tenantId,
         createdById: data.createdById || userId,
         totalAmount,
@@ -1391,6 +1485,129 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
     const updated = await this.prisma.order.update({
       where: { id: order.id },
       data: updateData,
+    });
+
+    // Notificación opcional de entrega
+    this.notifyOrderWorkflowStatus(tenantId, order.id).catch((err) => {
+      console.error('[Workflow WhatsApp Notification Delivery Error]', err);
+    });
+
+    return updated;
+  }
+
+  // RF-03: Cobro y entrega en un solo escaneo QR (Transaccional y consistente)
+  async settleAndDeliverOrderViaQr(
+    tenantId: string,
+    idOrCode: string,
+    user: any,
+    paymentData?: { paymentMethod?: string; reference?: string },
+  ) {
+    const order = await this.getOrder(tenantId, idOrCode);
+    if (!order) {
+      throw new NotFoundException('Orden no encontrada');
+    }
+
+    const specs = (order.specifications as any) || {};
+    const currentStatus = String(order.status || '').toUpperCase();
+    const currentStage = String(order.stage || '').toUpperCase();
+
+    // 1. Verificar si ya fue entregada previamente (idempotencia)
+    if (
+      order.deliveredAt ||
+      currentStatus === 'DELIVERED' ||
+      currentStage === 'ENTREGADO_POSTVENTA'
+    ) {
+      throw new BadRequestException('Esta orden ya fue entregada anteriormente.');
+    }
+
+    // 2. Verificar si está cancelada o devuelta
+    if (
+      currentStatus === 'CANCELLED' ||
+      currentStatus === 'RETURNED' ||
+      specs.isReturned === true ||
+      specs.isReturnedToClient === true
+    ) {
+      throw new BadRequestException(
+        'No se puede entregar como terminada una orden cancelada o devuelta. Para este caso utilice la opción "Cancelar / Devolver trabajo".',
+      );
+    }
+
+    // 3. Verificar estado de liberación por Joyero / Taller
+    const isReady =
+      currentStatus === 'REPAIR_COMPLETED' ||
+      currentStatus === 'READY_FOR_PICKUP' ||
+      currentStage === 'LISTO_ENTREGA' ||
+      currentStatus === 'READY' ||
+      currentStatus === 'LISTO' ||
+      currentStatus === 'TERMINADO';
+
+    if (!isReady) {
+      throw new BadRequestException(
+        'No se puede entregar una orden pendiente de producción. Debe ser liberada y marcada como Terminada por el Joyero primero.',
+      );
+    }
+
+    const totalAmount = Number(
+      order.totalAmount || order.laborCost || order.value || 0,
+    );
+    const paidAmount = Number(order.paidAmount || 0);
+    const pendingBalance = Math.max(0, totalAmount - paidAmount);
+
+    const userName = user?.name || user?.email || 'Mostrador';
+    const now = new Date();
+
+    const updatedSpecs = {
+      ...specs,
+      deliveredByName: userName,
+      deliveredBy: {
+        id: user?.id,
+        name: userName,
+        email: user?.email,
+        role: user?.role,
+        at: now,
+      },
+      deliveryConfirmed: true,
+      deliveryMethod: 'QR_SCAN_SETTLE',
+    };
+
+    const updateData: any = {
+      deliveredAt: now,
+      paidAmount: totalAmount,
+      balance: 0,
+      paymentStatus: 'PAGADO',
+      specifications: updatedSpecs,
+    };
+
+    if (order.type === 'STANDARD') {
+      updateData.stage = 'ENTREGADO_POSTVENTA';
+    } else {
+      updateData.status = 'DELIVERED';
+    }
+
+    // Ejecutar de forma transaccional y consistente
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Si hay saldo pendiente, registrar el pago de liquidación en la misma transacción
+      if (pendingBalance > 0.009) {
+        await tx.payment.create({
+          data: {
+            orderId: order.id,
+            amount: new Prisma.Decimal(pendingBalance),
+            method: paymentData?.paymentMethod || 'Efectivo',
+            reference: paymentData?.reference || (paymentData as any)?.notes || 'Liquidación en entrega QR',
+            recordedBy: userName,
+          },
+        });
+      }
+
+      return tx.order.update({
+        where: { id: order.id },
+        data: updateData,
+        include: {
+          client: true,
+          createdBy: { select: { id: true, name: true, email: true } },
+          payments: true,
+        },
+      });
     });
 
     // Notificación opcional de entrega

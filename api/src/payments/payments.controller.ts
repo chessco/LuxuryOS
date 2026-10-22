@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Delete, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, Delete, Param } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -9,6 +9,12 @@ import { Role } from '@prisma/client';
 @UseGuards(JwtAuthGuard)
 export class PaymentsController {
     constructor(private paymentsService: PaymentsService) { }
+
+    @Get('order/:orderId')
+    async getPaymentsByOrder(@Param('orderId') orderId: string, @Request() req) {
+        const tenantId = req.user?.tenantId;
+        return this.paymentsService.getPaymentsByOrder(orderId, tenantId);
+    }
 
     @Post()
     async recordPayment(

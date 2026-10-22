@@ -44,6 +44,7 @@ const OrderDetail: React.FC = () => {
     const [activities, setActivities] = useState<any[]>([]);
     const envelopeFileInputRef = React.useRef<HTMLInputElement>(null);
     const envelopeCameraInputRef = React.useRef<HTMLInputElement>(null);
+    const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
     const compressImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.7): Promise<string> => {
         return new Promise((resolve) => {
@@ -783,7 +784,8 @@ const OrderDetail: React.FC = () => {
                         laborCost: order.laborCost || order.specifications?.laborCost,
                         commission: order.commission || order.specifications?.commission,
                         materialCost: order.materialCost || order.specifications?.materialCost,
-                        description: order.description || order.specifications?.diagnosis || order.specifications?.description || ''
+                        description: order.description || order.specifications?.diagnosis || order.specifications?.description || '',
+                        imageUrl: order.imageUrl || order.specifications?.imageUrl,
                     }]).map((piece: any, idx: number) => {
                         const formatSpecVal = (v: any, suffix: string) => {
                             if (!v && v !== 0) return undefined;
@@ -791,21 +793,41 @@ const OrderDetail: React.FC = () => {
                             if (str.toLowerCase().includes(suffix.toLowerCase().trim())) return str;
                             return `${str} ${suffix}`;
                         };
+                        const piecePhoto = piece.imageUrl || (idx === 0 ? order.imageUrl : undefined);
 
                         return (
                             <div key={idx} className="bg-muted/30 hover:bg-muted/50 border border-border rounded-[28px] p-6 sm:p-8 transition-all shadow-sm">
                                 <div className="space-y-4 w-full">
-                                    <div className="flex flex-wrap items-center gap-3.5">
-                                        <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                                            Pieza #{idx + 1}
-                                        </span>
-                                        <h4 className="text-foreground text-xl sm:text-2xl font-black uppercase tracking-tight truncate font-display">
-                                            {piece.item || (order.type === 'DESIGN' ? 'Diseño de Joya' : order.type === 'LASER' ? 'Grabado / Corte Láser' : order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
-                                        </h4>
-                                        {piece.itemCode && (
-                                            <span className="text-muted-foreground text-xs font-mono font-bold bg-muted px-2.5 py-1 rounded-lg border border-border">
-                                                {piece.itemCode}
+                                    <div className="flex flex-wrap items-center justify-between gap-3.5">
+                                        <div className="flex flex-wrap items-center gap-3.5">
+                                            <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                                Pieza #{idx + 1}
                                             </span>
+                                            <h4 className="text-foreground text-xl sm:text-2xl font-black uppercase tracking-tight truncate font-display">
+                                                {piece.item || (order.type === 'DESIGN' ? 'Diseño de Joya' : order.type === 'LASER' ? 'Grabado / Corte Láser' : order.type === OrderType.REPAIR ? 'Reparación de Joya' : 'Pieza de Joyería')}
+                                            </h4>
+                                            {piece.itemCode && (
+                                                <span className="text-muted-foreground text-xs font-mono font-bold bg-muted px-2.5 py-1 rounded-lg border border-border">
+                                                    {piece.itemCode}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {piecePhoto && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedPhoto(piecePhoto)}
+                                                className="flex items-center gap-2 p-1.5 pr-3 bg-muted/80 hover:bg-muted rounded-xl border border-border transition-all cursor-pointer group/photo"
+                                                title="Ver fotografía de la pieza"
+                                            >
+                                                <img
+                                                    src={piecePhoto}
+                                                    alt="Pieza"
+                                                    className="size-9 rounded-lg object-cover border border-border"
+                                                />
+                                                <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground group-hover/photo:text-foreground">Ver Foto</span>
+                                                <span className="material-symbols-outlined text-sm text-indigo-500">zoom_in</span>
+                                            </button>
                                         )}
                                     </div>
 
@@ -1028,30 +1050,46 @@ const OrderDetail: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                        {order.specifications?.envelopeImages?.map((img: string, idx: number) => (
-                            <div key={idx} className="aspect-square bg-muted rounded-2xl border border-border overflow-hidden relative group/img transition-colors">
-                                <img src={img} className="w-full h-full object-cover transition-transform group-hover/img:scale-110" alt={`Sobre ${idx}`} />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 group-focus-within/img:opacity-100 [@media(hover:none)]:opacity-100 [@media(hover:none)]:bg-transparent transition-opacity flex items-center justify-center [@media(hover:none)]:items-start [@media(hover:none)]:justify-end [@media(hover:none)]:p-2">
+                        {(() => {
+                            const allImages: string[] = Array.from(new Set([
+                                ...(order.specifications?.envelopeImages || []),
+                                ...(order.imageUrl ? [order.imageUrl] : [])
+                            ])).filter(Boolean);
+
+                            if (allImages.length === 0) {
+                                return (
                                     <button
-                                        onClick={() => handleRemoveEnvelopeImage(idx)}
-                                        aria-label={`Eliminar foto ${idx + 1} del sobre`}
-                                        className="size-11 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100 group-focus-within/img:scale-100 [@media(hover:none)]:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                                        type="button"
+                                        onClick={() => envelopeFileInputRef.current?.click()}
+                                        className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                     >
-                                        <span className="material-symbols-outlined" aria-hidden="true">delete</span>
+                                        <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform" aria-hidden="true">add_a_photo</span>
+                                        <span className="text-[11px] font-black uppercase tracking-widest">Agregar primera foto</span>
                                     </button>
+                                );
+                            }
+
+                            return allImages.map((img: string, idx: number) => (
+                                <div key={idx} className="aspect-square bg-muted rounded-2xl border border-border overflow-hidden relative group/img transition-colors">
+                                    <img
+                                        src={img}
+                                        className="w-full h-full object-cover transition-transform group-hover/img:scale-110 cursor-pointer"
+                                        alt={`Sobre / Foto ${idx + 1}`}
+                                        onClick={() => setSelectedPhoto(img)}
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 group-focus-within/img:opacity-100 [@media(hover:none)]:opacity-100 [@media(hover:none)]:bg-transparent transition-opacity flex items-center justify-center [@media(hover:none)]:items-start [@media(hover:none)]:justify-end [@media(hover:none)]:p-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveEnvelopeImage(idx)}
+                                            aria-label={`Eliminar foto ${idx + 1}`}
+                                            className="size-11 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100 group-focus-within/img:scale-100 [@media(hover:none)]:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
+                                        >
+                                            <span className="material-symbols-outlined" aria-hidden="true">delete</span>
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                        {(!order.specifications?.envelopeImages || order.specifications.envelopeImages.length === 0) && (
-                            <button
-                                type="button"
-                                onClick={() => envelopeFileInputRef.current?.click()}
-                                className="aspect-square bg-muted/50 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:border-indigo-500/50 transition-all cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                                >
-                                <span className="material-symbols-outlined text-3xl group-hover:scale-110 transition-transform" aria-hidden="true">add_a_photo</span>
-                                <span className="text-[11px] font-black uppercase tracking-widest">Agregar primera foto</span>
-                            </button>
-                        )}
+                            ));
+                        })()}
                     </div>
                 </section>
             )}
@@ -1149,6 +1187,30 @@ const OrderDetail: React.FC = () => {
                 onClose={() => setIsQRScannerOpen(false)}
                 onOrderUpdated={fetchOrder}
             />
+
+            {/* Photo Lightbox Modal */}
+            {selectedPhoto && (
+                <div
+                    onClick={() => setSelectedPhoto(null)}
+                    className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+                >
+                    <div className="relative max-w-4xl max-h-[90vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            type="button"
+                            onClick={() => setSelectedPhoto(null)}
+                            className="absolute -top-12 right-0 size-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all cursor-pointer"
+                            title="Cerrar vista previa"
+                        >
+                            <span className="material-symbols-outlined text-2xl">close</span>
+                        </button>
+                        <img
+                            src={selectedPhoto}
+                            alt="Fotografía de la orden"
+                            className="max-h-[85vh] max-w-full rounded-2xl object-contain border border-white/10 shadow-2xl bg-black/40"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

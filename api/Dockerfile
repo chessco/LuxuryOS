@@ -34,6 +34,7 @@ RUN npx prisma generate
 
 # Baja privilegios para runtime
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
+RUN mkdir -p /app/uploads && chown -R nestjs:nodejs /app/uploads
 USER nestjs
 
 EXPOSE 3002

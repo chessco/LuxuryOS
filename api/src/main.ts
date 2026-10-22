@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 import * as express from 'express';
+import * as path from 'path';
+import * as fs from 'fs';
 
 import { ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -38,6 +40,12 @@ async function bootstrap() {
     return jsonAnonymous(req, res, next);
   });
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+  const uploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
 
   app.useGlobalPipes(
     new ValidationPipe({

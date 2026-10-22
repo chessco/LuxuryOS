@@ -20,6 +20,11 @@ describe('OrdersService Unit Tests', () => {
     client: {
       findFirst: jest.fn(),
     },
+    payment: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    },
+    $transaction: jest.fn((callback) => callback(mockPrisma)),
   };
 
   const mockStrategyFactory = {
@@ -79,6 +84,8 @@ describe('OrdersService Unit Tests', () => {
         value: 1000,
         clientId: 'client-123',
         promisedAt: '2026-12-01T00:00:00.000Z',
+        size: '7',
+        thickness: '2mm',
       };
 
       const result: any = await service.createOrder('tenant-1', dto, 'user-1');
@@ -88,11 +95,131 @@ describe('OrdersService Unit Tests', () => {
       expect(mockPrisma.order.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
+            size: '7',
+            thickness: '2mm',
             specifications: expect.objectContaining({
               orderCode: 'FAB-1',
             }),
           }),
         }),
+      );
+    });
+
+    it('RF-01: should reject workshop orders without medida', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+
+      const dto: any = {
+        type: 'REPAIR',
+        pieceType: 'ANILLO',
+        value: 500,
+        clientId: 'client-123',
+        promisedAt: '2026-12-01T00:00:00.000Z',
+        thickness: '2mm',
+        // size missing
+      };
+
+      await expect(
+        service.createOrder('tenant-1', dto, 'user-1'),
+      ).rejects.toThrow('La medida es obligatoria.');
+    });
+
+    it('RF-01: should reject workshop orders with only whitespace in medida', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+
+      const dto: any = {
+        type: 'REPAIR',
+        pieceType: 'ANILLO',
+        value: 500,
+        clientId: 'client-123',
+        promisedAt: '2026-12-01T00:00:00.000Z',
+        size: '   ',
+        thickness: '2mm',
+      };
+
+      await expect(
+        service.createOrder('tenant-1', dto, 'user-1'),
+      ).rejects.toThrow('La medida es obligatoria.');
+    });
+
+    it('RF-01: should reject workshop orders without grosor', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+
+      const dto: any = {
+        type: 'REPAIR',
+        pieceType: 'CADENA',
+        value: 500,
+        clientId: 'client-123',
+        promisedAt: '2026-12-01T00:00:00.000Z',
+        size: '18cm',
+        // thickness missing
+      };
+
+      await expect(
+        service.createOrder('tenant-1', dto, 'user-1'),
+      ).rejects.toThrow('El grosor es obligatorio.');
+    });
+
+    it('RF-01: should reject workshop orders with only whitespace in grosor', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+
+      const dto: any = {
+        type: 'REPAIR',
+        pieceType: 'CADENA',
+        value: 500,
+        clientId: 'client-123',
+        promisedAt: '2026-12-01T00:00:00.000Z',
+        size: '18cm',
+        thickness: '   ',
+      };
+
+      await expect(
+        service.createOrder('tenant-1', dto, 'user-1'),
+      ).rejects.toThrow('El grosor es obligatorio.');
+    });
+
+    it('RF-01: should allow creating non-workshop orders (e.g. STANDARD) without size/thickness', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.order.count.mockResolvedValue(0);
+      mockPrisma.order.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'order-std', ...data }),
+      );
+
+      const dto: any = {
+        type: 'STANDARD',
+        pieceType: 'RELOJ',
+        value: 3000,
+        clientId: 'client-123',
+        promisedAt: '2026-12-01T00:00:00.000Z',
+      };
+
+      const result = await service.createOrder('tenant-1', dto, 'user-1');
+      expect(result).toBeDefined();
+      expect(result.id).toBe('order-std');
+    });
+
+    it('RF-02: should persist photo and add to envelopeImages upon creation', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.order.count.mockResolvedValue(0);
+      mockPrisma.order.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'order-photo-1', ...data }),
+      );
+
+      const dto: any = {
+        type: 'REPAIR',
+        pieceType: 'ANILLO',
+        value: 800,
+        clientId: 'client-123',
+        promisedAt: '2026-12-01T00:00:00.000Z',
+        size: '7',
+        thickness: '2mm',
+        imageUrl: 'https://example.com/photo.jpg',
+      };
+
+      const result: any = await service.createOrder('tenant-1', dto, 'user-1');
+      expect(result).toBeDefined();
+      expect(result.imageUrl).toBe('https://example.com/photo.jpg');
+      expect(result.specifications.envelopeImages).toContain(
+        'https://example.com/photo.jpg',
       );
     });
   });
@@ -402,6 +529,156 @@ describe('OrdersService Unit Tests', () => {
           email: 'diseno@cared.mx',
         }),
       ).rejects.toThrow('Diseñador no tiene permitido');
+    });
+  });
+
+  describe('RF-03: settleAndDeliverOrderViaQr (Cobro y entrega en un solo escaneo QR)', () => {
+    it('should settle pending balance and deliver in a single transaction', async () => {
+      const mockOrder = {
+        id: 'ord-settle-1',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'REPAIR_COMPLETED',
+        totalAmount: 2500,
+        paidAmount: 1000,
+        balance: 1500,
+        specifications: { orderCode: 'REP-125' },
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+      mockPrisma.payment.create.mockResolvedValue({ id: 'pay-1', amount: 1500 });
+      mockPrisma.order.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...mockOrder, ...data }),
+      );
+
+      const result: any = await service.settleAndDeliverOrderViaQr(
+        'tenant-1',
+        'ord-settle-1',
+        { id: 'u-mostrador', name: 'Mostrador Fabiola', role: 'VENDEDOR' },
+        { paymentMethod: 'Tarjeta', reference: 'POS-0992' },
+      );
+
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(mockPrisma.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            orderId: 'ord-settle-1',
+            method: 'Tarjeta',
+            reference: 'POS-0992',
+            recordedBy: 'Mostrador Fabiola',
+          }),
+        }),
+      );
+      expect(result.status).toBe('DELIVERED');
+      expect(result.balance).toBe(0);
+      expect(result.paidAmount).toBe(2500);
+      expect(result.paymentStatus).toBe('PAGADO');
+      expect(result.deliveredAt).toBeDefined();
+      expect(result.specifications.deliveredByName).toBe('Mostrador Fabiola');
+      expect(result.specifications.deliveryMethod).toBe('QR_SCAN_SETTLE');
+    });
+
+    it('should deliver already paid order ($0 balance) without registering duplicate payment', async () => {
+      const mockOrder = {
+        id: 'ord-settle-paid',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'REPAIR_COMPLETED',
+        totalAmount: 1800,
+        paidAmount: 1800,
+        balance: 0,
+        specifications: { orderCode: 'REP-126' },
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+      mockPrisma.order.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...mockOrder, ...data }),
+      );
+
+      const result: any = await service.settleAndDeliverOrderViaQr(
+        'tenant-1',
+        'ord-settle-paid',
+        { id: 'u-mostrador', name: 'Mostrador Fabiola', role: 'VENDEDOR' },
+      );
+
+      expect(mockPrisma.payment.create).not.toHaveBeenCalled();
+      expect(result.status).toBe('DELIVERED');
+      expect(result.balance).toBe(0);
+      expect(result.deliveredAt).toBeDefined();
+    });
+
+    it('should reject delivery if order is already delivered (idempotency)', async () => {
+      const mockOrder = {
+        id: 'ord-already-del',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'DELIVERED',
+        deliveredAt: new Date(),
+        totalAmount: 1000,
+        paidAmount: 1000,
+        balance: 0,
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.settleAndDeliverOrderViaQr('tenant-1', 'ord-already-del', {
+          id: 'u-mostrador',
+          role: 'VENDEDOR',
+        }),
+      ).rejects.toThrow('Esta orden ya fue entregada anteriormente.');
+      expect(mockPrisma.payment.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject delivery if order is still in production', async () => {
+      const mockOrder = {
+        id: 'ord-in-prod',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'IN_REPAIR',
+        totalAmount: 1000,
+        paidAmount: 500,
+        balance: 500,
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.settleAndDeliverOrderViaQr('tenant-1', 'ord-in-prod', {
+          id: 'u-mostrador',
+          role: 'VENDEDOR',
+        }),
+      ).rejects.toThrow('pendiente de producción');
+      expect(mockPrisma.payment.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject delivery if order is cancelled or returned', async () => {
+      const mockOrder = {
+        id: 'ord-cancelled',
+        tenantId: 'tenant-1',
+        type: 'REPAIR',
+        status: 'CANCELLED',
+        totalAmount: 1000,
+        paidAmount: 0,
+        balance: 1000,
+      };
+      mockPrisma.order.findFirst.mockResolvedValue(mockOrder);
+
+      await expect(
+        service.settleAndDeliverOrderViaQr('tenant-1', 'ord-cancelled', {
+          id: 'u-mostrador',
+          role: 'VENDEDOR',
+        }),
+      ).rejects.toThrow('cancelada o devuelta');
+      expect(mockPrisma.payment.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject delivery if order belongs to another tenant', async () => {
+      mockPrisma.order.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.settleAndDeliverOrderViaQr('tenant-other', 'ord-settle-1', {
+          id: 'u-mostrador',
+          role: 'VENDEDOR',
+        }),
+      ).rejects.toThrow('Orden no encontrada');
+      expect(mockPrisma.payment.create).not.toHaveBeenCalled();
     });
   });
 });

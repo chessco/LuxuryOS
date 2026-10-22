@@ -10,7 +10,11 @@ import {
     Request,
     Query,
     ForbiddenException,
+    BadRequestException,
+    UseInterceptors,
+    UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OrderStage } from '@prisma/client';
@@ -78,9 +82,38 @@ export class OrdersController {
         return this.ordersService.generateAIImage(req.user.tenantId, id);
     }
 
+    @Post('orders/upload-photo')
+    @UseInterceptors(FileInterceptor('file'))
+    async uploadPhoto(
+        @UploadedFile() file: any,
+        @Body('base64') base64: string,
+        @Request() req,
+    ) {
+        const input = file || base64;
+        if (!input) {
+            throw new BadRequestException('No se proporcionó imagen');
+        }
+        const url = await this.ordersService.savePhotoFile(req.user.tenantId, input);
+        return { url };
+    }
+
     @Post('orders/:id/deliver')
     async deliverOrder(@Param('id') id: string, @Request() req) {
         return this.ordersService.deliverOrderViaQr(req.user.tenantId, id, req.user);
+    }
+
+    @Post('orders/:id/settle-and-deliver')
+    async settleAndDeliverOrder(
+        @Param('id') id: string,
+        @Body() body: { paymentMethod?: string; reference?: string },
+        @Request() req,
+    ) {
+        return this.ordersService.settleAndDeliverOrderViaQr(
+            req.user.tenantId,
+            id,
+            req.user,
+            body,
+        );
     }
 
     @Post('orders/:id/return-client')

@@ -39,6 +39,8 @@ services:
       - AURA_TOOLS_ENABLED=${AURA_TOOLS_ENABLED:-false}
       - AURA_TOOLS_SECRET=${AURA_TOOLS_SECRET:-}
       - AURA_TOOLS_CALLBACK_URL=${AURA_TOOLS_CALLBACK_URL:-}
+    volumes:
+      - uploads_prod_data:/app/uploads
     networks:
       - pitaya_net
 
@@ -48,3 +50,4 @@ networks:
 
 volumes:
   mysql_prod_data:
+  uploads_prod_data:
