@@ -126,15 +126,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 }
             `}>
                 <div className="flex items-center justify-between mb-8 px-2 py-4">
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-blue-900 size-10 shadow-lg shadow-indigo-500/20">
-                            <span className="material-symbols-outlined text-white text-xl">diamond</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <h1 className="text-foreground text-lg font-bold leading-none tracking-tight uppercase whitespace-nowrap">{atelierName}</h1>
-                            <p className="text-muted-foreground text-[10px] font-medium tracking-widest mt-1 uppercase whitespace-nowrap">Luxury OS</p>
-                        </div>
-                    </div>
+                    {/* Logo corporativo (blanco): en temas claros se invierte a negro */}
+                    <h1 className="flex items-center">
+                        <img
+                            src="/cared-logo.png"
+                            alt={atelierName}
+                            width={683}
+                            height={338}
+                            className="h-14 w-auto select-none invert dark:invert-0"
+                            draggable={false}
+                        />
+                    </h1>
                     {/* Close button for drawer */}
                     <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-muted">
                         <span className="material-symbols-outlined text-[20px]">close</span>

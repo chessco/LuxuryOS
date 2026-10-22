@@ -16,8 +16,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
         manifest: {
-          name: 'LuxuryOS - Jewelry Suite',
-          short_name: 'LuxuryOS',
+          name: 'Cared',
+          short_name: 'Cared',
           description: 'Premium Jewelry Business Management Suite',
           theme_color: '#000000',
           background_color: '#000000',
