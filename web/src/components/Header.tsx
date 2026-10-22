@@ -170,18 +170,16 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                 >
                     <span className="material-symbols-outlined text-[22px]">menu</span>
                 </button>
-                <Link to="/orders?type=REPAIR" className="flex items-center gap-2.5 pl-1 cursor-pointer">
-                    <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-blue-900 size-9 shadow-md shadow-indigo-500/20 ring-1 ring-indigo-500/30">
-                        <span className="material-symbols-outlined text-white text-lg">diamond</span>
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-foreground font-black text-base tracking-wider uppercase font-display leading-none">
-                            {atelierName}
-                        </span>
-                        <span className="text-muted-foreground text-[8px] font-black tracking-[0.2em] uppercase mt-0.5">
-                            Atelier • Luxury OS
-                        </span>
-                    </div>
+                <Link to="/orders?type=REPAIR" className="flex items-center pl-1 cursor-pointer" aria-label={atelierName}>
+                    {/* Logo corporativo (blanco): en temas claros se invierte a negro */}
+                    <img
+                        src="/cared-logo.png"
+                        alt={atelierName}
+                        width={683}
+                        height={338}
+                        className="h-14 w-auto select-none invert dark:invert-0"
+                        draggable={false}
+                    />
                 </Link>
             </div>
 
