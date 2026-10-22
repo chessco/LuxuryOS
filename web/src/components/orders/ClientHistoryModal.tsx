@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ClientsService } from '../../services/clients.service';
+import { resolveMediaUrl } from '../../services/api';
 import { getStatusLabel } from '../../pages/Orders';
 
 interface ClientHistoryModalProps {
@@ -293,7 +294,7 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({
                                                         <div className="flex flex-wrap gap-2">
                                                             {o.imageUrl && (
                                                                 <img
-                                                                    src={o.imageUrl}
+                                                                    src={resolveMediaUrl(o.imageUrl)}
                                                                     alt="Foto Orden"
                                                                     onClick={() => setSelectedPhoto(o.imageUrl)}
                                                                     className="size-14 object-cover rounded-xl border border-border cursor-pointer hover:opacity-80 transition"
@@ -302,7 +303,7 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({
                                                             {o.envelopeImages?.map((img: string, idx: number) => (
                                                                 <img
                                                                     key={idx}
-                                                                    src={img}
+                                                                    src={resolveMediaUrl(img)}
                                                                     alt={`Sobre ${idx + 1}`}
                                                                     onClick={() => setSelectedPhoto(img)}
                                                                     className="size-14 object-cover rounded-xl border border-border cursor-pointer hover:opacity-80 transition"
@@ -337,7 +338,7 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({
                             className="fixed inset-0 z-[150] bg-black/90 flex items-center justify-center p-4 cursor-pointer"
                         >
                             <img
-                                src={selectedPhoto}
+                                src={resolveMediaUrl(selectedPhoto)}
                                 alt="Foto ampliada"
                                 className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl"
                             />

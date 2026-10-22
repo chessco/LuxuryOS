@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
+import { resolveMediaUrl } from '../../services/api';
 
 interface RepairPrintViewProps {
     isOpen: boolean;
@@ -237,7 +238,7 @@ export const RepairPrintView: React.FC<RepairPrintViewProps> = ({ isOpen, onClos
                                 <div className="grid grid-cols-3 gap-4">
                                     {order.specifications.envelopeImages.map((img: string, idx: number) => (
                                         <div key={idx} className="relative group/img aspect-video bg-zinc-100 rounded-lg overflow-hidden border border-zinc-200">
-                                            <img src={img} className="w-full h-full object-cover" alt={`Sobre ${idx + 1}`} />
+                                            <img src={resolveMediaUrl(img)} className="w-full h-full object-cover" alt={`Sobre ${idx + 1}`} />
                                         </div>
                                     ))}
                                 </div>

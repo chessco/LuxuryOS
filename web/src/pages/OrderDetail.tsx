@@ -16,6 +16,7 @@ import { ClientHistoryModal } from '../components/orders/ClientHistoryModal';
 import { QRScannerModal } from '../components/orders/QRScannerModal';
 import { getStatusLabel, formatOrderCode } from './Orders';
 import { RBACService } from '../services/rbac.service';
+import { resolveMediaUrl } from '../services/api';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -47,7 +48,7 @@ const OrderDetail: React.FC = () => {
     const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
     const compressImageFile = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.7): Promise<string> => {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
@@ -72,8 +73,12 @@ const OrderDetail: React.FC = () => {
                     ctx?.drawImage(img, 0, 0, width, height);
                     resolve(canvas.toDataURL('image/jpeg', quality));
                 };
+                // Si el navegador no puede decodificar la imagen (p. ej. HEIC de iPhone/iPad)
+                // se envía el original en vez de quedarse esperando sin guardar nada.
+                img.onerror = () => resolve(event.target?.result as string);
                 img.src = event.target?.result as string;
             };
+            reader.onerror = () => reject(reader.error);
             reader.readAsDataURL(file);
         });
     };
@@ -186,13 +191,22 @@ const OrderDetail: React.FC = () => {
 
         try {
             const compressedBase64 = await compressImageFile(file);
+            // La foto se guarda en disco (volumen de uploads) y en la orden queda solo la URL;
+            // si la subida falla se conserva el base64 para no perder la foto.
+            let storedImage = compressedBase64;
+            try {
+                const uploaded = await OrdersService.uploadPhoto(compressedBase64);
+                if (uploaded?.url) storedImage = uploaded.url;
+            } catch (uploadError) {
+                console.error("Photo upload failed, keeping base64:", uploadError);
+            }
             const currentImages = order.specifications?.envelopeImages || [];
             const updatedSpecs = {
                 ...order.specifications,
-                envelopeImages: [...currentImages, compressedBase64]
+                envelopeImages: [...currentImages, storedImage]
             };
 
-            console.log("Uploading envelope image, size:", Math.round(compressedBase64.length / 1024), "KB");
+            console.log("Saving envelope image, size:", Math.round(storedImage.length / 1024), "KB");
             await OrdersService.updateOrder(id, { specifications: updatedSpecs });
 
             // Re-fetch to ensure sync with server
@@ -821,7 +835,7 @@ const OrderDetail: React.FC = () => {
                                                 title="Ver fotografía de la pieza"
                                             >
                                                 <img
-                                                    src={piecePhoto}
+                                                    src={resolveMediaUrl(piecePhoto)}
                                                     alt="Pieza"
                                                     className="size-9 rounded-lg object-cover border border-border"
                                                 />
@@ -1072,7 +1086,7 @@ const OrderDetail: React.FC = () => {
                             return allImages.map((img: string, idx: number) => (
                                 <div key={idx} className="aspect-square bg-muted rounded-2xl border border-border overflow-hidden relative group/img transition-colors">
                                     <img
-                                        src={img}
+                                        src={resolveMediaUrl(img)}
                                         className="w-full h-full object-cover transition-transform group-hover/img:scale-110 cursor-pointer"
                                         alt={`Sobre / Foto ${idx + 1}`}
                                         onClick={() => setSelectedPhoto(img)}
@@ -1204,7 +1218,7 @@ const OrderDetail: React.FC = () => {
                             <span className="material-symbols-outlined text-2xl">close</span>
                         </button>
                         <img
-                            src={selectedPhoto}
+                            src={resolveMediaUrl(selectedPhoto)}
                             alt="Fotografía de la orden"
                             className="max-h-[85vh] max-w-full rounded-2xl object-contain border border-white/10 shadow-2xl bg-black/40"
                         />
