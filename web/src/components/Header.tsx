@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import QRScannerModal from './orders/QRScannerModal';
 import { useTheme } from '../context/ThemeContext';
 import { OrdersService } from '../services/orders.service';
+import { NotificationsService } from '../services/notifications.service';
 import { formatOrderCode } from '../pages/Orders';
 
 interface HeaderProps {
@@ -15,7 +16,10 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
     const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const [orderNotifications, setNotifications] = useState<any[]>([]);
+    const [whatsappAlert, setWhatsappAlert] = useState<any | null>(null);
+    // La alerta de WhatsApp sin conexión va siempre primero
+    const notifications = whatsappAlert ? [whatsappAlert, ...orderNotifications] : orderNotifications;
 
     const notifRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
@@ -116,6 +120,32 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
         return () => { isMounted = false; };
     }, []);
 
+    // Avisa si el sistema de notificaciones (WhatsApp) no tiene conexión
+    useEffect(() => {
+        let isMounted = true;
+        const checkWhatsApp = () => {
+            NotificationsService.getWhatsAppStatus().then((status) => {
+                if (!isMounted) return;
+                if (status.connected) {
+                    setWhatsappAlert(null);
+                    return;
+                }
+                setWhatsappAlert({
+                    id: 'whatsapp-disconnected',
+                    href: '/settings/integrations',
+                    title: 'WhatsApp sin conexión',
+                    description: `No se pudieron enviar ${status.failedCount} notificación(es) a clientes. Vuelve a vincular el número en PitayaCore.`,
+                    type: 'danger',
+                    icon: 'wifi_off',
+                    time: 'Sin conexión'
+                });
+            }).catch(() => {});
+        };
+        checkWhatsApp();
+        const interval = setInterval(checkWhatsApp, 2 * 60 * 1000);
+        return () => { isMounted = false; clearInterval(interval); };
+    }, []);
+
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -214,7 +244,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                                         )}
                                     </div>
                                     <button 
-                                        onClick={() => setNotifications([])}
+                                        onClick={() => { setNotifications([]); setWhatsappAlert(null); }}
                                         className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                                     >
                                         Limpiar
@@ -228,7 +258,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                                                 key={n.id}
                                                 onClick={() => {
                                                     setIsNotificationsOpen(false);
-                                                    navigate(`/orders/${n.orderId}`);
+                                                    navigate(n.orderId ? `/orders/${n.orderId}` : n.href);
                                                 }}
                                                 className="w-full text-left p-3 rounded-2xl hover:bg-muted/60 border border-transparent hover:border-border transition-all flex items-start gap-3 cursor-pointer group"
                                             >
