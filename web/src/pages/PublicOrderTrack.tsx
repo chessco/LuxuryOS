@@ -188,7 +188,7 @@ export const PublicOrderTrack: React.FC = () => {
                                 <span className="text-[11px] font-black uppercase tracking-[0.2em] text-cared-gold">
                                     {order.concept}
                                 </span>
-                                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black tracking-widest bg-cared-line border border-cared-line text-cared-ink">
+                                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black tracking-widest bg-cared-red border border-cared-red text-white">
                                     {order.orderCode}
                                 </span>
                             </div>
@@ -297,8 +297,8 @@ export const PublicOrderTrack: React.FC = () => {
                         </div>
 
                         {/* Footer notice inside card */}
-                        <div className="p-4 bg-cared-bg/60 border-t border-cared-line/60 text-center">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-cared-mute">
+                        <div className="p-4 bg-cared-red text-center">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-white">
                                 Actualizado en tiempo real por el equipo de CARED
                             </p>
                         </div>

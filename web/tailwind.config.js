@@ -32,6 +32,7 @@ export default {
                     ink: "hsl(var(--foreground) / <alpha-value>)",
                     mute: "hsl(var(--muted-foreground) / <alpha-value>)",
                     gold: "hsl(var(--primary) / <alpha-value>)",
+                    red: "hsl(var(--cared-red) / <alpha-value>)",
                 },
                 primary: {
                     DEFAULT: "#1152d4",

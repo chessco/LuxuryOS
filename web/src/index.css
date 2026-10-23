@@ -111,6 +111,8 @@
         /* dorado #C9A24B */
         --primary-foreground: 240 10% 5%;
         --accent: 40 20% 14%;
+        --cared-red: 351 85% 42%;
+        /* rojo corporativo #C8102E (ajustar aquí si cambia el tono) */
     }
 
     body {
