@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import JsBarcode from 'jsbarcode';
 import axios from 'axios';
+import api from '../../services/api';
 import { getTrackToken } from '../../utils/tracking';
 import { formatOrderCode } from '../../pages/Orders';
 
@@ -87,7 +88,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         const trackingUrl = `https://luxuryos.pitayacode.io/track/${trackToken}`;
 
         const codeImageUrl = labelCodeType === 'QR'
-            ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${orderCode}`
+            ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`
             : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
 
         const pieceSummaries = pieces.map((p, idx) => {
@@ -229,7 +230,28 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
     const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
     let atelierName = (atelierSettings.name || 'CARED').toUpperCase();
     if (!atelierName || atelierName.includes('LUXURY')) atelierName = 'CARED';
-    const labelCodeType = atelierSettings.labelCodeType || localStorage.getItem('label_code_type') || 'BARCODE';
+    // QR de la etiqueta impresa: el enlace de seguimiento, igual al que se manda por WhatsApp
+    const labelQrValue = order ? `https://luxuryos.pitayacode.io/track/${getTrackToken(order.id)}` : '';
+
+    // El valor de este navegador solo existe si alguien guardó la configuración en este equipo;
+    // la fuente de verdad es el servidor, que se consulta al abrir la etiqueta.
+    const [labelCodeType, setLabelCodeType] = useState<string>(
+        atelierSettings.labelCodeType || localStorage.getItem('label_code_type') || 'BARCODE',
+    );
+
+    useEffect(() => {
+        if (!isOpen) return;
+        let cancelled = false;
+        api.get('/settings')
+            .then(({ data }) => {
+                const serverType = data?.label_code_type;
+                if (cancelled || (serverType !== 'QR' && serverType !== 'BARCODE')) return;
+                setLabelCodeType(serverType);
+                try { localStorage.setItem('label_code_type', serverType); } catch { /* sin almacenamiento */ }
+            })
+            .catch(() => { /* se queda con el valor local */ });
+        return () => { cancelled = true; };
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen && order && barcodeRef.current && labelCodeType === 'BARCODE') {
@@ -398,12 +420,13 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                                 {labelCodeType === 'QR' ? (
                                     <div className="flex flex-col items-center gap-0.5">
                                         <div className="p-1 bg-white border border-black rounded">
-                                            <QRCodeSVG 
-                                                value={isTurnOrder ? (order.queueTicket?.qrToken || order.queueTicket?.code) : orderCode} 
-                                                size={60} 
-                                                bgColor="#ffffff" 
-                                                fgColor="#000000" 
-                                                level="M" 
+                                            {/* Mismo QR que el de WhatsApp: enlace de seguimiento, que también abre la orden en el escáner */}
+                                            <QRCodeSVG
+                                                value={isTurnOrder ? (order.queueTicket?.qrToken || order.queueTicket?.code) : labelQrValue}
+                                                size={isTurnOrder ? 60 : 76}
+                                                bgColor="#ffffff"
+                                                fgColor="#000000"
+                                                level={isTurnOrder ? 'M' : 'L'}
                                             />
                                         </div>
                                         <span className="text-[7.5px] font-black tracking-widest uppercase mt-0.5 leading-none">
