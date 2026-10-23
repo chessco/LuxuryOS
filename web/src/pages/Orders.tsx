@@ -2009,25 +2009,6 @@ const NewOrderDrawer: React.FC<{
                                     otherPlaceholder="Especificar otra prioridad..."
                                 />
                             </div>
-
-                            {/* Requiere etapa de Diseño (RF-05) */}
-                            <div className="p-3.5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 flex items-center justify-between gap-3 shadow-xs">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="size-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
-                                        <span className="material-symbols-outlined text-[18px]">palette</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-black uppercase tracking-wider text-foreground">Requiere etapa de Diseño</p>
-                                        <p className="text-[10px] text-muted-foreground">La orden pasará primero al Diseñador antes de asignarse al Joyero</p>
-                                    </div>
-                                </div>
-                                <input
-                                    type="checkbox"
-                                    checked={formData.requiresDesign || false}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, requiresDesign: e.target.checked }))}
-                                    className="size-5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                />
-                            </div>
                         </div>
                     </div>
                 </form>
