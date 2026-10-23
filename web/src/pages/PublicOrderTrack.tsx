@@ -163,11 +163,11 @@ export const PublicOrderTrack: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={verifying || phoneDigits.length < 4}
-                                className="w-full py-3.5 px-6 rounded-2xl bg-cared-gold text-black font-black text-xs uppercase tracking-widest hover:bg-cared-gold/80 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-lg shadow-cared-gold/10 flex items-center justify-center gap-2"
+                                className="w-full py-3.5 px-6 rounded-2xl bg-cared-red text-white font-black text-xs uppercase tracking-widest hover:bg-cared-red/85 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-lg shadow-cared-red/20 flex items-center justify-center gap-2"
                             >
                                 {verifying ? (
                                     <>
-                                        <div className="size-4 rounded-full border-2 border-black border-t-transparent animate-spin"></div>
+                                        <div className="size-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
                                         <span>Verificando...</span>
                                     </>
                                 ) : (
