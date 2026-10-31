@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" class="notranslate" translate="no">
+<html lang="es" class="dark notranslate" translate="no">
 
 <head>
   <meta charset="UTF-8" />
@@ -10,6 +10,20 @@
   <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
   <meta name="google" content="notranslate" />
   <title>Cared</title>
+  <script>
+    try {
+      var saved = localStorage.getItem('theme-mode');
+      if (saved === 'light') {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      } else {
+        document.documentElement.classList.add('dark');
+        if (!saved) localStorage.setItem('theme-mode', 'dark');
+      }
+    } catch (e) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

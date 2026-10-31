@@ -69,7 +69,7 @@ export default function LoginPage() {
                                 autoComplete="off"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-muted border border-border rounded-xl sm:rounded-2xl py-3.5 sm:py-4 pl-12 pr-4 text-base sm:text-sm text-foreground focus:border-emerald-500 focus:outline-none transition-all placeholder-muted-foreground"
+                                className="w-full bg-muted border border-border rounded-xl sm:rounded-2xl py-3.5 sm:py-4 pl-12 pr-4 text-base sm:text-sm text-foreground focus:border-red-500 focus:outline-none transition-all placeholder-muted-foreground"
                                 placeholder="Identificador de Usuario"
                             />
                         </div>
@@ -82,7 +82,7 @@ export default function LoginPage() {
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-muted border border-border rounded-xl sm:rounded-2xl py-3.5 sm:py-4 pl-12 pr-4 text-base sm:text-sm text-foreground focus:border-emerald-500 focus:outline-none transition-all placeholder-muted-foreground"
+                                className="w-full bg-muted border border-border rounded-xl sm:rounded-2xl py-3.5 sm:py-4 pl-12 pr-4 text-base sm:text-sm text-foreground focus:border-red-500 focus:outline-none transition-all placeholder-muted-foreground"
                                 placeholder="Código de Acceso"
                             />
                         </div>
@@ -90,10 +90,10 @@ export default function LoginPage() {
 
                     <div className="flex items-center justify-between px-1 sm:px-2">
                         <div className="flex items-center gap-2 cursor-pointer group">
-                            <div className="size-4 rounded border border-border group-hover:border-emerald-500 transition-colors"></div>
+                            <div className="size-4 rounded border border-border group-hover:border-red-500 transition-colors"></div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">Recordar sesión</span>
                         </div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-400 cursor-pointer">Recuperar acceso</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-400 cursor-pointer">Recuperar acceso</p>
                     </div>
 
                     <button
