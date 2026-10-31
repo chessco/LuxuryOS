@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 describe('ClientsService Unit Tests', () => {
   let service: ClientsService;
 
-  const mockPrisma = {
+  const mockPrisma: any = {
     client: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -13,6 +13,17 @@ describe('ClientsService Unit Tests', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    order: {
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    payment: {
+      deleteMany: jest.fn(),
+    },
+    queueTicket: {
+      updateMany: jest.fn(),
+    },
+    $transaction: jest.fn((callback) => callback(mockPrisma)),
   };
 
   beforeEach(async () => {
@@ -78,6 +89,50 @@ describe('ClientsService Unit Tests', () => {
 
       await expect(service.getHistory('tenant-1', 'client-unknown')).rejects.toThrow(
         'Cliente no encontrado',
+      );
+    });
+  });
+
+  describe('delete', () => {
+    it('should delete a client and its associated orders, payments, and tickets', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-1' });
+      mockPrisma.order.findMany.mockResolvedValue([{ id: 'ord-1' }, { id: 'ord-2' }]);
+      mockPrisma.payment.deleteMany.mockResolvedValue({ count: 2 });
+      mockPrisma.queueTicket.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.order.deleteMany.mockResolvedValue({ count: 2 });
+      mockPrisma.client.delete.mockResolvedValue({ id: 'client-1' });
+
+      const result = await service.delete('tenant-1', 'client-1');
+
+      expect(result).toEqual({ id: 'client-1' });
+      expect(mockPrisma.client.findFirst).toHaveBeenCalledWith({
+        where: { id: 'client-1', tenantId: 'tenant-1' },
+        select: { id: true },
+      });
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith({
+        where: { clientId: 'client-1', tenantId: 'tenant-1' },
+        select: { id: true },
+      });
+      expect(mockPrisma.payment.deleteMany).toHaveBeenCalledWith({
+        where: { orderId: { in: ['ord-1', 'ord-2'] } },
+      });
+      expect(mockPrisma.queueTicket.updateMany).toHaveBeenCalledWith({
+        where: { orderId: { in: ['ord-1', 'ord-2'] } },
+        data: { orderId: null },
+      });
+      expect(mockPrisma.order.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['ord-1', 'ord-2'] }, tenantId: 'tenant-1' },
+      });
+      expect(mockPrisma.client.delete).toHaveBeenCalledWith({
+        where: { id: 'client-1' },
+      });
+    });
+
+    it('should throw error if client does not exist when deleting', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue(null);
+
+      await expect(service.delete('tenant-1', 'client-unknown')).rejects.toThrow(
+        'Cliente no encontrado en este taller.',
       );
     });
   });

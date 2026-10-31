@@ -32,7 +32,7 @@ export class ClientsController {
 
     @Delete(':id')
     @UseGuards(RolesGuard)
-    @Roles(Role.TENANT_ADMIN)
+    @Roles(Role.TENANT_ADMIN, Role.SYSTEM_ADMIN)
     async deleteClient(@Param('id') id: string, @Request() req) {
         return this.clientsService.delete(req.user.tenantId, id);
     }

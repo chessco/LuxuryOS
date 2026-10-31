@@ -12,11 +12,14 @@ export interface Client {
     phone: string;
     status: string;
     totalSpent: string;
+    totalSpentNumber?: number | null;
+    ordersCount?: number;
     lastOrder: string;
     initials: string;
     initialsColor: string;
     location?: string;
     tags?: string[];
+    createdAt?: string;
 }
 
 export default function ClientsPage() {
@@ -41,7 +44,7 @@ export default function ClientsPage() {
     }, []);
 
     const role = RBACService.getEffectiveRole(user);
-    const canViewTotalSpent = Boolean(
+    const isAdmin = Boolean(
         role === 'SYSTEM_ADMIN' ||
         role === 'TENANT_ADMIN' ||
         user?.role === 'SYSTEM_ADMIN' ||
@@ -49,6 +52,7 @@ export default function ClientsPage() {
         String(user?.email || '').toLowerCase().includes('admin') ||
         String(user?.email || '').toLowerCase().includes('system')
     );
+    const canViewTotalSpent = isAdmin;
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -74,12 +78,77 @@ export default function ClientsPage() {
         fetchClients();
     }, []);
 
-    const handleDelete = async (id: string) => {
-        if (window.confirm('¿Estás seguro de eliminar este cliente?')) {
-            await ClientsService.delete(id);
-            // Optimistic update or refetch
-            setClients(prev => prev.filter(c => c.id !== id));
+    const handleDelete = async (id: string, name?: string) => {
+        if (!isAdmin) {
+            alert('Solo los administradores tienen permiso para eliminar clientes.');
+            return;
         }
+        const confirmMsg = name
+            ? `¿Estás seguro de que deseas eliminar permanentemente al cliente "${name}"?\n\nEsta acción eliminará al cliente y todos sus registros asociados de forma irreversible.`
+            : '¿Estás seguro de que deseas eliminar permanentemente este cliente y sus registros asociados?';
+
+        if (window.confirm(confirmMsg)) {
+            try {
+                await ClientsService.delete(id);
+                setClients(prev => prev.filter(c => c.id !== id));
+                if (isModalOpen && editingClient?.id === id) {
+                    setIsModalOpen(false);
+                    setEditingClient(null);
+                }
+            } catch (error: any) {
+                console.error('Error deleting client:', error);
+                alert(error?.response?.data?.message || 'Error al eliminar el cliente');
+            }
+        }
+    };
+
+    const handleExportCSV = () => {
+        if (!clients || clients.length === 0) {
+            alert('No hay clientes registrados para exportar.');
+            return;
+        }
+
+        const headers = [
+            'ID',
+            'Nombre',
+            'Teléfono',
+            'Correo Electrónico',
+            'Ubicación',
+            'Total Gastado',
+            'Órdenes Totales',
+            'Última Orden',
+            'Fecha Registro',
+        ];
+
+        const escapeCSV = (val: any) => {
+            if (val === null || val === undefined) return '""';
+            const str = String(val).replace(/"/g, '""');
+            return `"${str}"`;
+        };
+
+        const rows = clients.map(c => [
+            escapeCSV(c.id),
+            escapeCSV(c.name),
+            escapeCSV(c.phone || ''),
+            escapeCSV(c.email || ''),
+            escapeCSV(c.location || ''),
+            escapeCSV(c.totalSpent || (c.totalSpentNumber ? `${c.totalSpentNumber} MXN` : '0 MXN')),
+            escapeCSV(c.ordersCount || 0),
+            escapeCSV(c.lastOrder || '—'),
+            escapeCSV(c.createdAt ? new Date(c.createdAt).toLocaleDateString('es-MX') : '—'),
+        ]);
+
+        const csvContent = '\uFEFF' + [headers.map(h => `"${h}"`).join(','), ...rows.map(r => r.join(','))].join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const today = new Date().toISOString().split('T')[0];
+        link.href = url;
+        link.setAttribute('download', `respaldo_clientes_luxuryos_${today}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     const handleSave = async (clientData: any) => {
@@ -148,13 +217,24 @@ export default function ClientsPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-                <button
-                    onClick={() => openModal()}
-                    className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
-                >
-                    <span className="material-symbols-outlined text-[20px]">person_add</span>
-                    <span>Nuevo Cliente</span>
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleExportCSV}
+                        disabled={clients.length === 0}
+                        className="flex items-center gap-2 border border-border bg-muted/40 hover:bg-muted text-foreground px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Exportar cartera de clientes a formato CSV para respaldo"
+                    >
+                        <span className="material-symbols-outlined text-[20px] text-emerald-500">download</span>
+                        <span>Exportar CSV</span>
+                    </button>
+                    <button
+                        onClick={() => openModal()}
+                        className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">person_add</span>
+                        <span>Nuevo Cliente</span>
+                    </button>
+                </div>
             </div>
 
             {/* Table Container (Restored Design) */}
@@ -210,7 +290,7 @@ export default function ClientsPage() {
                                             </td>
                                         )}
                                         <td className="py-4 px-6 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center justify-end gap-1.5 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => setHistoryClient(client)}
                                                     className="size-8 rounded-lg hover:bg-indigo-500/10 text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center justify-center transition-colors"
@@ -225,13 +305,15 @@ export default function ClientsPage() {
                                                 >
                                                     <span className="material-symbols-outlined text-[18px]">edit</span>
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDelete(client.id)}
-                                                    className="size-8 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500 flex items-center justify-center transition-colors"
-                                                    title="Eliminar"
-                                                >
-                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                </button>
+                                                {isAdmin && (
+                                                    <button
+                                                        onClick={() => handleDelete(client.id, client.name)}
+                                                        className="size-8 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-500 flex items-center justify-center transition-colors"
+                                                        title="Eliminar cliente"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -268,6 +350,8 @@ export default function ClientsPage() {
                     client={editingClient}
                     onClose={() => setIsModalOpen(false)}
                     onSave={handleSave}
+                    onDelete={handleDelete}
+                    isAdmin={isAdmin}
                 />
             )}
 
@@ -282,7 +366,13 @@ export default function ClientsPage() {
 }
 
 // ... ClientModal component
-const ClientModal: React.FC<{ client: Client | null, onClose: () => void, onSave: (data: Partial<Client>) => void }> = ({ client, onClose, onSave }) => {
+const ClientModal: React.FC<{
+    client: Client | null;
+    onClose: () => void;
+    onSave: (data: Partial<Client>) => void;
+    onDelete?: (id: string, name?: string) => void;
+    isAdmin?: boolean;
+}> = ({ client, onClose, onSave, onDelete, isAdmin }) => {
     const [formData, setFormData] = useState<Partial<Client>>(client || {
         name: '',
         email: '',
@@ -394,9 +484,23 @@ const ClientModal: React.FC<{ client: Client | null, onClose: () => void, onSave
                         </div>
                     </div>
 
-                    <div className="pt-6 flex justify-end gap-4">
-                        <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-xs font-bold uppercase tracking-widest">Cancelar</button>
-                        <button type="submit" className="px-8 py-3 rounded-xl bg-foreground text-background hover:opacity-90 transition-all text-xs font-bold uppercase tracking-widest shadow-lg">Guardar Cliente</button>
+                    <div className="pt-6 flex items-center justify-between gap-4 border-t border-border">
+                        <div>
+                            {client && onDelete && isAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={() => onDelete(client.id, client.name)}
+                                    className="px-4 py-3 rounded-xl border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all text-xs font-bold uppercase tracking-widest flex items-center gap-1.5"
+                                >
+                                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                                    <span>Eliminar</span>
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-xs font-bold uppercase tracking-widest">Cancelar</button>
+                            <button type="submit" className="px-8 py-3 rounded-xl bg-foreground text-background hover:opacity-90 transition-all text-xs font-bold uppercase tracking-widest shadow-lg">Guardar Cliente</button>
+                        </div>
                     </div>
                 </form>
             </div>

@@ -98,8 +98,34 @@ export class ClientsService {
     }
 
     async delete(tenantId: string, id: string) {
-        return this.prisma.client.delete({
-            where: { id, tenantId },
+        return this.prisma.$transaction(async (tx) => {
+            const client = await tx.client.findFirst({
+                where: { id, tenantId },
+                select: { id: true },
+            });
+            if (!client) {
+                throw new BadRequestException('Cliente no encontrado en este taller.');
+            }
+            const orders = await tx.order.findMany({
+                where: { clientId: id, tenantId },
+                select: { id: true },
+            });
+            const orderIds = orders.map((o) => o.id);
+            if (orderIds.length > 0) {
+                await tx.payment.deleteMany({
+                    where: { orderId: { in: orderIds } },
+                });
+                await tx.queueTicket.updateMany({
+                    where: { orderId: { in: orderIds } },
+                    data: { orderId: null },
+                });
+                await tx.order.deleteMany({
+                    where: { id: { in: orderIds }, tenantId },
+                });
+            }
+            return tx.client.delete({
+                where: { id },
+            });
         });
     }
 
