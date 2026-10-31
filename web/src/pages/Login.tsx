@@ -40,19 +40,14 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-4 selection:bg-foreground selection:text-background transition-colors duration-500">
             <div className="max-w-md w-full space-y-8 bg-card p-12 rounded-[40px] border border-border backdrop-blur-3xl shadow-xl transition-all duration-700">
-                <div className="flex flex-col items-center gap-5">
-                    <div className="flex items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-800 size-16 shadow-2xl shadow-emerald-500/25 animate-subtle-bounce">
-                        <span className="material-symbols-outlined text-white text-3xl">diamond</span>
-                    </div>
-                    <div className="text-center flex flex-col items-center pt-1">
-                        <img
-                            src="/cared-logo.png"
-                            alt="CARED"
-                            className="h-16 w-auto object-contain dark:invert-0 invert transition-all"
-                            loading="eager"
-                            decoding="async"
-                        />
-                    </div>
+                <div className="flex flex-col items-center justify-center pb-2">
+                    <img
+                        src="/cared-login-logo.png"
+                        alt="CARED"
+                        className="h-24 sm:h-28 w-auto object-contain mix-blend-screen transition-all"
+                        loading="eager"
+                        decoding="async"
+                    />
                 </div>
 
                 {error && (
