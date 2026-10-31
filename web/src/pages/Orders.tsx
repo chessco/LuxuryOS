@@ -12,6 +12,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LabelPrintModal } from '../components/orders/LabelPrintModal';
+import CameraCaptureModal from '../components/orders/CameraCaptureModal';
 import { PieceSelect } from '../components/orders/PieceSelect';
 import { SelectWithOther } from '../components/orders/SelectWithOther';
 import { UsersService } from '../services/users.service';
@@ -195,6 +196,7 @@ const Orders: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [labelPrintOrder, setLabelPrintOrder] = useState<any | null>(null);
     const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
+    const [cameraPieceIndex, setCameraPieceIndex] = useState<number | null>(null);
 
     useEffect(() => {
         if (autoOpenNew && !isJoyero) {
@@ -896,6 +898,18 @@ const Orders: React.FC = () => {
                 }}
                 order={labelPrintOrder}
             />
+
+            {cameraPieceIndex !== null && (
+                <CameraCaptureModal
+                    isOpen={cameraPieceIndex !== null}
+                    onClose={() => setCameraPieceIndex(null)}
+                    onCapture={(capturedBase64) => {
+                        handleItemChange(cameraPieceIndex, 'imageUrl', capturedBase64);
+                        setCameraPieceIndex(null);
+                    }}
+                    title={`Fotografía de Pieza #${cameraPieceIndex + 1}`}
+                />
+            )}
         </div>
     );
 };
@@ -1883,8 +1897,8 @@ const NewOrderDrawer: React.FC<{
                                                 <div className="flex items-center gap-1.5 shrink-0">
                                                     <button
                                                         type="button"
-                                                        onClick={() => document.getElementById(`piece-camera-${index}`)?.click()}
-                                                        title="Tomar otra foto"
+                                                        onClick={() => setCameraPieceIndex(index)}
+                                                        title="Tomar otra foto con cámara web"
                                                         className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all"
                                                     >
                                                         <span className="material-symbols-outlined text-base">photo_camera</span>
@@ -1903,10 +1917,10 @@ const NewOrderDrawer: React.FC<{
                                             <div className="grid grid-cols-2 gap-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => document.getElementById(`piece-camera-${index}`)?.click()}
-                                                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-border hover:border-indigo-500/50 bg-muted/30 hover:bg-muted/60 text-xs font-bold text-muted-foreground hover:text-foreground transition-all active:scale-95"
+                                                    onClick={() => setCameraPieceIndex(index)}
+                                                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-border hover:border-red-500/50 bg-muted/30 hover:bg-muted/60 text-xs font-bold text-muted-foreground hover:text-foreground transition-all active:scale-95"
                                                 >
-                                                    <span className="material-symbols-outlined text-base text-indigo-500">photo_camera</span>
+                                                    <span className="material-symbols-outlined text-base text-red-500">photo_camera</span>
                                                     <span>Cámara</span>
                                                 </button>
                                                 <button

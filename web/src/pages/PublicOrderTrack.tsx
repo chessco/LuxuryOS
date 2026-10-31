@@ -23,6 +23,11 @@ interface OrderTrackData {
     createdAt: string;
     deliveredAt: string | null;
     steps: Step[];
+    laborCost?: number;
+    materialCost?: number;
+    totalAmount?: number;
+    paidAmount?: number;
+    balance?: number;
 }
 
 export const PublicOrderTrack: React.FC = () => {
@@ -86,6 +91,13 @@ export const PublicOrderTrack: React.FC = () => {
         } finally {
             setVerifying(false);
         }
+    };
+
+    const formatMoney = (amount: number) => {
+        return new Intl.NumberFormat('es-MX', {
+            style: 'currency',
+            currency: 'MXN'
+        }).format(amount || 0);
     };
 
     return (
@@ -273,6 +285,52 @@ export const PublicOrderTrack: React.FC = () => {
                                         </div>
                                     );
                                 })}
+                            </div>
+                        </div>
+
+                        {/* Financial Breakdown: Mano de Obra, Material y Total Sumado */}
+                        <div className="p-6 sm:p-8 border-t border-cared-line/80 bg-cared-card/30">
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cared-mute mb-4">
+                                Resumen Financiero del Pedido
+                            </h3>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between text-xs text-cared-mute">
+                                    <span>Mano de Obra</span>
+                                    <span className="font-mono font-bold text-cared-ink">
+                                        {formatMoney(order.laborCost || 0)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-cared-mute">
+                                    <span>Material</span>
+                                    <span className="font-mono font-bold text-cared-ink">
+                                        {formatMoney(order.materialCost || 0)}
+                                    </span>
+                                </div>
+                                <div className="pt-3 border-t border-cared-line/60 flex items-center justify-between">
+                                    <span className="text-xs font-black uppercase tracking-wider text-cared-gold">
+                                        Total de la Orden
+                                    </span>
+                                    <span className="text-lg font-mono font-black text-cared-gold">
+                                        {formatMoney(order.totalAmount || ((order.laborCost || 0) + (order.materialCost || 0)))}
+                                    </span>
+                                </div>
+
+                                {(order.paidAmount || 0) > 0 && (
+                                    <>
+                                        <div className="flex items-center justify-between text-xs text-emerald-400/90 pt-1">
+                                            <span>Anticipo Pagado</span>
+                                            <span className="font-mono font-bold">
+                                                - {formatMoney(order.paidAmount || 0)}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs font-bold text-cared-ink pt-2 border-t border-dashed border-cared-line/40">
+                                            <span>Saldo Pendiente por Liquidar</span>
+                                            <span className="font-mono font-black text-amber-400 text-sm">
+                                                {formatMoney(order.balance ?? Math.max(0, (order.totalAmount || 0) - (order.paidAmount || 0)))}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 

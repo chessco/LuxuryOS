@@ -1,22 +1,27 @@
 <!DOCTYPE html>
-<html lang="es" class="dark notranslate" translate="no">
+<html lang="es" class="light notranslate" translate="no">
 
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#ffffff" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
   <meta name="google" content="notranslate" />
   <title>Cared</title>
   <script>
     try {
-      document.documentElement.classList.remove('light');
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme-mode', 'dark');
+      const savedMode = localStorage.getItem('theme-mode');
+      if (savedMode === 'dark') {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      }
     } catch (e) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add('light');
     }
   </script>
   <!-- Fonts -->
@@ -29,7 +34,7 @@
     rel="stylesheet" />
 </head>
 
-<body class="antialiased selection:bg-white selection:text-black">
+<body class="antialiased selection:bg-black selection:text-white">
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

@@ -9,10 +9,8 @@ export default function AppLayout() {
     const navigate = useNavigate();
     const isLoginPage = location.pathname === "/login";
 
-    const [isSidebarOpen, setIsSidebarOpen] = React.useState<boolean>(() => {
-        const saved = localStorage.getItem("sidebar_open");
-        return saved !== null ? JSON.parse(saved) : false;
-    });
+    // Por defecto al entrar a la aplicación, el menú lateral debe cargar contraído
+    const [isSidebarOpen, setIsSidebarOpen] = React.useState<boolean>(false);
 
     if (isLoginPage) {
         return <Outlet />;

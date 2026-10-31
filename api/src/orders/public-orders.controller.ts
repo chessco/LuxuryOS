@@ -388,6 +388,41 @@ export class PublicOrdersController {
       },
     ];
 
+    const num = (v: any) => {
+      const n = parseFloat(String(v ?? '').replace(/[^0-9.-]/g, ''));
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    let laborCost = order.laborCost ? Number(order.laborCost) : 0;
+    let materialCost = order.materialCost ? Number(order.materialCost) : 0;
+
+    const specs: any = order.specifications || {};
+    const items = Array.isArray(specs.items) ? specs.items : [];
+    if (items.length > 0) {
+      let sumLabor = 0;
+      let sumMaterial = 0;
+      let hasItemCosts = false;
+      for (const it of items) {
+        if (it?.laborCost !== undefined || it?.materialCost !== undefined) {
+          hasItemCosts = true;
+          sumLabor += num(it.laborCost);
+          sumMaterial += num(it.materialCost);
+        }
+      }
+      if (hasItemCosts) {
+        laborCost = sumLabor;
+        materialCost = sumMaterial;
+      }
+    }
+
+    const totalAmount = order.totalAmount
+      ? Number(order.totalAmount)
+      : (laborCost + materialCost > 0 ? laborCost + materialCost : Number(order.value || 0));
+    const paidAmount = order.paidAmount ? Number(order.paidAmount) : 0;
+    const balance = order.balance !== undefined && order.balance !== null
+      ? Number(order.balance)
+      : Math.max(0, totalAmount - paidAmount);
+
     return {
       verified: true,
       orderCode: this.displayOrderCode(order),
@@ -398,6 +433,11 @@ export class PublicOrdersController {
       createdAt: formatDate(order.createdAt),
       deliveredAt: formatDate(order.deliveredAt),
       steps,
+      laborCost,
+      materialCost,
+      totalAmount,
+      paidAmount,
+      balance,
     };
   }
 }

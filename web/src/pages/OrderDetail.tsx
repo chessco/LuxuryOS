@@ -14,6 +14,7 @@ import { ClientWhatsAppModal } from '../components/orders/ClientWhatsAppModal';
 import { DesignStageCard } from '../components/orders/DesignStageCard';
 import { ClientHistoryModal } from '../components/orders/ClientHistoryModal';
 import { QRScannerModal } from '../components/orders/QRScannerModal';
+import CameraCaptureModal from '../components/orders/CameraCaptureModal';
 import { getStatusLabel, formatOrderCode } from './Orders';
 import { RBACService } from '../services/rbac.service';
 import { resolveMediaUrl } from '../services/api';
@@ -44,6 +45,7 @@ const OrderDetail: React.FC = () => {
     const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
     const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false);
     const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+    const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
     const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
     const [currentStep, setCurrentStep] = useState(2);
     const [notesBuffer, setNotesBuffer] = useState('');
@@ -223,6 +225,36 @@ const OrderDetail: React.FC = () => {
         }
     };
 
+
+        const handleCameraCapturedPhoto = async (base64Image: string) => {
+        if (!id) return;
+        try {
+            let storedImage = base64Image;
+            try {
+                const uploaded = await OrdersService.uploadPhoto(base64Image);
+                if (uploaded?.url) storedImage = uploaded.url;
+            } catch (uploadError) {
+                console.error('Photo upload failed, keeping base64:', uploadError);
+            }
+            const currentImages = order?.specifications?.envelopeImages || [];
+            const updatedImages = [...currentImages, storedImage];
+            await OrdersService.updateOrder(id, {
+                specifications: {
+                    ...(order?.specifications || {}),
+                    envelopeImages: updatedImages
+                }
+            });
+            setOrder((prev: any) => ({
+                ...prev,
+                specifications: {
+                    ...(prev?.specifications || {}),
+                    envelopeImages: updatedImages
+                }
+            }));
+        } catch (err) {
+            console.error('Error saving captured envelope photo:', err);
+        }
+    };
 
     const handleEnvelopeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -1105,7 +1137,7 @@ const OrderDetail: React.FC = () => {
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
-                                onClick={() => envelopeCameraInputRef.current?.click()}
+                                onClick={() => setIsCameraModalOpen(true)}
                                 className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-black hover:bg-amber-400 active:scale-95 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm cursor-pointer"
                                 title="Tomar foto con la cámara del iPad"
                             >
@@ -1356,6 +1388,13 @@ const OrderDetail: React.FC = () => {
                 onClose={() => setIsClientHistoryOpen(false)}
                 clientId={order?.clientId || order?.client?.id}
                 clientName={order?.clientName || order?.client?.name}
+            />
+
+                        <CameraCaptureModal
+                isOpen={isCameraModalOpen}
+                onClose={() => setIsCameraModalOpen(false)}
+                onCapture={handleCameraCapturedPhoto}
+                title={`Fotografía de Orden #${formatOrderCode(order)}`}
             />
 
             <QRScannerModal

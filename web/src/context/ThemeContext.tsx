@@ -23,7 +23,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [mode, setMode] = useState<ThemeMode>(() => {
         const saved = localStorage.getItem('theme-mode') as ThemeMode;
         if (saved && ['light', 'dark'].includes(saved)) return saved;
-        return 'dark';
+        return 'light';
     });
 
     useEffect(() => {
