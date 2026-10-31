@@ -102,5 +102,25 @@ export class CreateOrderDto {
   imageUrl?: string;
 
   @IsOptional()
+  advancePayment?: {
+    amount: number;
+    method?: string;
+    reference?: string;
+  };
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  advanceAmount?: number;
+
+  @IsOptional()
+  @IsString()
+  advanceMethod?: string;
+
+  @IsOptional()
+  @IsString()
+  advanceReference?: string;
+
+  @IsOptional()
   specifications?: any; // JSON
 }

@@ -61,6 +61,60 @@ export class PaymentsService {
         });
     }
 
+    async updatePayment(
+        paymentId: string,
+        data: { amount?: number; method?: string; reference?: string },
+        tenantId?: string,
+        userId?: string
+    ) {
+        if (data.amount !== undefined && data.amount <= 0) {
+            throw new BadRequestException('El monto debe ser positivo');
+        }
+
+        return this.prisma.$transaction(async (tx) => {
+            const payment = await tx.payment.findUnique({
+                where: { id: paymentId },
+                include: { order: true },
+            });
+
+            if (!payment) throw new BadRequestException('Pago no encontrado');
+
+            if (tenantId && payment.order.tenantId !== tenantId) {
+                throw new BadRequestException('No autorizado para modificar este pago');
+            }
+
+            const order = payment.order;
+            const oldAmount = payment.amount;
+            const newAmount = data.amount !== undefined ? new Prisma.Decimal(data.amount) : oldAmount;
+            const diff = newAmount.sub(oldAmount);
+
+            const updatedPayment = await tx.payment.update({
+                where: { id: paymentId },
+                data: {
+                    amount: newAmount,
+                    method: data.method !== undefined ? data.method : payment.method,
+                    reference: data.reference !== undefined ? data.reference : payment.reference,
+                    recordedBy: userId || payment.recordedBy,
+                },
+            });
+
+            // Recalcular saldo de la orden
+            const newPaidAmount = order.paidAmount.add(diff);
+            const newBalance = order.totalAmount.sub(newPaidAmount);
+
+            const updatedOrder = await tx.order.update({
+                where: { id: order.id },
+                data: {
+                    paidAmount: newPaidAmount,
+                    balance: newBalance,
+                    paymentStatus: newPaidAmount.lte(0) ? 'PENDIENTE' : newBalance.lte(0) ? 'PAGADO' : 'PARCIAL',
+                },
+            });
+
+            return { payment: updatedPayment, updatedOrder };
+        });
+    }
+
     async deletePayment(paymentId: string, tenantId?: string) {
         return this.prisma.$transaction(async (tx) => {
             const payment = await tx.payment.findUnique({

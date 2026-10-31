@@ -31,8 +31,13 @@ export const OrdersService = {
         return response.data;
     },
 
-    async registerPayment(orderId: string, amount: number, method: string) {
-        const response = await api.post('/payments', { orderId, amount, method });
+    async registerPayment(orderId: string, amount: number, method: string, reference?: string) {
+        const response = await api.post('/payments', { orderId, amount, method, reference });
+        return response.data;
+    },
+
+    async updatePayment(paymentId: string, data: { amount?: number; method?: string; reference?: string }) {
+        const response = await api.patch('/payments/' + paymentId, data);
         return response.data;
     },
 

@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { OrderStage, OrderStatus, Prisma } from '@prisma/client';
+import { OrderStage, OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { generateTrackToken, generateHmacToken } from './tracking.util';
 import * as fs from 'fs';
@@ -455,8 +455,21 @@ export class OrdersService {
     const totalAmount = itemCosts.hasCosts
       ? itemCosts.labor + itemCosts.material
       : (data.totalAmount ?? data.value ?? 0);
-    const paidAmount = 0;
-    const balance = totalAmount;
+
+    const rawAdvance = Number(data.advancePayment?.amount ?? data.advanceAmount ?? 0);
+    const advanceAmount = !isNaN(rawAdvance) && rawAdvance > 0 ? rawAdvance : 0;
+    const advanceMethod = data.advancePayment?.method || data.advanceMethod || 'Efectivo';
+    const advanceReference = data.advancePayment?.reference || data.advanceReference || undefined;
+
+    const paidAmount = advanceAmount;
+    const balance = Math.max(0, totalAmount - paidAmount);
+    const paymentStatus: PaymentStatus =
+      balance <= 0 && totalAmount > 0
+        ? PaymentStatus.PAGADO
+        : paidAmount > 0
+          ? PaymentStatus.PARCIAL
+          : PaymentStatus.PENDIENTE;
+
     // El material es costo: la utilidad del taller es la mano de obra
     const margin = itemCosts.hasCosts
       ? itemCosts.labor
@@ -538,27 +551,52 @@ export class OrdersService {
       ...(updatedItems ? { items: updatedItems } : {}),
     };
 
-    const created = await this.prisma.order.create({
-      data: {
-        ...data,
-        ...itemFinancials,
-        imageUrl: photoUrl || data.imageUrl || undefined,
-        size: data.size ? String(data.size).trim() : undefined,
-        thickness: data.thickness ? String(data.thickness).trim() : undefined,
-        tenantId,
-        createdById: data.createdById || userId,
-        totalAmount,
-        paidAmount,
-        balance,
-        margin,
-        status: status ?? undefined, // Let Prisma default to DRAFT if undefined
-        specifications,
-      },
-      include: {
-        client: true,
-        createdBy: { select: { id: true, name: true, email: true } },
-        queueTicket: true,
-      },
+    const {
+      advancePayment: _advPay,
+      advanceAmount: _advAmt,
+      advanceMethod: _advMeth,
+      advanceReference: _advRef,
+      ...cleanOrderData
+    } = data;
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const ord = await tx.order.create({
+        data: {
+          ...cleanOrderData,
+          ...itemFinancials,
+          imageUrl: photoUrl || data.imageUrl || undefined,
+          size: data.size ? String(data.size).trim() : undefined,
+          thickness: data.thickness ? String(data.thickness).trim() : undefined,
+          tenantId,
+          createdById: data.createdById || userId,
+          totalAmount,
+          paidAmount,
+          balance,
+          margin,
+          paymentStatus,
+          status: status ?? undefined, // Let Prisma default to DRAFT if undefined
+          specifications,
+        },
+        include: {
+          client: true,
+          createdBy: { select: { id: true, name: true, email: true } },
+          queueTicket: true,
+        },
+      });
+
+      if (paidAmount > 0) {
+        await tx.payment.create({
+          data: {
+            orderId: ord.id,
+            amount: new Prisma.Decimal(paidAmount),
+            method: advanceMethod,
+            reference: advanceReference,
+            recordedBy: userId,
+          },
+        });
+      }
+
+      return ord;
     });
 
     // Trigger automatic WhatsApp notification on order creation (Recibido con QR)

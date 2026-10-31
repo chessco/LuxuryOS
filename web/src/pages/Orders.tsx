@@ -424,6 +424,10 @@ const Orders: React.FC = () => {
                 itemCode: firstItem.itemCode || '',
                 laborCost: laborSum,
                 materialCost: materialSum,
+                advanceAmount: newOrder.advanceAmount,
+                advanceMethod: newOrder.advanceMethod,
+                advanceReference: newOrder.advanceReference,
+                advancePayment: newOrder.advancePayment,
                 notes: newOrder.notes || '',
                 imageUrl: newOrder.imageUrl || undefined,
                 specifications: {
@@ -961,6 +965,9 @@ const NewOrderDrawer: React.FC<{
     const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
     const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [advanceAmount, setAdvanceAmount] = useState<string>('');
+    const [advanceMethod, setAdvanceMethod] = useState<string>('Efectivo');
+    const [advanceReference, setAdvanceReference] = useState<string>('');
 
     useEffect(() => {
         UsersService.getAll().then((allUsers: any[]) => {
@@ -1182,8 +1189,17 @@ const NewOrderDrawer: React.FC<{
         // Sync first item to top-level fields for backward compatibility
         const mainItem = items[0] || {};
         const requiresDesign = Boolean(formData.requiresDesign || orderType === 'DESIGN');
+        const parsedAdvance = parseMoney(advanceAmount);
         const submissionData = {
             ...formData,
+            advanceAmount: parsedAdvance > 0 ? parsedAdvance : undefined,
+            advanceMethod: parsedAdvance > 0 ? advanceMethod : undefined,
+            advanceReference: parsedAdvance > 0 && advanceReference ? advanceReference.trim() : undefined,
+            advancePayment: parsedAdvance > 0 ? {
+                amount: parsedAdvance,
+                method: advanceMethod,
+                reference: advanceReference?.trim() || undefined,
+            } : undefined,
             requiresDesign,
             selectedClientId: selectedClientInfo?.id,
             clientPhone: selectedClientInfo?.phone || initialClientPhone || newClientData.phone,
@@ -1976,6 +1992,77 @@ const NewOrderDrawer: React.FC<{
                                     <span className="font-black uppercase tracking-widest text-[10px] text-foreground">Total</span>
                                     <span className="font-mono font-black text-base text-foreground">{formatMoney(orderTotal)}</span>
                                 </div>
+                            </div>
+
+                            {/* Anticipo Inicial (Opcional) */}
+                            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-emerald-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                        <span className="material-symbols-outlined text-[16px]">payments</span>
+                                        Dejar Anticipo (Opcional)
+                                    </label>
+                                    {parseMoney(advanceAmount) > 0 && (
+                                        <span className="text-[10px] font-mono font-black text-emerald-500">
+                                            {formatMoney(parseMoney(advanceAmount))}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-wider">
+                                            Monto de Anticipo
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-bold">$</span>
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                value={advanceAmount}
+                                                onChange={(e) => setAdvanceAmount(e.target.value)}
+                                                placeholder="0.00"
+                                                className="w-full bg-background border border-border rounded-xl py-2.5 pl-8 pr-3 text-sm font-bold text-foreground focus:border-emerald-500 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-wider">
+                                            Método de Pago
+                                        </label>
+                                        <select
+                                            value={advanceMethod}
+                                            onChange={(e) => setAdvanceMethod(e.target.value)}
+                                            className="w-full bg-background border border-border rounded-xl py-2.5 px-3 text-sm font-bold text-foreground focus:border-emerald-500 outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
+                                        >
+                                            <option value="Efectivo">Efectivo</option>
+                                            <option value="Tarjeta">Tarjeta</option>
+                                            <option value="Transferencia">Transferencia</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-muted-foreground text-[9px] font-black uppercase tracking-wider">
+                                        Referencia / Comprobante (Opcional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={advanceReference}
+                                        onChange={(e) => setAdvanceReference(e.target.value)}
+                                        placeholder="Ej. Autorización 4821, Folio Transf. 9923..."
+                                        className="w-full bg-background border border-border rounded-xl py-2 px-3 text-xs text-foreground focus:border-emerald-500 outline-none"
+                                    />
+                                </div>
+
+                                {parseMoney(advanceAmount) > 0 && (
+                                    <div className="pt-2 border-t border-emerald-500/20 flex items-center justify-between text-xs">
+                                        <span className="text-muted-foreground font-medium">Saldo Restante al Entregar:</span>
+                                        <span className="font-mono font-black text-amber-500">
+                                            {formatMoney(Math.max(0, orderTotal - parseMoney(advanceAmount)))}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Asignar a</label>

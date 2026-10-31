@@ -33,6 +33,11 @@ const OrderDetail: React.FC = () => {
     const [order, setOrder] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [editingPayment, setEditingPayment] = useState<any | null>(null);
+    const [editPaymentAmount, setEditPaymentAmount] = useState<string>('');
+    const [editPaymentMethod, setEditPaymentMethod] = useState<string>('Efectivo');
+    const [editPaymentReference, setEditPaymentReference] = useState<string>('');
+    const [isSavingPayment, setIsSavingPayment] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
     const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
@@ -158,6 +163,40 @@ const OrderDetail: React.FC = () => {
         } catch (error) {
             console.error(error);
             throw error;
+        }
+    };
+
+    const handleStartEditPayment = (p: any) => {
+        setEditingPayment(p);
+        setEditPaymentAmount(String(p.amount || ''));
+        setEditPaymentMethod(p.method || 'Efectivo');
+        setEditPaymentReference(p.reference || '');
+    };
+
+    const handleSaveEditPayment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingPayment || !order) return;
+        const amountVal = parseFloat(editPaymentAmount);
+        if (isNaN(amountVal) || amountVal <= 0) {
+            alert('El monto del anticipo debe ser mayor a 0');
+            return;
+        }
+        setIsSavingPayment(true);
+        try {
+            await OrdersService.updatePayment(editingPayment.id, {
+                amount: amountVal,
+                method: editPaymentMethod,
+                reference: editPaymentReference.trim() || undefined,
+            });
+            const updated = await OrdersService.getOrder(order.id);
+            setOrder(enrichOrder(updated));
+            setEditingPayment(null);
+            alert('✅ Anticipo actualizado correctamente');
+        } catch (err: any) {
+            console.error(err);
+            alert(err?.response?.data?.message || 'Error al actualizar el anticipo');
+        } finally {
+            setIsSavingPayment(false);
         }
     };
 
@@ -624,6 +663,16 @@ const OrderDetail: React.FC = () => {
                             <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
                             <span>Escanear QR / Entrega</span>
                         </button>
+                        {canRegisterPayments && (
+                            <button
+                                onClick={() => setIsPaymentModalOpen(true)}
+                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
+                                title="Agregar o registrar anticipo"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">payments</span>
+                                <span>+ Anticipo</span>
+                            </button>
+                        )}
                         {canEditOrder && (
                             <button onClick={() => setIsEditModalOpen(true)} className={headerBtnNeutral}>
                                 <span className="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
@@ -964,16 +1013,30 @@ const OrderDetail: React.FC = () => {
                                                 <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border group/payment transition-colors">
                                                     <div>
                                                         <p className="text-foreground text-sm font-black tabular-nums transition-colors">{Number(p.amount).toLocaleString()} MXN</p>
-                                                        <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest transition-colors">{p.method} • {new Date(p.recordedAt).toLocaleDateString()}</p>
+                                                        <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest transition-colors">
+                                                            {p.method} • {new Date(p.recordedAt).toLocaleDateString()}
+                                                            {p.reference ? ` • Ref: ${p.reference}` : ''}
+                                                        </p>
                                                     </div>
                                                     {canRegisterPayments && (
-                                                        <button
-                                                            onClick={() => handleDeletePayment(p.id, Number(p.amount))}
-                                                            aria-label={`Eliminar pago de ${Number(p.amount).toLocaleString()} MXN`}
-                                                            className="opacity-0 group-hover/payment:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity size-10 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-                                                        >
-                                                            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
-                                                        </button>
+                                                        <div className="flex items-center gap-1 opacity-0 group-hover/payment:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => handleStartEditPayment(p)}
+                                                                aria-label={`Editar pago de ${Number(p.amount).toLocaleString()} MXN`}
+                                                                className="size-9 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center hover:bg-amber-500 hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 transition-colors"
+                                                                title="Editar anticipo"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeletePayment(p.id, Number(p.amount))}
+                                                                aria-label={`Eliminar pago de ${Number(p.amount).toLocaleString()} MXN`}
+                                                                className="size-9 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 transition-colors"
+                                                                title="Eliminar anticipo"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                             ))}
@@ -1196,6 +1259,90 @@ const OrderDetail: React.FC = () => {
                 onClose={() => setIsLabelPrintOpen(false)}
                 order={order}
             />
+
+            {/* Modal para Editar Anticipo */}
+            {editingPayment && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-card border border-border rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-border flex justify-between items-center bg-muted/20">
+                            <div className="flex items-center gap-3">
+                                <div className="size-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-black">
+                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-foreground text-sm font-black uppercase tracking-wider">Editar Anticipo</h3>
+                                    <p className="text-muted-foreground text-[10px] font-bold">Modificar importe, método o referencia</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setEditingPayment(null)}
+                                className="size-8 rounded-lg text-muted-foreground hover:text-foreground flex items-center justify-center"
+                            >
+                                <span className="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveEditPayment} className="p-6 space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-muted-foreground text-[10px] font-black uppercase tracking-wider">Monto (MXN)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-base font-bold">$</span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        value={editPaymentAmount}
+                                        onChange={(e) => setEditPaymentAmount(e.target.value)}
+                                        required
+                                        className="w-full bg-muted/40 border border-border rounded-xl py-3 pl-8 pr-4 text-foreground font-black text-lg outline-none focus:border-amber-500 [color-scheme:light] dark:[color-scheme:dark]"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-muted-foreground text-[10px] font-black uppercase tracking-wider">Método de Pago</label>
+                                <select
+                                    value={editPaymentMethod}
+                                    onChange={(e) => setEditPaymentMethod(e.target.value)}
+                                    className="w-full bg-muted/40 border border-border rounded-xl py-3 px-4 text-foreground font-bold text-sm outline-none focus:border-amber-500 [color-scheme:light] dark:[color-scheme:dark]"
+                                >
+                                    <option value="Efectivo">Efectivo</option>
+                                    <option value="Tarjeta">Tarjeta</option>
+                                    <option value="Transferencia">Transferencia</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-muted-foreground text-[10px] font-black uppercase tracking-wider">Referencia (Opcional)</label>
+                                <input
+                                    type="text"
+                                    value={editPaymentReference}
+                                    onChange={(e) => setEditPaymentReference(e.target.value)}
+                                    placeholder="Ej. Transf 1234, Voucher..."
+                                    className="w-full bg-muted/40 border border-border rounded-xl py-3 px-4 text-foreground text-sm outline-none focus:border-amber-500"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingPayment(null)}
+                                    disabled={isSavingPayment}
+                                    className="py-3 rounded-xl border border-border text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingPayment}
+                                    className="py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-black uppercase tracking-wider transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer font-bold"
+                                >
+                                    {isSavingPayment ? 'Guardando...' : 'Guardar Cambios'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <ClientWhatsAppModal
                 isOpen={isWhatsAppModalOpen}

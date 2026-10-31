@@ -105,6 +105,47 @@ describe('OrdersService Unit Tests', () => {
       );
     });
 
+    it('should register initial advance payment and set partial payment status when creating order with advance', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.order.count.mockResolvedValue(0);
+      mockPrisma.order.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'order-adv-1', ...data }),
+      );
+      mockPrisma.payment.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'pay-1', ...data }),
+      );
+
+      const dto: any = {
+        type: 'REPAIR',
+        pieceType: 'CADENA',
+        value: 1000,
+        totalAmount: 1000,
+        clientId: 'client-123',
+        promisedAt: '2026-12-01T00:00:00.000Z',
+        size: '50cm',
+        thickness: '3mm',
+        advanceAmount: 400,
+        advanceMethod: 'Tarjeta',
+        advanceReference: 'AUTH-1234',
+      };
+
+      const result: any = await service.createOrder('tenant-1', dto, 'user-vendedor');
+
+      expect(result).toBeDefined();
+      expect(result.paidAmount).toBe(400);
+      expect(result.balance).toBe(600);
+      expect(result.paymentStatus).toBe('PARCIAL');
+      expect(mockPrisma.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            orderId: 'order-adv-1',
+            method: 'Tarjeta',
+            reference: 'AUTH-1234',
+          }),
+        }),
+      );
+    });
+
     it('RF-01: should reject workshop orders without medida', async () => {
       mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
 
