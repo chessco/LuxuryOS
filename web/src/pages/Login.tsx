@@ -40,13 +40,18 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-4 selection:bg-foreground selection:text-background transition-colors duration-500">
             <div className="max-w-md w-full space-y-8 bg-card p-12 rounded-[40px] border border-border backdrop-blur-3xl shadow-xl transition-all duration-700">
-                <div className="flex flex-col items-center gap-6">
-                    <div className="flex items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-600 to-blue-900 size-16 shadow-2xl shadow-indigo-500/20 animate-subtle-bounce">
+                <div className="flex flex-col items-center gap-5">
+                    <div className="flex items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-800 size-16 shadow-2xl shadow-emerald-500/25 animate-subtle-bounce">
                         <span className="material-symbols-outlined text-white text-3xl">diamond</span>
                     </div>
-                    <div className="text-center flex flex-col gap-2">
-                        <h2 className="text-3xl font-black tracking-widest uppercase font-display text-foreground transition-colors">CARED</h2>
-                        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em] transition-colors">Business Command Center</p>
+                    <div className="text-center flex flex-col items-center pt-1">
+                        <img
+                            src="/cared-logo.png"
+                            alt="CARED"
+                            className="h-16 w-auto object-contain dark:invert-0 invert transition-all"
+                            loading="eager"
+                            decoding="async"
+                        />
                     </div>
                 </div>
 
@@ -69,7 +74,7 @@ export default function LoginPage() {
                                 autoComplete="off"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-muted border border-border rounded-2xl py-4 pl-12 pr-4 text-sm text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
+                                className="w-full bg-muted border border-border rounded-2xl py-4 pl-12 pr-4 text-sm text-foreground focus:border-emerald-500 focus:outline-none transition-all placeholder-muted-foreground"
                                 placeholder="Identificador de Usuario"
                             />
                         </div>
@@ -82,7 +87,7 @@ export default function LoginPage() {
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-muted border border-border rounded-2xl py-4 pl-12 pr-4 text-sm text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
+                                className="w-full bg-muted border border-border rounded-2xl py-4 pl-12 pr-4 text-sm text-foreground focus:border-emerald-500 focus:outline-none transition-all placeholder-muted-foreground"
                                 placeholder="Código de Acceso"
                             />
                         </div>
@@ -90,10 +95,10 @@ export default function LoginPage() {
 
                     <div className="flex items-center justify-between px-2">
                         <div className="flex items-center gap-2 cursor-pointer group">
-                            <div className="size-4 rounded border border-border group-hover:border-indigo-500 transition-colors"></div>
+                            <div className="size-4 rounded border border-border group-hover:border-emerald-500 transition-colors"></div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">Recordar sesión</span>
                         </div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-400 cursor-pointer">Recuperar acceso</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-400 cursor-pointer">Recuperar acceso</p>
                     </div>
 
                     <button
