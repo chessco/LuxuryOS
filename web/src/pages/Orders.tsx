@@ -1254,7 +1254,7 @@ const NewOrderDrawer: React.FC<{
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed inset-y-0 right-0 z-[70] w-full max-w-lg bg-background border-l border-border shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden"
+                className="fixed inset-y-0 right-0 z-[70] w-full max-w-lg sm:max-w-xl md:max-w-2xl bg-background border-l border-border shadow-2xl flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden"
             >
                 {/* Header */}
                 <div className="p-5 sm:p-8 border-b border-border bg-muted/20 shrink-0">
@@ -1676,94 +1676,97 @@ const NewOrderDrawer: React.FC<{
                                     </button>
                                 )}
                                 <div className="flex flex-col gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Pieza #{index + 1}</label>
-                                        <PieceSelect
-                                            value={item.item}
-                                            onChange={(val) => handleItemChange(index, 'item', val)}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Metal</label>
-                                        <SelectWithOther
-                                            value={item.metal}
-                                            onChange={(val) => handleItemChange(index, 'metal', val)}
-                                            options={['Oro', 'Plata', 'Platino']}
-                                            placeholder="Seleccionar metal..."
-                                            otherPlaceholder="Especificar otro metal (ej. Titanio, Acero)..."
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Color</label>
-                                        <SelectWithOther
-                                            value={item.color}
-                                            onChange={(val) => handleItemChange(index, 'color', val)}
-                                            options={['Amarillo', 'Blanco', 'Rosa']}
-                                            placeholder="Seleccionar color..."
-                                            otherPlaceholder="Especificar otro color (ej. Bicolor, Negro)..."
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Quilates</label>
-                                        <SelectWithOther
-                                            value={item.karats}
-                                            onChange={(val) => handleItemChange(index, 'karats', val)}
-                                            options={['10 K', '14 K', '18 K', '21.6 K']}
-                                            placeholder="Seleccionar quilates..."
-                                            otherPlaceholder="Especificar otros quilates o ley (ej. 24 K, Ley 925)..."
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
-                                            Peso (Gr) {orderType === 'MANUFACTURE' && <span className="text-red-500 font-bold">*</span>}
-                                        </label>
-                                        <input
-                                            value={item.weight}
-                                            onChange={(e) => handleItemChange(index, 'weight', e.target.value)}
-                                            onBlur={() => { if (item.weight && !item.weight.toUpperCase().endsWith('GR')) handleItemChange(index, 'weight', `${item.weight.trim()} GR`); }}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
-                                            placeholder="0.00"
-                                            required={orderType === 'MANUFACTURE'}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
-                                            Medida <span className="text-red-500 font-bold">*</span>
-                                        </label>
-                                        <input
-                                            value={item.size}
-                                            onChange={(e) => handleItemChange(index, 'size', e.target.value)}
-                                            onBlur={() => { if (item.size && !item.size.toUpperCase().endsWith('CM')) handleItemChange(index, 'size', `${item.size.trim()} CM`); }}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
-                                            placeholder="Ej. 7, 18cm"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
-                                            Grosor <span className="text-red-500 font-bold">*</span>
-                                        </label>
-                                        <input
-                                            value={item.thickness || ''}
-                                            onChange={(e) => handleItemChange(index, 'thickness', e.target.value)}
-                                            onBlur={() => { if (item.thickness && !item.thickness.toUpperCase().endsWith('MM')) handleItemChange(index, 'thickness', `${item.thickness.trim()} MM`); }}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
-                                            placeholder="Ej. 2mm"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">SKU / Cód</label>
-                                        <input
-                                            value={item.itemCode}
-                                            onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
-                                            className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
-                                            placeholder="ABC-123"
-                                        />
+                                    {/* 2 Columnas hasta SKU para evitar scroll y compactar la vista */}
+                                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Pieza #{index + 1}</label>
+                                            <PieceSelect
+                                                value={item.item}
+                                                onChange={(val) => handleItemChange(index, 'item', val)}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Metal</label>
+                                            <SelectWithOther
+                                                value={item.metal}
+                                                onChange={(val) => handleItemChange(index, 'metal', val)}
+                                                options={['Oro', 'Plata', 'Platino']}
+                                                placeholder="Seleccionar metal..."
+                                                otherPlaceholder="Especificar otro metal (ej. Titanio, Acero)..."
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Color</label>
+                                            <SelectWithOther
+                                                value={item.color}
+                                                onChange={(val) => handleItemChange(index, 'color', val)}
+                                                options={['Amarillo', 'Blanco', 'Rosa']}
+                                                placeholder="Seleccionar color..."
+                                                otherPlaceholder="Especificar otro color (ej. Bicolor, Negro)..."
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Quilates</label>
+                                            <SelectWithOther
+                                                value={item.karats}
+                                                onChange={(val) => handleItemChange(index, 'karats', val)}
+                                                options={['10 K', '14 K', '18 K', '21.6 K']}
+                                                placeholder="Seleccionar quilates..."
+                                                otherPlaceholder="Especificar otros quilates o ley (ej. 24 K, Ley 925)..."
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                                Peso (Gr) {orderType === 'MANUFACTURE' && <span className="text-red-500 font-bold">*</span>}
+                                            </label>
+                                            <input
+                                                value={item.weight}
+                                                onChange={(e) => handleItemChange(index, 'weight', e.target.value)}
+                                                onBlur={() => { if (item.weight && !item.weight.toUpperCase().endsWith('GR')) handleItemChange(index, 'weight', `${item.weight.trim()} GR`); }}
+                                                className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                                placeholder="0.00"
+                                                required={orderType === 'MANUFACTURE'}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                                Medida <span className="text-red-500 font-bold">*</span>
+                                            </label>
+                                            <input
+                                                value={item.size}
+                                                onChange={(e) => handleItemChange(index, 'size', e.target.value)}
+                                                onBlur={() => { if (item.size && !item.size.toUpperCase().endsWith('CM')) handleItemChange(index, 'size', `${item.size.trim()} CM`); }}
+                                                className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                                placeholder="Ej. 7, 18cm"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                                Grosor <span className="text-red-500 font-bold">*</span>
+                                            </label>
+                                            <input
+                                                value={item.thickness || ''}
+                                                onChange={(e) => handleItemChange(index, 'thickness', e.target.value)}
+                                                onBlur={() => { if (item.thickness && !item.thickness.toUpperCase().endsWith('MM')) handleItemChange(index, 'thickness', `${item.thickness.trim()} MM`); }}
+                                                className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                                placeholder="Ej. 2mm"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">SKU / Cód</label>
+                                            <input
+                                                value={item.itemCode}
+                                                onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
+                                                className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none"
+                                                placeholder="ABC-123"
+                                            />
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Descripción del Trabajo / Servicio</label>

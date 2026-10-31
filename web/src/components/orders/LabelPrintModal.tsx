@@ -313,6 +313,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
 
     const handlePrint = () => {
         window.print();
+        onClose();
     };
 
     return (
@@ -531,21 +532,13 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `}} />
 
                 {/* Modal Footer Actions */}
-                <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 grid grid-cols-3 gap-4">
+                <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 grid grid-cols-2 gap-4">
                     <button 
                         type="button" 
                         onClick={onClose} 
                         className="py-3 rounded-xl border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all"
                     >
                         Cerrar
-                    </button>
-                    <button
-                        onClick={handleWhatsApp}
-                        disabled={sending}
-                        className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">{sending ? 'sync' : 'send'}</span>
-                        <span>{sending ? 'Enviando...' : 'WhatsApp'}</span>
                     </button>
                     <button
                         onClick={handlePrint}
