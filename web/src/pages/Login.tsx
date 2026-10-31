@@ -44,7 +44,7 @@ export default function LoginPage() {
                     <img
                         src="/cared-login-logo.png"
                         alt="CARED"
-                        className="h-24 sm:h-28 w-auto object-contain mix-blend-screen transition-all"
+                        className="h-24 sm:h-28 w-auto object-contain transition-all"
                         loading="eager"
                         decoding="async"
                     />
