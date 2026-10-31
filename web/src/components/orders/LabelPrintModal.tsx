@@ -239,6 +239,17 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         atelierSettings.labelCodeType || localStorage.getItem('label_code_type') || 'BARCODE',
     );
 
+    const [printAlign, setPrintAlign] = useState<'left' | 'right'>(() => {
+        return (localStorage.getItem('label_print_align') as 'left' | 'right') || 'right';
+    });
+
+    const handleAlignChange = (align: 'left' | 'right') => {
+        setPrintAlign(align);
+        try {
+            localStorage.setItem('label_print_align', align);
+        } catch { /* noop */ }
+    };
+
     useEffect(() => {
         if (!isOpen) return;
         let cancelled = false;
@@ -446,6 +457,39 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             </div>
                         </div>
                     </div>
+
+                    {/* Selector de Lado de Impresión */}
+                    <div className="flex items-center justify-between w-full max-w-[240px] bg-zinc-900 border border-zinc-800 rounded-xl p-1 text-[9px] font-black uppercase tracking-wider">
+                        <span className="text-zinc-500 pl-2">Lado:</span>
+                        <div className="flex gap-1">
+                            <button
+                                type="button"
+                                onClick={() => handleAlignChange('left')}
+                                className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+                                    printAlign === 'left'
+                                        ? 'bg-amber-500 text-black shadow-md'
+                                        : 'text-zinc-400 hover:text-white'
+                                }`}
+                                title="Imprimir cargado a la izquierda"
+                            >
+                                <span className="material-symbols-outlined text-[14px]">format_align_left</span>
+                                <span>Izquierda</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleAlignChange('right')}
+                                className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+                                    printAlign === 'right'
+                                        ? 'bg-amber-500 text-black shadow-md'
+                                        : 'text-zinc-400 hover:text-white'
+                                }`}
+                                title="Imprimir cargado a la derecha"
+                            >
+                                <span className="material-symbols-outlined text-[14px]">format_align_right</span>
+                                <span>Derecha</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Print Styles Injection */}
@@ -459,8 +503,8 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         }
                         #print-label-area {
                             position: fixed !important;
-                            left: auto !important;
-                            right: 0 !important;
+                            left: ${printAlign === 'left' ? '0 !important' : 'auto !important'};
+                            right: ${printAlign === 'right' ? '0 !important' : 'auto !important'};
                             top: 0 !important;
                             width: 58mm !important;
                             min-height: 48mm !important;
