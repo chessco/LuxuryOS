@@ -1044,7 +1044,7 @@ const NewOrderDrawer: React.FC<{
     }, [initialClientName, initialClientPhone]);
 
     const [items, setItems] = useState<any[]>([
-        { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', materialCost: '' }
+        { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', materialCost: '' }
     ]);
 
     // RF-08: mano de obra y material se capturan por pieza; el total lo calcula el sistema
@@ -1061,7 +1061,7 @@ const NewOrderDrawer: React.FC<{
     };
 
     const addItem = () => {
-        setItems([...items, { item: '', metal: 'Oro', color: 'Amarillo', karats: '10 K', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', materialCost: '' }]);
+        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', materialCost: '' }]);
     };
 
     const removeItem = (index: number) => {
@@ -1679,7 +1679,9 @@ const NewOrderDrawer: React.FC<{
                                     {/* 2 Columnas hasta SKU para evitar scroll y compactar la vista */}
                                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Pieza #{index + 1}</label>
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                                Pieza #{index + 1} <span className="text-red-500 font-bold">*</span>
+                                            </label>
                                             <PieceSelect
                                                 value={item.item}
                                                 onChange={(val) => handleItemChange(index, 'item', val)}
@@ -1687,7 +1689,9 @@ const NewOrderDrawer: React.FC<{
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Metal</label>
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                                Metal <span className="text-red-500 font-bold">*</span>
+                                            </label>
                                             <SelectWithOther
                                                 value={item.metal}
                                                 onChange={(val) => handleItemChange(index, 'metal', val)}
@@ -1698,7 +1702,9 @@ const NewOrderDrawer: React.FC<{
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Color</label>
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                                Color <span className="text-red-500 font-bold">*</span>
+                                            </label>
                                             <SelectWithOther
                                                 value={item.color}
                                                 onChange={(val) => handleItemChange(index, 'color', val)}
@@ -1709,7 +1715,9 @@ const NewOrderDrawer: React.FC<{
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Quilates</label>
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                                Quilates <span className="text-red-500 font-bold">*</span>
+                                            </label>
                                             <SelectWithOther
                                                 value={item.karats}
                                                 onChange={(val) => handleItemChange(index, 'karats', val)}
