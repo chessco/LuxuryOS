@@ -309,7 +309,7 @@ export const PublicOrderTrack: React.FC = () => {
             {/* Public Page Footer */}
             <footer className="w-full max-w-lg text-center pt-6 border-t border-cared-line/80">
                 <p className="text-[10px] font-bold text-cared-mute uppercase tracking-widest">
-                    LuxuryOS &copy; {new Date().getFullYear()} &bull; Todos los derechos reservados
+                    CARED &copy; {new Date().getFullYear()} &bull; Todos los derechos reservados
                 </p>
             </footer>
         </div>

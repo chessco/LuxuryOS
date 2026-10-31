@@ -474,7 +474,7 @@ export const Reports: React.FC = () => {
             <div className="hidden print-only mb-6 pb-4 border-b border-black">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h2 className="text-2xl font-black tracking-tight">LUXURY OS - REPORTE DE ENTREGAS</h2>
+                        <h2 className="text-2xl font-black tracking-tight">CARED - REPORTE DE ENTREGAS</h2>
                         <p className="text-xs text-gray-600">
                             Periodo: {formatDateOnly(startDate)} al {formatDateOnly(endDate)} | Tipo: {typeFilter === 'ALL' ? 'Todas' : typeFilter}
                         </p>

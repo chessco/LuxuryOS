@@ -105,7 +105,7 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-10">
             <div>
                 <h1 className="text-foreground text-4xl font-black tracking-tight font-display transition-colors">Vista Ejecutiva</h1>
-                <p className="text-muted-foreground text-sm font-medium mt-2 transition-colors">Centro de análisis y control para Luxury OS.</p>
+                <p className="text-muted-foreground text-sm font-medium mt-2 transition-colors">Centro de análisis y control para CARED.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

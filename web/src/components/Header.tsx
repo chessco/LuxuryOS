@@ -349,7 +349,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <p className="text-xs font-black text-foreground uppercase truncate">{userName}</p>
-                                        <p className="text-[10px] text-muted-foreground truncate">{userEmail || 'usuario@luxuryos.com'}</p>
+                                        <p className="text-[10px] text-muted-foreground truncate">{userEmail || 'usuario@cared.mx'}</p>
                                         <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
                                             {formatRoleName(userRole)}
                                         </span>

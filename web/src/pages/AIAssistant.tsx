@@ -28,7 +28,7 @@ interface ChatMessage {
 
 const AIAssistantPage: React.FC = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([
-        { role: 'assistant', content: 'Hola, soy Aura, tu asistente de Luxury OS. ¿En qué puedo ayudarte hoy con la gestión de tu atelier?' }
+        { role: 'assistant', content: 'Hola, soy Aura, tu asistente de CARED. ¿En qué puedo ayudarte hoy con la gestión de tu atelier?' }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);

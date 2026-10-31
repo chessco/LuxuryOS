@@ -90,7 +90,7 @@ const SettingsPage: React.FC = () => {
             <div className="w-full flex flex-col gap-10">
                 <div>
                     <h1 className="text-foreground text-4xl font-black tracking-tight font-display transition-colors">Configuración</h1>
-                    <p className="text-muted-foreground text-sm font-medium mt-2 transition-colors">Personalice su experiencia y gestione los parámetros de Luxury OS.</p>
+                    <p className="text-muted-foreground text-sm font-medium mt-2 transition-colors">Personalice su experiencia y gestione los parámetros de CARED.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -182,7 +182,7 @@ const SettingsPage: React.FC = () => {
                         <div className="size-3 rounded-full bg-emerald-500 animate-pulse"></div>
                         <div>
                             <p className="text-foreground text-xs font-black uppercase tracking-widest transition-colors">Sistema Actualizado</p>
-                            <p className="text-muted-foreground/50 text-[10px] uppercase tracking-widest mt-1 transition-colors">Luxury OS v1.2.4 (Jewelry Atelier Edition)</p>
+                            <p className="text-muted-foreground/50 text-[10px] uppercase tracking-widest mt-1 transition-colors">CARED v1.2.4 (Jewelry Atelier Edition)</p>
                         </div>
                     </div>
                     <button className="px-6 py-2.5 rounded-xl border border-border text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground hover:border-indigo-500/50 transition-all">

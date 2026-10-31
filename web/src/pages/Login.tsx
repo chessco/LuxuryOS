@@ -45,7 +45,7 @@ export default function LoginPage() {
                         <span className="material-symbols-outlined text-white text-3xl">diamond</span>
                     </div>
                     <div className="text-center flex flex-col gap-2">
-                        <h2 className="text-3xl font-black tracking-tighter uppercase font-display text-foreground transition-colors">Luxury OS</h2>
+                        <h2 className="text-3xl font-black tracking-widest uppercase font-display text-foreground transition-colors">CARED</h2>
                         <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.4em] transition-colors">Business Command Center</p>
                     </div>
                 </div>

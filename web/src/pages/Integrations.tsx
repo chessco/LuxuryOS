@@ -68,7 +68,7 @@ const IntegrationsPage: React.FC = () => {
             <div className="w-full flex flex-col gap-10">
                 <div>
                     <h1 className="text-foreground text-4xl font-black tracking-tight font-display transition-colors">Integraciones</h1>
-                    <p className="text-muted-foreground text-sm font-medium mt-2 transition-colors">Conecte Luxury OS con herramientas externas para potenciar su flujo de trabajo.</p>
+                    <p className="text-muted-foreground text-sm font-medium mt-2 transition-colors">Conecte CARED con herramientas externas para potenciar su flujo de trabajo.</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-8">

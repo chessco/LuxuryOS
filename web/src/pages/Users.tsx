@@ -87,7 +87,7 @@ export default function UsersPage() {
         <div className="flex flex-col gap-10">
             <div>
                 <h1 className="text-foreground text-4xl font-black tracking-tight font-display transition-colors">Gestión de Equipo</h1>
-                <p className="text-muted-foreground text-sm font-medium mt-2 transition-colors">Control de accesos, roles y seguridad de Luxury OS.</p>
+                <p className="text-muted-foreground text-sm font-medium mt-2 transition-colors">Control de accesos, roles y seguridad de CARED.</p>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -285,7 +285,7 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
                             required
                             type="email"
                             className="w-full bg-muted border border-border rounded-2xl px-6 py-4 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground text-sm"
-                            placeholder="nombre@luxuryos.com"
+                            placeholder="nombre@cared.mx"
                         />
                     </div>
 
