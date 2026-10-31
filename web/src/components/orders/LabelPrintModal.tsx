@@ -459,7 +459,8 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         }
                         #print-label-area {
                             position: fixed !important;
-                            left: 0 !important;
+                            left: auto !important;
+                            right: 0 !important;
                             top: 0 !important;
                             width: 58mm !important;
                             min-height: 48mm !important;
@@ -479,7 +480,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             border-color: black !important;
                         }
                         @page {
-                            size: 58mm auto;
+                            size: auto;
                             margin: 0;
                         }
                     }
