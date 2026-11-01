@@ -364,13 +364,16 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         color-adjust: exact !important;
                     }
                     html, body {
-                        width: 62mm !important;
+                        width: 100% !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #ffffff !important;
                         color: #000000 !important;
                         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-                        overflow: hidden !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        justify-content: flex-start !important;
                     }
                     #print-label-area {
                         width: 58mm !important;
@@ -378,8 +381,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         height: auto !important;
                         min-height: 0 !important;
                         box-sizing: border-box !important;
-                        padding: 2mm 1.5mm !important;
+                        padding: 2mm 1mm !important;
                         margin: 0 auto !important;
+                        position: static !important;
                         display: flex !important;
                         flex-direction: column !important;
                         align-items: center !important;
@@ -395,19 +399,20 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         color: #000000 !important;
                         border-color: #000000 !important;
                     }
-                    /* Clases utilitarias clave para impresión térmica sin depender de red */
+                    /* Clases utilitarias clave para impresion termica sin depender de red */
                     .w-full { width: 100% !important; }
                     .border-b { border-bottom-width: 1px !important; border-bottom-style: solid !important; }
+                    .border-b-2 { border-bottom-width: 2px !important; border-bottom-style: solid !important; }
                     .border-t { border-top-width: 1px !important; border-top-style: solid !important; }
                     .border { border-width: 1px !important; border-style: solid !important; }
                     .border-dashed { border-style: dashed !important; }
                     .border-black { border-color: #000000 !important; }
-                    .border-zinc-100, .border-zinc-200, .border-zinc-300 { border-color: #cccccc !important; }
+                    .border-zinc-100, .border-zinc-200, .border-zinc-300 { border-color: #000000 !important; }
                     .text-black { color: #000000 !important; }
                     .text-white { color: #ffffff !important; }
                     .bg-white { background-color: #ffffff !important; }
                     .bg-black { background-color: #000000 !important; }
-                    .bg-zinc-50 { background-color: #f4f4f5 !important; }
+                    .bg-zinc-50 { background-color: #ffffff !important; }
                     .text-center { text-align: center !important; }
                     .text-left { text-align: left !important; }
                     .text-right { text-align: right !important; }
@@ -423,20 +428,36 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                     .justify-center { justify-content: center !important; }
                     .space-y-1 > * + * { margin-top: 4px !important; }
                     .space-y-1\\.5 > * + * { margin-top: 6px !important; }
+                    .space-y-2 > * + * { margin-top: 8px !important; }
                     .space-y-0\\.5 > * + * { margin-top: 2px !important; }
                     .p-1 { padding: 4px !important; }
                     .p-1\\.5 { padding: 6px !important; }
                     .p-2 { padding: 8px !important; }
                     .pb-0\\.5 { padding-bottom: 2px !important; }
                     .pb-1 { padding-bottom: 4px !important; }
+                    .pb-1\\.5 { padding-bottom: 6px !important; }
                     .pt-0\\.5 { padding-top: 2px !important; }
                     .pt-1 { padding-top: 4px !important; }
+                    .pt-1\\.5 { padding-top: 6px !important; }
                     .mb-1 { margin-bottom: 4px !important; }
+                    .mb-1\\.5 { margin-bottom: 6px !important; }
+                    .mb-2 { margin-bottom: 8px !important; }
                     .mb-3 { margin-bottom: 12px !important; }
                     .mt-0\\.5 { margin-top: 2px !important; }
                     .mt-1 { margin-top: 4px !important; }
+                    .mt-1\\.5 { margin-top: 6px !important; }
+                    .mt-2 { margin-top: 8px !important; }
                     .my-2 { margin-top: 8px !important; margin-bottom: 8px !important; }
+                    .text-lg { font-size: 18px !important; }
+                    .text-base { font-size: 16px !important; }
                     .text-sm { font-size: 14px !important; }
+                    .text-xs { font-size: 12px !important; }
+                    .text-\\[12px\\] { font-size: 12px !important; }
+                    .text-\\[11\\.5px\\] { font-size: 11.5px !important; }
+                    .text-\\[11px\\] { font-size: 11px !important; }
+                    .text-\\[10\\.5px\\] { font-size: 10.5px !important; }
+                    .text-\\[10px\\] { font-size: 10px !important; }
+                    .text-\\[9px\\] { font-size: 9px !important; }
                     .text-\\[8\\.5px\\] { font-size: 8.5px !important; }
                     .text-\\[8px\\] { font-size: 8px !important; }
                     .text-\\[7\\.5px\\] { font-size: 7.5px !important; }
@@ -446,6 +467,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                     .tracking-wider { letter-spacing: 0.05em !important; }
                     .leading-none { line-height: 1 !important; }
                     .leading-tight { line-height: 1.25 !important; }
+                    .leading-snug { line-height: 1.375 !important; }
                     .leading-normal { line-height: 1.5 !important; }
                     .rounded { border-radius: 4px !important; }
                     svg { max-width: 100% !important; height: auto !important; display: block !important; margin: 0 auto !important; }
@@ -509,45 +531,45 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             id="print-label-area" 
                             className="bg-white text-black p-2 flex flex-col justify-between items-center text-center font-sans"
                             style={{ 
-                                width: '235px', 
+                                width: '255px', 
                                 height: 'auto',
                                 boxSizing: 'border-box'
                             }}
                         >
                             {/* Brand Header */}
-                            <div className="w-full border-b border-black pb-1 mb-1 text-center">
-                                <h4 className="text-sm font-black tracking-widest leading-none m-0">{atelierName || 'CARED'}</h4>
+                            <div className="w-full border-b-2 border-black pb-1.5 mb-1.5 text-center">
+                                <h4 className="text-base font-black tracking-widest leading-none m-0">{atelierName || 'CARED'}</h4>
                             </div>
 
                             {/* Ticket Details */}
-                            <div className="w-full text-left text-[8.5px] font-bold leading-normal uppercase">
+                            <div className="w-full text-left uppercase">
                                 {/* Fecha subida arriba */}
-                                <div className="text-right pb-0.5 mb-3">
-                                    <span className="text-zinc-500">FECHA: </span>
+                                <div className="text-right pb-0.5 mb-2.5 text-[11px] font-bold">
+                                    <span className="text-zinc-600 font-bold">FECHA: </span>
                                     <span className="font-black text-black">{dateStr}</span>
                                 </div>
 
                                 {/* 2 renglones de espacio antes de los datos */}
-                                <div className="space-y-1.5">
-                                    <div className="border-b border-zinc-100 pb-0.5">
-                                        <span className="text-zinc-500">CLIENTE: </span>
+                                <div className="space-y-1.5 text-[11px] font-bold">
+                                    <div className="border-b border-black pb-0.5">
+                                        <span className="text-zinc-700">CLIENTE: </span>
                                         <span className="font-black text-black">{clientName}</span>
                                     </div>
-                                    <div className="border-b border-zinc-100 pb-0.5">
-                                        <span className="text-zinc-500">NO. ORDEN: </span>
+                                    <div className="border-b border-black pb-0.5">
+                                        <span className="text-zinc-700">NO. ORDEN: </span>
                                         <span className="font-black text-black">{orderCode}</span>
                                     </div>
-                                    <div className="border-b border-zinc-100 pb-0.5">
-                                        <span className="text-zinc-500">CONCEPTO: </span>
+                                    <div className="border-b border-black pb-0.5">
+                                        <span className="text-zinc-700">CONCEPTO: </span>
                                         <span className="font-black text-black">{getConcepto(order.type)}</span>
                                     </div>
 
                                     {/* DETALLE DE LA ORDEN: ORO, GRAMOS, MEDIDA, GROSOR Y NOTAS POR ITEM */}
-                                    <div className="pt-1 mt-1 border-t border-dashed border-zinc-300">
-                                        <div className="text-[7.5px] font-black text-zinc-500 tracking-wider mb-1">
+                                    <div className="pt-1.5 mt-2 border-t border-dashed border-black">
+                                        <div className="text-[10px] font-black text-black tracking-wider mb-1.5">
                                             DETALLE DE LA ORDEN:
                                         </div>
-                                        <div className="space-y-1">
+                                        <div className="space-y-1.5">
                                             {pieces.map((p, idx) => {
                                                 const itemTitle = (p.item || p.pieceType || `Pieza ${idx + 1}`).toUpperCase();
                                                 const specs: string[] = [];
@@ -567,21 +589,21 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                                                 const itemNote = p.description || p.notes || p.trabajo || p.work || '';
 
                                                 return (
-                                                    <div key={idx} className="bg-zinc-50 p-1.5 rounded border border-zinc-200 text-[8px] space-y-0.5 text-left">
-                                                        <div className="font-black text-black flex justify-between items-center leading-tight">
+                                                    <div key={idx} className="bg-white p-2 rounded border border-black text-[10.5px] space-y-1 text-left">
+                                                        <div className="font-black text-black flex justify-between items-center text-[11.5px] leading-tight">
                                                             <span>{itemTitle}</span>
                                                             {pieces.length > 1 && (
-                                                                <span className="text-zinc-400 text-[7px] font-bold">#{idx + 1}</span>
+                                                                <span className="text-black text-[10px] font-black">#{idx + 1}</span>
                                                             )}
                                                         </div>
                                                         {specs.length > 0 && (
-                                                            <div className="text-zinc-700 font-bold leading-tight">
+                                                            <div className="text-black font-bold text-[10.5px] leading-tight">
                                                                 {specs.join(' • ')}
                                                             </div>
                                                         )}
                                                         {itemNote && (
-                                                            <div className="text-zinc-600 font-normal italic text-[7.5px] leading-tight pt-0.5 border-t border-zinc-200/60">
-                                                                <span className="font-bold not-italic text-zinc-800">Nota: </span>
+                                                            <div className="text-black font-normal italic text-[10px] leading-tight pt-1 border-t border-black/30">
+                                                                <span className="font-bold not-italic text-black">NOTA: </span>
                                                                 {itemNote}
                                                             </div>
                                                         )}
@@ -601,13 +623,13 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                                             {/* Mismo QR que el de WhatsApp: enlace de seguimiento, que también abre la orden en el escáner */}
                                             <QRCodeSVG
                                                 value={isTurnOrder ? (order.queueTicket?.qrToken || order.queueTicket?.code) : labelQrValue}
-                                                size={isTurnOrder ? 60 : 76}
+                                                size={isTurnOrder ? 70 : 88}
                                                 bgColor="#ffffff"
                                                 fgColor="#000000"
                                                 level={isTurnOrder ? 'M' : 'L'}
                                             />
                                         </div>
-                                        <span className="text-[7.5px] font-black tracking-widest uppercase mt-0.5 leading-none">
+                                        <span className="text-[11px] font-black tracking-widest uppercase mt-1 leading-none">
                                             {isTurnOrder ? `TURNO: ${order.queueTicket?.code?.toUpperCase()}` : orderCode}
                                         </span>
                                     </div>
@@ -619,8 +641,8 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             </div>
 
                             {/* Brand Footer */}
-                            <div className="w-full text-center border-t border-black pt-1 mt-1">
-                                <span className="text-[6px] font-black tracking-[0.2em] text-zinc-500 leading-none">GRACIAS POR SU PREFERENCIA</span>
+                            <div className="w-full text-center border-t border-black pt-1.5 mt-2">
+                                <span className="text-[8.5px] font-black tracking-[0.2em] text-black leading-none">GRACIAS POR SU PREFERENCIA</span>
                             </div>
                         </div>
                     </div>
@@ -636,15 +658,16 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             visibility: visible !important;
                         }
                         #print-label-area {
-                            position: fixed !important;
+                            position: relative !important;
                             left: 0 !important;
                             right: 0 !important;
                             margin: 0 auto !important;
                             top: 0 !important;
-                            width: 62mm !important;
+                            width: 58mm !important;
+                            max-width: 58mm !important;
                             height: auto !important;
                             min-height: 0 !important;
-                            padding: 2.5mm !important;
+                            padding: 2mm 1mm !important;
                             box-sizing: border-box !important;
                             display: flex !important;
                             flex-direction: column !important;
