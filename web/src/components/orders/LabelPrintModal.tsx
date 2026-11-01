@@ -367,10 +367,11 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
                     }
                     #print-label-area {
-                        width: 62mm !important;
+                        width: 58mm !important;
+                        max-width: 58mm !important;
                         min-height: 40mm !important;
                         box-sizing: border-box !important;
-                        padding: 2mm 3mm !important;
+                        padding: 2mm 1.5mm !important;
                         margin: 0 auto !important;
                         display: flex !important;
                         flex-direction: column !important;
