@@ -307,6 +307,16 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             return;
         }
 
+        // iPadOS/Safari does not reliably print an invisible iframe and treats
+        // an automatic @page height as an unbounded continuous sheet. Print
+        // the existing, print-styled document directly on Apple mobile.
+        const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
+            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        if (isAppleMobile) {
+            window.print();
+            return;
+        }
+
         // Remove any previous print iframe
         const prevIframe = document.getElementById('thermal-label-print-frame');
         if (prevIframe) {
@@ -320,7 +330,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         iframe.style.top = '0';
         iframe.style.left = '0';
         iframe.style.width = '62mm';
-        iframe.style.height = '100%';
+        iframe.style.height = '152.4mm';
         iframe.style.zIndex = '-9999';
         iframe.style.border = '0';
         iframe.style.opacity = '0';
@@ -350,7 +360,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 ${links}
                 <style>
                     @page {
-                        size: 62mm auto;
+                        size: 62mm 152.4mm;
                         margin: 0mm !important;
                     }
                     @page :first {
@@ -365,7 +375,8 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         color-adjust: exact !important;
                     }
                     html, body {
-                        width: 100% !important;
+                        width: 62mm !important;
+                        height: 152.4mm !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #ffffff !important;
@@ -682,7 +693,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             border-color: black !important;
                         }
                         @page {
-                            size: 62mm auto;
+                            size: 62mm 152.4mm;
                             margin: 0;
                         }
                     }
