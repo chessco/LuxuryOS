@@ -239,17 +239,6 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         atelierSettings.labelCodeType || localStorage.getItem('label_code_type') || 'BARCODE',
     );
 
-    const [printAlign, setPrintAlign] = useState<'left' | 'right'>(() => {
-        return (localStorage.getItem('label_print_align') as 'left' | 'right') || 'right';
-    });
-
-    const handleAlignChange = (align: 'left' | 'right') => {
-        setPrintAlign(align);
-        try {
-            localStorage.setItem('label_print_align', align);
-        } catch { /* noop */ }
-    };
-
     useEffect(() => {
         if (!isOpen) return;
         let cancelled = false;
@@ -360,7 +349,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 ${stylesheets}
                 <style>
                     @page {
-                        size: 58mm auto;
+                        size: 62mm auto;
                         margin: 0;
                     }
                     html, body {
@@ -373,13 +362,11 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         print-color-adjust: exact !important;
                     }
                     .thermal-print-page {
-                        width: 58mm !important;
+                        width: 62mm !important;
                         min-height: 48mm !important;
                         box-sizing: border-box !important;
                         padding: 2.5mm !important;
-                        margin: 0 !important;
-                        margin-left: ${printAlign === 'right' ? 'auto' : '0'} !important;
-                        margin-right: ${printAlign === 'left' ? 'auto' : '0'} !important;
+                        margin: 0 auto !important;
                         display: flex !important;
                         flex-direction: column !important;
                         align-items: center !important;
@@ -448,7 +435,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             id="print-label-area" 
                             className="bg-white text-black p-2 flex flex-col justify-between items-center text-center font-sans"
                             style={{ 
-                                width: '220px', 
+                                width: '235px', 
                                 minHeight: '340px',
                                 boxSizing: 'border-box'
                             }}
@@ -563,39 +550,6 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             </div>
                         </div>
                     </div>
-
-                    {/* Selector de Lado de Impresión */}
-                    <div className="flex items-center justify-between w-full max-w-[240px] bg-zinc-900 border border-zinc-800 rounded-xl p-1 text-[9px] font-black uppercase tracking-wider">
-                        <span className="text-zinc-500 pl-2">Lado:</span>
-                        <div className="flex gap-1">
-                            <button
-                                type="button"
-                                onClick={() => handleAlignChange('left')}
-                                className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
-                                    printAlign === 'left'
-                                        ? 'bg-amber-500 text-black shadow-md'
-                                        : 'text-zinc-400 hover:text-white'
-                                }`}
-                                title="Imprimir cargado a la izquierda"
-                            >
-                                <span className="material-symbols-outlined text-[14px]">format_align_left</span>
-                                <span>Izquierda</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleAlignChange('right')}
-                                className={`px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
-                                    printAlign === 'right'
-                                        ? 'bg-amber-500 text-black shadow-md'
-                                        : 'text-zinc-400 hover:text-white'
-                                }`}
-                                title="Imprimir cargado a la derecha"
-                            >
-                                <span className="material-symbols-outlined text-[14px]">format_align_right</span>
-                                <span>Derecha</span>
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Print Styles Injection */}
@@ -609,13 +563,13 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         }
                         #print-label-area {
                             position: fixed !important;
-                            left: ${printAlign === 'left' ? '0 !important' : 'auto !important'};
-                            right: ${printAlign === 'right' ? '0 !important' : 'auto !important'};
+                            left: 0 !important;
+                            right: 0 !important;
+                            margin: 0 auto !important;
                             top: 0 !important;
-                            width: 58mm !important;
+                            width: 62mm !important;
                             min-height: 48mm !important;
                             height: auto !important;
-                            margin: 0 !important;
                             padding: 2.5mm !important;
                             box-sizing: border-box !important;
                             display: flex !important;
@@ -630,7 +584,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             border-color: black !important;
                         }
                         @page {
-                            size: auto;
+                            size: 62mm auto;
                             margin: 0;
                         }
                     }
