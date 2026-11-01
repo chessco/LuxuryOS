@@ -311,9 +311,114 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         thickness: order.thickness || '-'
     };
 
+    const printLabelViaIframe = () => {
+        const printElement = document.getElementById('print-label-area');
+        if (!printElement) {
+            window.print();
+            onClose();
+            return;
+        }
+
+        // Remove any previous print iframe
+        const prevIframe = document.getElementById('thermal-label-print-frame');
+        if (prevIframe) {
+            prevIframe.remove();
+        }
+
+        const iframe = document.createElement('iframe');
+        iframe.id = 'thermal-label-print-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.style.visibility = 'hidden';
+        document.body.appendChild(iframe);
+
+        const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+        if (!iframeDoc) {
+            window.print();
+            onClose();
+            return;
+        }
+
+        // Collect stylesheets and fonts
+        const stylesheets = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+            .map(el => el.outerHTML)
+            .join('\n');
+
+        const labelHtml = printElement.innerHTML;
+
+        iframeDoc.open();
+        iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8" />
+                <title>Etiqueta ${orderCode}</title>
+                ${stylesheets}
+                <style>
+                    @page {
+                        size: 58mm auto;
+                        margin: 0;
+                    }
+                    html, body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                        color: black !important;
+                        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .thermal-print-page {
+                        width: 58mm !important;
+                        min-height: 48mm !important;
+                        box-sizing: border-box !important;
+                        padding: 2.5mm !important;
+                        margin: 0 !important;
+                        margin-left: ${printAlign === 'right' ? 'auto' : '0'} !important;
+                        margin-right: ${printAlign === 'left' ? 'auto' : '0'} !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        background: white !important;
+                        color: black !important;
+                    }
+                    .thermal-print-page * {
+                        color: black !important;
+                        border-color: black !important;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="thermal-print-page">
+                    ${labelHtml}
+                </div>
+            </body>
+            </html>
+        `);
+        iframeDoc.close();
+
+        // Allow fonts and SVG barcodes to complete render cycle
+        setTimeout(() => {
+            try {
+                iframe.contentWindow?.focus();
+                iframe.contentWindow?.print();
+            } catch (err) {
+                console.warn('Iframe print failed, fallback to window.print', err);
+                window.print();
+            }
+            // Close modal after print dialog opens
+            setTimeout(() => {
+                onClose();
+            }, 600);
+        }, 250);
+    };
+
     const handlePrint = () => {
-        window.print();
-        onClose();
+        printLabelViaIframe();
     };
 
     return (
