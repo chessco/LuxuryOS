@@ -304,7 +304,6 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         const printElement = document.getElementById('print-label-area');
         if (!printElement) {
             window.print();
-            onClose();
             return;
         }
 
@@ -316,24 +315,25 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
 
         const iframe = document.createElement('iframe');
         iframe.id = 'thermal-label-print-frame';
+        // Offscreen con dimensiones reales: NUNCA usar visibility:hidden ni width:0 porque Chrome renderiza la vista previa en blanco
         iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
+        iframe.style.top = '-9999px';
+        iframe.style.left = '-9999px';
+        iframe.style.width = '62mm';
+        iframe.style.height = '120mm';
         iframe.style.border = '0';
-        iframe.style.visibility = 'hidden';
+        iframe.style.opacity = '0';
+        iframe.style.pointerEvents = 'none';
         document.body.appendChild(iframe);
 
         const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
         if (!iframeDoc) {
             window.print();
-            onClose();
             return;
         }
 
-        // Collect stylesheets and fonts
-        const stylesheets = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+        // Solo copiar enlaces a hojas de estilo externas (evitando copiar estilos locales con body * { visibility: hidden })
+        const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
             .map(el => el.outerHTML)
             .join('\n');
 
@@ -346,41 +346,101 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             <head>
                 <meta charset="utf-8" />
                 <title>Etiqueta ${orderCode}</title>
-                ${stylesheets}
+                ${links}
                 <style>
                     @page {
                         size: 62mm auto;
                         margin: 0;
                     }
-                    html, body {
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        background: white !important;
-                        color: black !important;
-                        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+                    * {
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        box-sizing: border-box !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
-                    .thermal-print-page {
+                    html, body {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: #ffffff !important;
+                        color: #000000 !important;
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+                    }
+                    #print-label-area {
                         width: 62mm !important;
-                        min-height: 48mm !important;
+                        min-height: 40mm !important;
                         box-sizing: border-box !important;
-                        padding: 2.5mm !important;
+                        padding: 2mm 3mm !important;
                         margin: 0 auto !important;
                         display: flex !important;
                         flex-direction: column !important;
                         align-items: center !important;
-                        background: white !important;
-                        color: black !important;
+                        text-align: center !important;
+                        background: #ffffff !important;
+                        color: #000000 !important;
                     }
-                    .thermal-print-page * {
-                        color: black !important;
-                        border-color: black !important;
+                    #print-label-area * {
+                        color: #000000 !important;
+                        border-color: #000000 !important;
                     }
+                    /* Clases utilitarias clave para impresión térmica sin depender de red */
+                    .w-full { width: 100% !important; }
+                    .border-b { border-bottom-width: 1px !important; border-bottom-style: solid !important; }
+                    .border-t { border-top-width: 1px !important; border-top-style: solid !important; }
+                    .border { border-width: 1px !important; border-style: solid !important; }
+                    .border-dashed { border-style: dashed !important; }
+                    .border-black { border-color: #000000 !important; }
+                    .border-zinc-100, .border-zinc-200, .border-zinc-300 { border-color: #cccccc !important; }
+                    .text-black { color: #000000 !important; }
+                    .text-white { color: #ffffff !important; }
+                    .bg-white { background-color: #ffffff !important; }
+                    .bg-black { background-color: #000000 !important; }
+                    .bg-zinc-50 { background-color: #f4f4f5 !important; }
+                    .text-center { text-align: center !important; }
+                    .text-left { text-align: left !important; }
+                    .text-right { text-align: right !important; }
+                    .font-black { font-weight: 900 !important; }
+                    .font-bold { font-weight: 700 !important; }
+                    .font-normal { font-weight: 400 !important; }
+                    .italic { font-style: italic !important; }
+                    .uppercase { text-transform: uppercase !important; }
+                    .flex { display: flex !important; }
+                    .flex-col { flex-direction: column !important; }
+                    .items-center { align-items: center !important; }
+                    .justify-between { justify-content: space-between !important; }
+                    .justify-center { justify-content: center !important; }
+                    .space-y-1 > * + * { margin-top: 4px !important; }
+                    .space-y-1\\.5 > * + * { margin-top: 6px !important; }
+                    .space-y-0\\.5 > * + * { margin-top: 2px !important; }
+                    .p-1 { padding: 4px !important; }
+                    .p-1\\.5 { padding: 6px !important; }
+                    .p-2 { padding: 8px !important; }
+                    .pb-0\\.5 { padding-bottom: 2px !important; }
+                    .pb-1 { padding-bottom: 4px !important; }
+                    .pt-0\\.5 { padding-top: 2px !important; }
+                    .pt-1 { padding-top: 4px !important; }
+                    .mb-1 { margin-bottom: 4px !important; }
+                    .mb-3 { margin-bottom: 12px !important; }
+                    .mt-0\\.5 { margin-top: 2px !important; }
+                    .mt-1 { margin-top: 4px !important; }
+                    .my-2 { margin-top: 8px !important; margin-bottom: 8px !important; }
+                    .text-sm { font-size: 14px !important; }
+                    .text-\\[8\\.5px\\] { font-size: 8.5px !important; }
+                    .text-\\[8px\\] { font-size: 8px !important; }
+                    .text-\\[7\\.5px\\] { font-size: 7.5px !important; }
+                    .text-\\[7px\\] { font-size: 7px !important; }
+                    .text-\\[6px\\] { font-size: 6px !important; }
+                    .tracking-widest { letter-spacing: 0.1em !important; }
+                    .tracking-wider { letter-spacing: 0.05em !important; }
+                    .leading-none { line-height: 1 !important; }
+                    .leading-tight { line-height: 1.25 !important; }
+                    .leading-normal { line-height: 1.5 !important; }
+                    .rounded { border-radius: 4px !important; }
+                    svg { max-width: 100% !important; height: auto !important; display: block !important; margin: 0 auto !important; }
                 </style>
             </head>
             <body>
-                <div class="thermal-print-page">
+                <div id="print-label-area">
                     ${labelHtml}
                 </div>
             </body>
@@ -388,7 +448,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         `);
         iframeDoc.close();
 
-        // Allow fonts and SVG barcodes to complete render cycle
+        // Esperar a que el iframe procese fuentes y SVGs antes de invocar impresión
         setTimeout(() => {
             try {
                 iframe.contentWindow?.focus();
@@ -397,11 +457,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 console.warn('Iframe print failed, fallback to window.print', err);
                 window.print();
             }
-            // Close modal after print dialog opens
-            setTimeout(() => {
-                onClose();
-            }, 600);
-        }, 250);
+        }, 350);
     };
 
     const handlePrint = () => {
