@@ -315,12 +315,13 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
 
         const iframe = document.createElement('iframe');
         iframe.id = 'thermal-label-print-frame';
-        // Offscreen con dimensiones reales: NUNCA usar visibility:hidden ni width:0 porque Chrome renderiza la vista previa en blanco
+        // In-viewport invisible: posición fixed con zIndex negativo y opacity:0 para máxima compatibilidad con Safari (evita culling offscreen de WebKit)
         iframe.style.position = 'fixed';
-        iframe.style.top = '-9999px';
-        iframe.style.left = '-9999px';
+        iframe.style.top = '0';
+        iframe.style.left = '0';
         iframe.style.width = '62mm';
-        iframe.style.height = 'auto';
+        iframe.style.height = '100%';
+        iframe.style.zIndex = '-9999';
         iframe.style.border = '0';
         iframe.style.opacity = '0';
         iframe.style.pointerEvents = 'none';
@@ -482,7 +483,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         `);
         iframeDoc.close();
 
-        // Esperar a que el iframe procese fuentes y SVGs antes de invocar impresión
+        // Esperar a que el iframe procese fuentes y SVGs antes de invocar impresión (compatible con Safari y Chromium)
         setTimeout(() => {
             try {
                 iframe.contentWindow?.focus();
@@ -491,7 +492,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 console.warn('Iframe print failed, fallback to window.print', err);
                 window.print();
             }
-        }, 350);
+        }, 450);
     };
 
     const handlePrint = () => {
