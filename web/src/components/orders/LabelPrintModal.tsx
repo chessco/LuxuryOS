@@ -320,7 +320,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         iframe.style.top = '-9999px';
         iframe.style.left = '-9999px';
         iframe.style.width = '62mm';
-        iframe.style.height = '120mm';
+        iframe.style.height = 'auto';
         iframe.style.border = '0';
         iframe.style.opacity = '0';
         iframe.style.pointerEvents = 'none';
@@ -350,7 +350,10 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 <style>
                     @page {
                         size: 62mm auto;
-                        margin: 0;
+                        margin: 0mm !important;
+                    }
+                    @page :first {
+                        margin: 0mm !important;
                     }
                     * {
                         visibility: visible !important;
@@ -358,18 +361,22 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         box-sizing: border-box !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                        color-adjust: exact !important;
                     }
                     html, body {
+                        width: 62mm !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #ffffff !important;
                         color: #000000 !important;
                         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+                        overflow: hidden !important;
                     }
                     #print-label-area {
                         width: 58mm !important;
                         max-width: 58mm !important;
-                        min-height: 40mm !important;
+                        height: auto !important;
+                        min-height: 0 !important;
                         box-sizing: border-box !important;
                         padding: 2mm 1.5mm !important;
                         margin: 0 auto !important;
@@ -379,6 +386,10 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         text-align: center !important;
                         background: #ffffff !important;
                         color: #000000 !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                        page-break-after: avoid !important;
+                        break-after: avoid !important;
                     }
                     #print-label-area * {
                         color: #000000 !important;
@@ -473,7 +484,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
                     <div>
                         <h3 className="text-white text-sm font-black uppercase tracking-widest">Etiqueta de Pedido</h3>
-                        <p className="text-zinc-500 text-[9px] font-black uppercase tracking-wider mt-1">Vista previa y dimensiones de impresión</p>
+                        <p className="text-zinc-500 text-[9px] font-black uppercase tracking-wider mt-1">Preconfigurada para Brother QL-810W (DK-2205)</p>
                     </div>
                     <button 
                         onClick={onClose} 
@@ -484,8 +495,14 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 </div>
 
                 {/* Modal Body */}
-                <div className="p-8 flex flex-col items-center justify-center gap-6 bg-zinc-950/20 overflow-y-auto max-h-[70vh]">
+                <div className="p-8 flex flex-col items-center justify-center gap-5 bg-zinc-950/20 overflow-y-auto max-h-[70vh]">
                     
+                    {/* Brother DK-2205 Specs Pill */}
+                    <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-800/80 border border-zinc-700/60 text-[10px] font-bold text-zinc-300 shadow-sm">
+                        <span className="material-symbols-outlined text-[15px] text-amber-500">print</span>
+                        <span>Brother QL-810W &bull; DK-2205 (62 mm continuo)</span>
+                    </div>
+
                     {/* Visual Label Preview Sticker container */}
                     <div className="bg-white border border-zinc-300 rounded-lg p-4 shadow-lg text-black select-none max-w-full">
                         <div 
@@ -493,7 +510,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             className="bg-white text-black p-2 flex flex-col justify-between items-center text-center font-sans"
                             style={{ 
                                 width: '235px', 
-                                minHeight: '340px',
+                                height: 'auto',
                                 boxSizing: 'border-box'
                             }}
                         >
@@ -625,8 +642,8 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             margin: 0 auto !important;
                             top: 0 !important;
                             width: 62mm !important;
-                            min-height: 48mm !important;
                             height: auto !important;
+                            min-height: 0 !important;
                             padding: 2.5mm !important;
                             box-sizing: border-box !important;
                             display: flex !important;
