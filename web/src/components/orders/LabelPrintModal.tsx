@@ -236,11 +236,16 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
     // El valor de este navegador solo existe si alguien guardó la configuración en este equipo;
     // la fuente de verdad es el servidor, que se consulta al abrir la etiqueta.
     const [labelCodeType, setLabelCodeType] = useState<string>(
-        atelierSettings.labelCodeType || localStorage.getItem('label_code_type') || 'BARCODE',
+        atelierSettings.labelCodeType || localStorage.getItem('label_code_type') || 'QR',
     );
 
+    const autoPrintedRef = useRef<string | null>(null);
+
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            autoPrintedRef.current = null;
+            return;
+        }
         let cancelled = false;
         api.get('/settings')
             .then(({ data }) => {
@@ -273,11 +278,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         }
     }, [isOpen, order, labelCodeType]);
 
-    if (!isOpen || !order) return null;
-
-    const isTurnOrder = !!order.queueTicket;
-    const clientName = (order.client?.name || order.clientName || 'CLIENTE').toUpperCase();
-    const orderCode = order.orderCode || formatOrderCode(order);
+    const isTurnOrder = !!order?.queueTicket;
+    const clientName = (order?.client?.name || order?.clientName || 'CLIENTE').toUpperCase();
+    const orderCode = order ? (order.orderCode || formatOrderCode(order)) : '';
     const formatDate = (date?: Date | string | null) => {
         const d = date ? new Date(date) : new Date();
         return d.toLocaleDateString('es-MX', {
@@ -287,17 +290,17 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             year: 'numeric'
         });
     };
-    const dateStr = formatDate(order.createdAt);
+    const dateStr = formatDate(order?.createdAt);
 
     // Extract piece info
-    const pieceInfo = order.specifications?.items?.[0] || {
-        item: order.pieceType || order.item || 'PIEZA',
-        metal: order.metal || '-',
-        color: order.color || '-',
-        karats: order.karats || '-',
-        weight: order.weight || '-',
-        size: order.size || '-',
-        thickness: order.thickness || '-'
+    const pieceInfo = order?.specifications?.items?.[0] || {
+        item: order?.pieceType || order?.item || 'PIEZA',
+        metal: order?.metal || '-',
+        color: order?.color || '-',
+        karats: order?.karats || '-',
+        weight: order?.weight || '-',
+        size: order?.size || '-',
+        thickness: order?.thickness || '-'
     };
 
     const printLabelViaIframe = () => {
@@ -307,30 +310,136 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             return;
         }
 
-        // iPadOS/Safari does not reliably print an invisible iframe and treats
-        // an automatic @page height as an unbounded continuous sheet. Print
-        // the existing, print-styled document directly on Apple mobile.
-        const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
-            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        if (isAppleMobile) {
-            window.print();
+        const labelHtml = printElement.innerHTML;
+
+        // Limpiar portales o estilos previos de impresión
+        document.getElementById('ios-print-portal')?.remove();
+        document.getElementById('thermal-print-dynamic-style')?.remove();
+        document.getElementById('thermal-label-print-frame')?.remove();
+
+        // Crear portal directo en body para medir la altura real a 58mm de ancho
+        // y para que en iPad/Safari sea el único elemento del DOM durante @media print
+        const portal = document.createElement('div');
+        portal.id = 'ios-print-portal';
+        portal.style.position = 'fixed';
+        portal.style.top = '0';
+        portal.style.left = '0';
+        portal.style.width = '62mm';
+        portal.style.zIndex = '-9999';
+        portal.style.opacity = '0';
+        portal.style.pointerEvents = 'none';
+        portal.style.background = '#ffffff';
+        portal.innerHTML = `<div id="print-label-portal-content" class="bg-white text-black p-2 flex flex-col justify-between items-center text-center font-sans" style="width: 58mm; max-width: 58mm; margin: 0 auto; padding: 2mm 1mm; box-sizing: border-box;">${labelHtml}</div>`;
+        document.body.appendChild(portal);
+
+        const portalContent = document.getElementById('print-label-portal-content');
+        const heightPx = portalContent?.getBoundingClientRect().height || portalContent?.scrollHeight || printElement.scrollHeight || 280;
+        // Convertir px a mm (96 px = 25.4 mm) + 1mm de margen de corte.
+        // Mínimo 64mm (> 62mm de ancho) para que WebKit/AirPrint siempre mantenga orientación vertical (Portrait).
+        const heightMm = Math.max(64, Math.ceil((heightPx * 25.4) / 96) + 1);
+
+        const isAppleOrSafari = /iPad|iPhone|iPod/.test(navigator.userAgent)
+            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+            || (/^((?!chrome|android).)*safari/i.test(navigator.userAgent));
+
+        if (isAppleOrSafari) {
+            const dynamicStyle = document.createElement('style');
+            dynamicStyle.id = 'thermal-print-dynamic-style';
+            dynamicStyle.textContent = `
+                @page {
+                    size: 62mm ${heightMm}mm !important;
+                    margin: 0mm !important;
+                }
+                @page :first {
+                    margin: 0mm !important;
+                }
+                @media print {
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-adjust: exact !important;
+                    }
+                    html, body {
+                        width: 62mm !important;
+                        min-width: 62mm !important;
+                        max-width: 62mm !important;
+                        height: ${heightMm}mm !important;
+                        min-height: 0 !important;
+                        max-height: ${heightMm}mm !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: #ffffff !important;
+                        background-color: #ffffff !important;
+                        color: #000000 !important;
+                        overflow: hidden !important;
+                    }
+                    body > *:not(#ios-print-portal) {
+                        display: none !important;
+                    }
+                    #ios-print-portal {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        justify-content: flex-start !important;
+                        position: static !important;
+                        width: 62mm !important;
+                        max-width: 62mm !important;
+                        height: auto !important;
+                        min-height: 0 !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                        z-index: auto !important;
+                        background: #ffffff !important;
+                        overflow: hidden !important;
+                    }
+                    #ios-print-portal #print-label-portal-content {
+                        width: 58mm !important;
+                        max-width: 58mm !important;
+                        height: auto !important;
+                        min-height: 0 !important;
+                        margin: 0 auto !important;
+                        padding: 1.5mm 1mm !important;
+                        box-sizing: border-box !important;
+                        background: #ffffff !important;
+                        color: #000000 !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                        page-break-after: avoid !important;
+                        break-after: avoid !important;
+                    }
+                    #ios-print-portal * {
+                        color: #000000 !important;
+                        border-color: #000000 !important;
+                    }
+                }
+            `;
+            document.head.appendChild(dynamicStyle);
+            void document.body.offsetHeight;
+
+            const prevTitle = document.title;
+            document.title = ' ';
+            try {
+                window.print();
+            } finally {
+                setTimeout(() => {
+                    document.title = prevTitle;
+                }, 1000);
+            }
             return;
         }
 
-        // Remove any previous print iframe
-        const prevIframe = document.getElementById('thermal-label-print-frame');
-        if (prevIframe) {
-            prevIframe.remove();
-        }
+        // En Windows/Chrome removemos el portal de medición y usamos el iframe aislado con altura automática
+        portal.remove();
 
         const iframe = document.createElement('iframe');
         iframe.id = 'thermal-label-print-frame';
-        // In-viewport invisible: posición fixed con zIndex negativo y opacity:0 para máxima compatibilidad con Safari (evita culling offscreen de WebKit)
         iframe.style.position = 'fixed';
         iframe.style.top = '0';
         iframe.style.left = '0';
         iframe.style.width = '62mm';
-        iframe.style.height = '152.4mm';
+        iframe.style.height = 'auto';
         iframe.style.zIndex = '-9999';
         iframe.style.border = '0';
         iframe.style.opacity = '0';
@@ -343,12 +452,10 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             return;
         }
 
-        // Solo copiar enlaces a hojas de estilo externas (evitando copiar estilos locales con body * { visibility: hidden })
+        // Solo copiar enlaces a hojas de estilo externas
         const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
             .map(el => el.outerHTML)
             .join('\n');
-
-        const labelHtml = printElement.innerHTML;
 
         iframeDoc.open();
         iframeDoc.write(`
@@ -360,7 +467,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 ${links}
                 <style>
                     @page {
-                        size: 62mm 152.4mm;
+                        size: 62mm auto;
                         margin: 0mm !important;
                     }
                     @page :first {
@@ -375,8 +482,8 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                         color-adjust: exact !important;
                     }
                     html, body {
-                        width: 62mm !important;
-                        height: 152.4mm !important;
+                        width: 100% !important;
+                        height: auto !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #ffffff !important;
@@ -510,9 +617,25 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         printLabelViaIframe();
     };
 
+    // Impresión directa sin previsualización al abrir la etiqueta
+    useEffect(() => {
+        if (!isOpen || !order) return;
+        const currentKey = `${order.id}-${labelCodeType}`;
+        if (autoPrintedRef.current === currentKey) return;
+        autoPrintedRef.current = currentKey;
+
+        printLabelViaIframe();
+        const closeTimer = setTimeout(() => {
+            onClose();
+        }, 250);
+        return () => clearTimeout(closeTimer);
+    }, [isOpen, order, labelCodeType]);
+
+    if (!isOpen || !order) return null;
+
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-left">
+        <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none overflow-hidden" aria-hidden="true">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl text-left">
                 
                 {/* Modal Header */}
                 <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
@@ -549,20 +672,20 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             }}
                         >
                             {/* Brand Header */}
-                            <div className="w-full border-b-2 border-black pb-1.5 mb-1.5 text-center">
+                            <div className="w-full border-b-2 border-black pb-1 mb-1 text-center">
                                 <h4 className="text-base font-black tracking-widest leading-none m-0">{atelierName || 'CARED'}</h4>
                             </div>
 
                             {/* Ticket Details */}
                             <div className="w-full text-left uppercase">
                                 {/* Fecha subida arriba */}
-                                <div className="text-right pb-0.5 mb-2.5 text-[11px] font-bold">
+                                <div className="text-right pb-0.5 mb-1.5 text-[11px] font-bold">
                                     <span className="text-zinc-600 font-bold">FECHA: </span>
                                     <span className="font-black text-black">{dateStr}</span>
                                 </div>
 
-                                {/* 2 renglones de espacio antes de los datos */}
-                                <div className="space-y-1.5 text-[11px] font-bold">
+                                {/* Datos principales */}
+                                <div className="space-y-1 text-[11px] font-bold">
                                     <div className="border-b border-black pb-0.5">
                                         <span className="text-zinc-700">CLIENTE: </span>
                                         <span className="font-black text-black">{clientName}</span>
@@ -577,11 +700,11 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                                     </div>
 
                                     {/* DETALLE DE LA ORDEN: ORO, GRAMOS, MEDIDA, GROSOR Y NOTAS POR ITEM */}
-                                    <div className="pt-1.5 mt-2 border-t border-dashed border-black">
-                                        <div className="text-[10px] font-black text-black tracking-wider mb-1.5">
+                                    <div className="pt-1 mt-1.5 border-t border-dashed border-black">
+                                        <div className="text-[10px] font-black text-black tracking-wider mb-1">
                                             DETALLE DE LA ORDEN:
                                         </div>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1">
                                             {pieces.map((p, idx) => {
                                                 const itemTitle = (p.item || p.pieceType || `Pieza ${idx + 1}`).toUpperCase();
                                                 const specs: string[] = [];
@@ -601,7 +724,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                                                 const itemNote = p.description || p.notes || p.trabajo || p.work || '';
 
                                                 return (
-                                                    <div key={idx} className="bg-white p-2 rounded border border-black text-[10.5px] space-y-1 text-left">
+                                                    <div key={idx} className="bg-white p-1.5 rounded border border-black text-[10.5px] space-y-0.5 text-left">
                                                         <div className="font-black text-black flex justify-between items-center text-[11.5px] leading-tight">
                                                             <span>{itemTitle}</span>
                                                             {pieces.length > 1 && (
@@ -614,7 +737,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                                                             </div>
                                                         )}
                                                         {itemNote && (
-                                                            <div className="text-black font-normal italic text-[10px] leading-tight pt-1 border-t border-black/30">
+                                                            <div className="text-black font-normal italic text-[10px] leading-tight pt-0.5 border-t border-black/30">
                                                                 <span className="font-bold not-italic text-black">NOTA: </span>
                                                                 {itemNote}
                                                             </div>
@@ -628,20 +751,20 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             </div>
 
                             {/* Barcode or QR Code Container */}
-                            <div className="my-2 flex flex-col items-center justify-center w-full">
+                            <div className="my-1.5 flex flex-col items-center justify-center w-full">
                                 {labelCodeType === 'QR' ? (
                                     <div className="flex flex-col items-center gap-0.5">
                                         <div className="p-1 bg-white border border-black rounded">
                                             {/* Mismo QR que el de WhatsApp: enlace de seguimiento, que también abre la orden en el escáner */}
                                             <QRCodeSVG
                                                 value={isTurnOrder ? (order.queueTicket?.qrToken || order.queueTicket?.code) : labelQrValue}
-                                                size={isTurnOrder ? 70 : 88}
+                                                size={isTurnOrder ? 68 : 82}
                                                 bgColor="#ffffff"
                                                 fgColor="#000000"
                                                 level={isTurnOrder ? 'M' : 'L'}
                                             />
                                         </div>
-                                        <span className="text-[11px] font-black tracking-widest uppercase mt-1 leading-none">
+                                        <span className="text-[11px] font-black tracking-widest uppercase mt-0.5 leading-none">
                                             {isTurnOrder ? `TURNO: ${order.queueTicket?.code?.toUpperCase()}` : orderCode}
                                         </span>
                                     </div>
@@ -653,51 +776,12 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             </div>
 
                             {/* Brand Footer */}
-                            <div className="w-full text-center border-t border-black pt-1.5 mt-2">
+                            <div className="w-full text-center border-t border-black pt-1 mt-1">
                                 <span className="text-[8.5px] font-black tracking-[0.2em] text-black leading-none">GRACIAS POR SU PREFERENCIA</span>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                {/* Print Styles Injection */}
-                <style dangerouslySetInnerHTML={{ __html: `
-                    @media print {
-                        body * {
-                            visibility: hidden !important;
-                        }
-                        #print-label-area, #print-label-area * {
-                            visibility: visible !important;
-                        }
-                        #print-label-area {
-                            position: relative !important;
-                            left: 0 !important;
-                            right: 0 !important;
-                            margin: 0 auto !important;
-                            top: 0 !important;
-                            width: 58mm !important;
-                            max-width: 58mm !important;
-                            height: auto !important;
-                            min-height: 0 !important;
-                            padding: 2mm 1mm !important;
-                            box-sizing: border-box !important;
-                            display: flex !important;
-                            flex-direction: column !important;
-                            justify-content: flex-start !important;
-                            align-items: center !important;
-                            background: white !important;
-                            color: black !important;
-                        }
-                        #print-label-area div, #print-label-area span, #print-label-area h4 {
-                            color: black !important;
-                            border-color: black !important;
-                        }
-                        @page {
-                            size: 62mm 152.4mm;
-                            margin: 0;
-                        }
-                    }
-                `}} />
 
                 {/* Modal Footer Actions */}
                 <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 grid grid-cols-2 gap-4">
