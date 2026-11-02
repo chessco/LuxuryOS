@@ -302,12 +302,25 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
         }
     };
 
-    // RF-03 Flujo B: Registrar abono sin entregar el trabajo
+    // Cobrar: al registrar pago, si la orden está lista para entrega, pasa en automático a ENTREGADO
     const handleRegisterPayment = async (amount: number, method: string) => {
         if (!foundOrder) return;
-        await OrdersService.registerPayment(foundOrder.id, amount, method);
+        const rawStatus = (foundOrder.status || foundOrder.stage || '').toUpperCase();
+        const isReadyForDelivery =
+            rawStatus === 'REPAIR_COMPLETED' ||
+            rawStatus === 'READY_FOR_PICKUP' ||
+            rawStatus === 'LISTO_ENTREGA' ||
+            rawStatus === 'TERMINADO' ||
+            rawStatus === 'READY' ||
+            foundOrder.type === 'STANDARD';
+
+        await OrdersService.registerPayment(foundOrder.id, amount, method, undefined, isReadyForDelivery);
         playBeep();
-        setActionMessage(`¡Abono de $${amount.toLocaleString()} MXN registrado con éxito! Saldo actualizado. (Trabajo NO entregado) 💳`);
+        if (isReadyForDelivery) {
+            setActionMessage(`¡Cobro de $${amount.toLocaleString()} MXN registrado y orden ENTREGADA al cliente con éxito! 📦✨`);
+        } else {
+            setActionMessage(`¡Abono de $${amount.toLocaleString()} MXN registrado con éxito! Saldo actualizado. 💳`);
+        }
         const updated = await OrdersService.getOrder(foundOrder.id);
         setFoundOrder(updated);
         if (onOrderUpdated) onOrderUpdated();
@@ -760,14 +773,11 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
 
                                                 return (
                                                     <>
-                                                        {/* RF-03 Flujo A: Botón Liquidar y Entregar (Un solo escaneo) */}
+                                                        {/* Botón Cobrar y Entregar en un solo paso */}
                                                         {isReadyForDelivery && pendingAmount > 0 && (
                                                             <button
                                                                 type="button"
-                                                                onClick={() => {
-                                                                    setSettleMethod('CASH');
-                                                                    setIsSettleModalOpen(true);
-                                                                }}
+                                                                onClick={() => setIsPaymentOpen(true)}
                                                                 className="w-full flex items-center justify-between p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-emerald-600/25 active:scale-95 transition-all cursor-pointer group"
                                                             >
                                                                 <div className="flex items-center gap-3">
@@ -775,9 +785,9 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                                                         <span className="material-symbols-outlined text-2xl">point_of_sale</span>
                                                                     </div>
                                                                     <div className="flex flex-col text-left">
-                                                                        <span className="text-sm">Liquidar y entregar</span>
+                                                                        <span className="text-sm">Cobrar y Entregar</span>
                                                                         <span className="text-[10px] font-medium opacity-90">
-                                                                            Cobrar saldo (${pendingAmount.toLocaleString()} MXN) y entregar
+                                                                            Cobrar saldo (${pendingAmount.toLocaleString()} MXN) • Pasa a Entregado en automático
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -785,7 +795,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                                             </button>
                                                         )}
 
-                                                        {/* RF-03 Flujo C: Botón Confirmar Entrega (Cuando saldo es 0 y trabajo liberado) */}
+                                                        {/* Botón Confirmar Entrega (Cuando saldo es 0 y trabajo liberado) */}
                                                         {isReadyForDelivery && pendingAmount === 0 && (
                                                             <button
                                                                 type="button"
@@ -809,8 +819,8 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                                             </div>
                                                         )}
 
-                                                        {/* RF-03 Flujo B: Botón Registrar Abono (sin entregar) */}
-                                                        {pendingAmount > 0 && (
+                                                        {/* Registrar Abono sólo si aún está en taller/producción */}
+                                                        {!isReadyForDelivery && pendingAmount > 0 && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setIsPaymentOpen(true)}
@@ -821,7 +831,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                                                     <div className="flex flex-col text-left">
                                                                         <span>Registrar abono</span>
                                                                         <span className="text-[9px] font-medium opacity-90">
-                                                                            Recibir pago parcial sin entregar el trabajo
+                                                                            Recibir anticipo mientras está en taller
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -946,6 +956,14 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                     paidAmount={paidAmount}
                     payments={paymentsHistory}
                     pieceType={pieceName}
+                    isReadyForDelivery={
+                        (foundOrder.status || foundOrder.stage || '').toUpperCase() === 'REPAIR_COMPLETED' ||
+                        (foundOrder.status || foundOrder.stage || '').toUpperCase() === 'READY_FOR_PICKUP' ||
+                        (foundOrder.status || foundOrder.stage || '').toUpperCase() === 'LISTO_ENTREGA' ||
+                        (foundOrder.status || foundOrder.stage || '').toUpperCase() === 'TERMINADO' ||
+                        (foundOrder.status || foundOrder.stage || '').toUpperCase() === 'READY' ||
+                        foundOrder.type === 'STANDARD'
+                    }
                     onRegisterPayment={handleRegisterPayment}
                 />
             )}

@@ -795,17 +795,7 @@ const Orders: React.FC = () => {
                                         onClick={() => setActiveFilter(isActive ? null : f)}
                                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all border shadow-sm whitespace-nowrap ${
                                             isActive
-                                                ? f === 'Recibido'
-                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md font-black'
-                                                    : f === 'Devuelto'
-                                                    ? 'bg-rose-600 text-white border-rose-600 shadow-md font-black'
-                                                    : f === 'En Taller'
-                                                    ? 'bg-purple-600 text-white border-purple-600 shadow-md font-black'
-                                                    : (f === 'Terminado' || f === 'Para Entrega')
-                                                    ? 'bg-amber-500 text-black border-amber-500 shadow-md font-black'
-                                                    : f === 'Entregados'
-                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md font-black'
-                                                    : 'bg-foreground text-background border-border shadow-md'
+                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md font-black shadow-emerald-600/20'
                                                 : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground'
                                         }`}
                                     >

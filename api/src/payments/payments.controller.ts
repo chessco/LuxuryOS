@@ -16,7 +16,7 @@ export class PaymentsController {
 
     @Post()
     async recordPayment(
-        @Body() body: { orderId: string; amount: number; method: string; reference?: string },
+        @Body() body: { orderId: string; amount: number; method: string; reference?: string; autoDeliver?: boolean },
         @Request() req
     ) {
         const user = req.user;
@@ -35,7 +35,8 @@ export class PaymentsController {
             body.method,
             body.reference,
             userId,
-            tenantId
+            tenantId,
+            body.autoDeliver
         );
     }
 

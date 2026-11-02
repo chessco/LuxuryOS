@@ -416,7 +416,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
             <div className="flex items-center gap-3 ml-auto">
                 <button
                     onClick={() => setIsQRScannerOpen(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md shrink-0 cursor-pointer"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-red-600/20 shrink-0 cursor-pointer"
                     title="Lector QR / Código de Barras para iPad"
                 >
                     <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>

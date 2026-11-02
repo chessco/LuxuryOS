@@ -150,14 +150,25 @@ const OrderDetail: React.FC = () => {
     const handleRegisterPayment = async (amount: number, method: string) => {
         if (!order) return;
         try {
-            await OrdersService.registerPayment(order.id, amount, method);
+            const rawStatus = String(order.status || order.orderStatus || '').toUpperCase();
+            const rawStage = String(order.stage || '').toUpperCase();
+            const isReady =
+                rawStatus === 'REPAIR_COMPLETED' ||
+                rawStatus === 'READY_FOR_PICKUP' ||
+                rawStatus === 'READY' ||
+                rawStatus === 'LISTO' ||
+                rawStatus === 'TERMINADO' ||
+                rawStage === 'LISTO_ENTREGA' ||
+                order.type === 'STANDARD';
+
+            await OrdersService.registerPayment(order.id, amount, method, undefined, isReady);
             // Refresh order
             const updatedOrder = await OrdersService.getOrder(order.id);
             setOrder(enrichOrder(updatedOrder));
 
             setActivities(prev => [{
                 user: "Tú",
-                action: "registraste un pago de",
+                action: isReady ? "cobraste y entregaste la orden por" : "registraste un pago de",
                 target: `${amount.toLocaleString()} MXN`,
                 time: "Ahora mismo",
                 dotColor: "bg-emerald-500"
@@ -689,21 +700,64 @@ const OrderDetail: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-3 xl:justify-end">
                         <button
                             onClick={() => setIsQRScannerOpen(true)}
-                            className="flex items-center gap-2 bg-indigo-500 text-white hover:bg-indigo-600 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
+                            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-red-600/20 cursor-pointer"
                             title="Escanear QR para Cobro o Entrega"
                         >
                             <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
                             <span>Escanear QR / Entrega</span>
                         </button>
                         {canRegisterPayments && (
-                            <button
-                                onClick={() => setIsPaymentModalOpen(true)}
-                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
-                                title="Agregar o registrar anticipo"
-                            >
-                                <span className="material-symbols-outlined text-[18px]">payments</span>
-                                <span>+ Anticipo</span>
-                            </button>
+                            (() => {
+                                const pendingVal = parseValue(order.balance ?? order.pendingAmount);
+                                const isReady =
+                                    ['REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'READY', 'LISTO', 'TERMINADO'].includes(String(order.status || '').toUpperCase()) ||
+                                    order.type === 'STANDARD';
+
+                                if (!isDelivered && isReady) {
+                                    if (pendingVal > 0) {
+                                        return (
+                                            <button
+                                                onClick={() => setIsPaymentModalOpen(true)}
+                                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-emerald-600/25 active:scale-95 cursor-pointer"
+                                                title="Cobrar saldo y entregar pieza automáticamente en un solo paso"
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]">point_of_sale</span>
+                                                <span>Cobrar y Entregar</span>
+                                            </button>
+                                        );
+                                    } else {
+                                        return (
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await OrdersService.moveOrder(order.id, 'DELIVERED');
+                                                        const updatedOrder = await OrdersService.getOrder(order.id);
+                                                        setOrder(enrichOrder(updatedOrder));
+                                                    } catch (e: any) {
+                                                        alert(e?.message || 'Error al confirmar entrega');
+                                                    }
+                                                }}
+                                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-emerald-600/25 active:scale-95 cursor-pointer"
+                                                title="Confirmar entrega de la pieza al cliente"
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]">task_alt</span>
+                                                <span>Confirmar Entrega</span>
+                                            </button>
+                                        );
+                                    }
+                                }
+
+                                return (
+                                    <button
+                                        onClick={() => setIsPaymentModalOpen(true)}
+                                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
+                                        title="Agregar o registrar anticipo"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">payments</span>
+                                        <span>+ Anticipo</span>
+                                    </button>
+                                );
+                            })()
                         )}
                         {canEditOrder && (
                             <button onClick={() => setIsEditModalOpen(true)} className={headerBtnNeutral}>
@@ -1264,6 +1318,10 @@ const OrderDetail: React.FC = () => {
                         paidAmount={parseValue(order.paidAmount)}
                         payments={order.payments}
                         pieceType={order.pieceType}
+                        isReadyForDelivery={
+                            ['REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'READY', 'LISTO', 'TERMINADO'].includes(String(order.status || '').toUpperCase()) ||
+                            order.type === 'STANDARD'
+                        }
                         onRegisterPayment={handleRegisterPayment}
                     />
                 )}

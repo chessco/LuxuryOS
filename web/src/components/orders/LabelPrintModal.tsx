@@ -114,50 +114,57 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             return res;
         }).join('\n');
 
+        const totalNum = Number(order.totalAmount || order.laborCost || order.value || 0);
+        const totalLine = totalNum > 0
+            ? `*Precio Total:* $${totalNum.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`
+            : '';
+
         let message = '';
         if (isReceived) {
             message = [
-                `🔔 *CARED* 🔔`,
+                `*CARED*`,
                 ``,
                 `*Fecha:* ${dateStr}`,
                 `*Cliente:* ${clientName}`,
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
                 ``,
-                `📋 *Detalle de la Orden:*`,
+                `*Detalle de la Orden:*`,
                 pieceSummaries,
+                ...(totalLine ? [totalLine] : []),
                 ``,
                 codeImageUrl,
                 ``,
-                `🌐 *Ver seguimiento en línea:*`,
+                `*Ver seguimiento en línea:*`,
                 `${trackingUrl}`,
                 ``,
-                `Gracias por su preferencia. ✨`,
+                `Gracias por su preferencia.`,
             ].join('\n');
         } else if (isReady) {
             message = [
-                `🔔 *CARED* 🔔`,
+                `*CARED*`,
                 ``,
                 `*Fecha:* ${dateStr}`,
                 `*Cliente:* ${clientName}`,
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
                 ``,
-                `📋 *Detalle de la Orden:*`,
+                `*Detalle de la Orden:*`,
                 pieceSummaries,
+                ...(totalLine ? [totalLine] : []),
                 ``,
                 codeImageUrl,
                 ``,
-                `🌐 *Ver seguimiento en línea:*`,
+                `*Ver seguimiento en línea:*`,
                 `${trackingUrl}`,
                 ``,
-                `Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`,
+                `Su pieza está lista para entrega en sucursal. Gracias por su preferencia.`,
             ].join('\n');
         } else if (isDelivered) {
             const deliveryDateStr = formatDate(order.deliveredAt);
 
             message = [
-                `🔔 *CARED* 🔔`,
+                `*CARED*`,
                 ``,
                 `*Fecha:* ${dateStr}`,
                 `*Cliente:* ${clientName}`,
@@ -165,20 +172,22 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 `*Concepto:* ${getConcepto(order.type)}`,
                 `*Fecha Entrega:* ${deliveryDateStr}`,
                 ``,
-                `📋 *Detalle de la Orden:*`,
+                `*Detalle de la Orden:*`,
                 pieceSummaries,
+                ...(totalLine ? [totalLine] : []),
                 ``,
-                `Gracias por su preferencia. ✨`,
+                `Gracias por su preferencia.`,
             ].join('\n');
         } else {
             message = [
-                `🔔 *CARED* 🔔`,
+                `*CARED*`,
                 ``,
                 `*No. Orden:* ${orderCode}`,
                 `*Concepto:* ${getConcepto(order.type)}`,
                 ``,
-                `📋 *Detalle de la Orden:*`,
+                `*Detalle de la Orden:*`,
                 pieceSummaries,
+                ...(totalLine ? [totalLine] : []),
             ].join('\n');
         }
 
@@ -281,6 +290,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
     const isTurnOrder = !!order?.queueTicket;
     const clientName = (order?.client?.name || order?.clientName || 'CLIENTE').toUpperCase();
     const orderCode = order ? (order.orderCode || formatOrderCode(order)) : '';
+    const priority = String(order?.priority || order?.specifications?.priority || 'NORMAL').toUpperCase().trim();
     const formatDate = (date?: Date | string | null) => {
         const d = date ? new Date(date) : new Date();
         return d.toLocaleDateString('es-MX', {
@@ -519,12 +529,19 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                     .p-1 { padding: 4px !important; }
                     .p-1\\.5 { padding: 6px !important; }
                     .p-2 { padding: 8px !important; }
+                    .px-1 { padding-left: 4px !important; padding-right: 4px !important; }
+                    .px-1\\.5 { padding-left: 6px !important; padding-right: 6px !important; }
+                    .py-0\\.5 { padding-top: 2px !important; padding-bottom: 2px !important; }
                     .pb-0\\.5 { padding-bottom: 2px !important; }
                     .pb-1 { padding-bottom: 4px !important; }
                     .pb-1\\.5 { padding-bottom: 6px !important; }
+                    .pb-2 { padding-bottom: 8px !important; }
+                    .pb-2\\.5 { padding-bottom: 10px !important; }
+                    .pb-3 { padding-bottom: 12px !important; }
                     .pt-0\\.5 { padding-top: 2px !important; }
                     .pt-1 { padding-top: 4px !important; }
                     .pt-1\\.5 { padding-top: 6px !important; }
+                    .pt-2 { padding-top: 8px !important; }
                     .mb-1 { margin-bottom: 4px !important; }
                     .mb-1\\.5 { margin-bottom: 6px !important; }
                     .mb-2 { margin-bottom: 8px !important; }
@@ -543,6 +560,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                     .text-\\[11px\\] { font-size: 11px !important; }
                     .text-\\[10\\.5px\\] { font-size: 10.5px !important; }
                     .text-\\[10px\\] { font-size: 10px !important; }
+                    .text-\\[9\\.5px\\] { font-size: 9.5px !important; }
                     .text-\\[9px\\] { font-size: 9px !important; }
                     .text-\\[8\\.5px\\] { font-size: 8.5px !important; }
                     .text-\\[8px\\] { font-size: 8px !important; }
@@ -639,16 +657,29 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                             }}
                         >
                             {/* Brand Header */}
-                            <div className="w-full border-b-2 border-black pb-1 mb-1 text-center">
+                            <div className="w-full border-b-2 border-black pt-1 pb-3 mb-2 text-center">
                                 <h4 className="text-base font-black tracking-widest leading-none m-0">{atelierName || 'CARED'}</h4>
                             </div>
 
                             {/* Ticket Details */}
                             <div className="w-full text-left uppercase">
-                                {/* Fecha subida arriba */}
-                                <div className="text-right pb-0.5 mb-1.5 text-[11px] font-bold">
-                                    <span className="text-zinc-600 font-bold">FECHA: </span>
-                                    <span className="font-black text-black">{dateStr}</span>
+                                {/* Fila superior: Prioridad y Fecha */}
+                                <div className="flex justify-between items-center pb-0.5 mb-1.5 text-[11px] font-bold">
+                                    <div>
+                                        {(priority === 'ALTA' || priority === 'URGENTE') ? (
+                                            <span className="text-[9.5px] font-black bg-black text-white px-1.5 py-0.5 rounded leading-none uppercase tracking-wider">
+                                                ⚡ {priority}
+                                            </span>
+                                        ) : (
+                                            <span className="text-[10px] font-bold text-zinc-600">
+                                                PRIORIDAD: <span className="font-black text-black">{priority}</span>
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-zinc-600 font-bold">FECHA: </span>
+                                        <span className="font-black text-black">{dateStr}</span>
+                                    </div>
                                 </div>
 
                                 {/* Datos principales */}
@@ -664,6 +695,17 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                                     <div className="border-b border-black pb-0.5">
                                         <span className="text-zinc-700">CONCEPTO: </span>
                                         <span className="font-black text-black">{getConcepto(order.type)}</span>
+                                    </div>
+                                    <div className="border-b border-black pb-0.5 flex justify-between items-center">
+                                        <span>
+                                            <span className="text-zinc-700">PRIORIDAD: </span>
+                                            <span className="font-black text-black">{priority}</span>
+                                        </span>
+                                        {(priority === 'ALTA' || priority === 'URGENTE') && (
+                                            <span className="text-[9.5px] font-black border border-black px-1.5 py-0.5 rounded leading-none uppercase">
+                                                ⚡ URGENTE
+                                            </span>
+                                        )}
                                     </div>
 
                                     {/* DETALLE DE LA ORDEN: ORO, GRAMOS, MEDIDA, GROSOR Y NOTAS POR ITEM */}

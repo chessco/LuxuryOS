@@ -31,8 +31,8 @@ export const OrdersService = {
         return response.data;
     },
 
-    async registerPayment(orderId: string, amount: number, method: string, reference?: string) {
-        const response = await api.post('/payments', { orderId, amount, method, reference });
+    async registerPayment(orderId: string, amount: number, method: string, reference?: string, autoDeliver?: boolean) {
+        const response = await api.post('/payments', { orderId, amount, method, reference, autoDeliver });
         return response.data;
     },
 

@@ -12,6 +12,7 @@ interface PaymentModalProps {
     paidAmount?: number;
     payments?: any[];
     pieceType?: string;
+    isReadyForDelivery?: boolean;
     onRegisterPayment: (amount: number, method: string) => Promise<void>;
 }
 
@@ -34,6 +35,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     paidAmount,
     payments,
     pieceType,
+    isReadyForDelivery,
     onRegisterPayment
 }) => {
     const [amount, setAmount] = useState(pendingAmount > 0 ? String(pendingAmount) : '');
@@ -247,11 +249,27 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <button
                                 onClick={handleSubmit}
                                 disabled={isLoading || !amount || parseFloat(amount) <= 0}
-                                className="w-full py-4 sm:py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-[0.25em] text-xs hover:opacity-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl active:scale-95 cursor-pointer"
+                                className="w-full py-4 sm:py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-[0.25em] text-xs hover:opacity-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                             >
-                                {isLoading ? 'Procesando Transacción...' : `Confirmar y Cobrar $${Number(amount || 0).toLocaleString()} MXN`}
+                                <span className="material-symbols-outlined text-[18px]">point_of_sale</span>
+                                <span>
+                                    {isLoading
+                                        ? 'Procesando Transacción...'
+                                        : isReadyForDelivery
+                                        ? `Confirmar, Cobrar y Entregar $${Number(amount || 0).toLocaleString()} MXN`
+                                        : `Confirmar y Cobrar $${Number(amount || 0).toLocaleString()} MXN`}
+                                </span>
                             </button>
-                            <p className="text-center text-muted-foreground/70 text-[8px] font-medium uppercase tracking-tighter mt-3 transition-colors">La transacción se registrará automáticamente en el historial del cliente.</p>
+                            {isReadyForDelivery ? (
+                                <p className="text-center text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider mt-3 transition-colors flex items-center justify-center gap-1.5">
+                                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                                    <span>Al cobrar, la orden pasará en automático a Entregado</span>
+                                </p>
+                            ) : (
+                                <p className="text-center text-muted-foreground/70 text-[8px] font-medium uppercase tracking-tighter mt-3 transition-colors">
+                                    La transacción se registrará automáticamente en el historial del cliente.
+                                </p>
+                            )}
                         </div>
                     </motion.div>
                 </>

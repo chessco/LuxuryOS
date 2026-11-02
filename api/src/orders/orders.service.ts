@@ -1475,41 +1475,46 @@ export class OrdersService {
       })
       .join('\n');
 
+    const totalNum = Number(order.totalAmount || order.laborCost || order.value || 0);
+    const totalStr = totalNum > 0
+      ? `\n*Precio Total:* $${totalNum.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`
+      : '';
+
     let message = '';
     if (isReceived) {
-      message = `🔔 *CARED* 🔔
+      message = `*CARED*
 
 *Fecha:* ${dateStr}
 *Cliente:* ${clientName}
 *No. Orden:* ${orderCode}
 *Concepto:* ${getConcepto(order.type)}
 
-📋 *Detalle de la Orden:*
-${pieceSummaries}
+*Detalle de la Orden:*
+${pieceSummaries}${totalStr}
 
 ${qrImageUrl}
 
-🌐 *Ver seguimiento en línea:*
+*Ver seguimiento en línea:*
 ${trackingUrl}
 
-Gracias por su preferencia. ✨`;
+Gracias por su preferencia.`;
     } else if (isReady) {
-      message = `🔔 *CARED* 🔔
+      message = `*CARED*
 
 *Fecha:* ${dateStr}
 *Cliente:* ${clientName}
 *No. Orden:* ${orderCode}
 *Concepto:* ${getConcepto(order.type)}
 
-📋 *Detalle de la Orden:*
-${pieceSummaries}
+*Detalle de la Orden:*
+${pieceSummaries}${totalStr}
 
 ${qrImageUrl}
 
-🌐 *Ver seguimiento en línea:*
+*Ver seguimiento en línea:*
 ${trackingUrl}
 
-Su pieza está lista para entrega en sucursal. Gracias por su preferencia. ✨`;
+Su pieza está lista para entrega en sucursal. Gracias por su preferencia.`;
     }
 
     console.log(
