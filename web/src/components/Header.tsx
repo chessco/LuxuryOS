@@ -17,12 +17,16 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [orderNotifications, setNotifications] = useState<any[]>([]);
+    const [allOrders, setAllOrders] = useState<any[]>([]);
+    const [headerSearch, setHeaderSearch] = useState('');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [whatsappAlert, setWhatsappAlert] = useState<any | null>(null);
     // La alerta de WhatsApp sin conexión va siempre primero
     const notifications = whatsappAlert ? [whatsappAlert, ...orderNotifications] : orderNotifications;
 
     const notifRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
+    const searchRef = useRef<HTMLDivElement>(null);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userName = user.name || user.email || 'Usuario';
@@ -40,11 +44,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
             if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
                 setIsUserMenuOpen(false);
             }
+            if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+                setIsSearchOpen(false);
+            }
         };
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 setIsNotificationsOpen(false);
                 setIsUserMenuOpen(false);
+                setIsSearchOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -55,11 +63,12 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
         };
     }, []);
 
-    // Load active notifications from orders
+    // Load active notifications and all orders for global search
     useEffect(() => {
         let isMounted = true;
         OrdersService.getOrders().then((orders: any[]) => {
             if (!isMounted || !Array.isArray(orders)) return;
+            setAllOrders(orders);
             const alerts: any[] = [];
             const now = new Date();
             const todayStr = now.toISOString().split('T')[0];
@@ -152,6 +161,98 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
         window.location.href = '/login';
     };
 
+    const normalizeSearchText = (text: string) =>
+        (text || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+
+    const getTypeInfo = (type: string) => {
+        const t = (type || '').toUpperCase();
+        if (t === 'REPAIR') return { label: 'Reparación', color: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' };
+        if (t === 'MANUFACTURE') return { label: 'Fabricación', color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
+        if (t === 'DESIGN') return { label: 'Diseño', color: 'bg-pink-500/10 text-pink-500 border-pink-500/20' };
+        if (t === 'LASER') return { label: 'Láser', color: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20' };
+        if (t === 'LAYAWAY') return { label: 'Apartado', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20' };
+        return { label: 'Pedido', color: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' };
+    };
+
+    const getStatusInfo = (status: string) => {
+        const s = (status || '').toUpperCase();
+        if (['DELIVERED', 'ENTREGADO', 'ENTREGADO_POSTVENTA'].includes(s)) {
+            return { label: 'Entregado', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' };
+        }
+        if (['READY_FOR_PICKUP', 'REPAIR_COMPLETED', 'TERMINADO', 'LISTO'].includes(s)) {
+            return { label: 'Terminado', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20' };
+        }
+        if (['IN_REPAIR', 'IN_PRODUCTION', 'IN_WORKSHOP', 'TALLER', 'EN_PRODUCCION', 'EN_PROCESO'].includes(s)) {
+            return { label: 'En Taller', color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
+        }
+        return { label: 'Recibido', color: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' };
+    };
+
+    const matchingOrders = React.useMemo(() => {
+        if (!headerSearch.trim()) return [];
+        const q = normalizeSearchText(headerSearch);
+        const qClean = q.replace(/[^a-z0-9]/g, '');
+
+        return allOrders.filter(o => {
+            const code = normalizeSearchText(o.orderCode || formatOrderCode(o) || '');
+            const codeClean = code.replace(/[^a-z0-9]/g, '');
+            const clientName = normalizeSearchText(o.client?.name || o.clientName || '');
+            const clientPhone = (o.client?.phone || o.clientPhone || '').replace(/\D/g, '');
+            const item = normalizeSearchText(o.pieceType || o.item || '');
+            const notes = normalizeSearchText(o.notes || o.description || '');
+            const specItems = (o.specifications?.items || []).map((it: any) =>
+                normalizeSearchText(`${it.item || ''} ${it.metal || ''} ${it.notes || ''} ${it.description || ''}`)
+            ).join(' ');
+
+            if (code.includes(q) || clientName.includes(q) || item.includes(q) || specItems.includes(q) || notes.includes(q)) {
+                return true;
+            }
+
+            if (qClean && (codeClean.includes(qClean) || qClean.includes(codeClean))) {
+                return true;
+            }
+
+            if (qClean.length >= 3 && clientPhone.includes(qClean)) {
+                return true;
+            }
+
+            const num = q.replace(/[^0-9]/g, '');
+            if (num) {
+                const codeNum = code.replace(/[^0-9]/g, '');
+                if (codeNum === num) return true;
+            }
+
+            return false;
+        }).slice(0, 8);
+    }, [allOrders, headerSearch]);
+
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const trimmed = headerSearch.trim();
+            if (!trimmed) return;
+
+            if (matchingOrders.length === 1) {
+                navigate(`/orders/${matchingOrders[0].id}`);
+                setIsSearchOpen(false);
+                setHeaderSearch('');
+            } else if (matchingOrders.length > 0) {
+                const targetType = matchingOrders[0].type || 'REPAIR';
+                navigate(`/orders?type=${targetType}&q=${encodeURIComponent(trimmed)}`);
+                setIsSearchOpen(false);
+            } else {
+                navigate(`/orders?q=${encodeURIComponent(trimmed)}`);
+                setIsSearchOpen(false);
+            }
+        } else if (e.key === 'Escape') {
+            setIsSearchOpen(false);
+        }
+    };
+
     const formatRoleName = (role: string) => {
         if (role.includes('ADMIN')) return 'Administrador';
         if (role.includes('JOYER')) return 'Joyero';
@@ -161,7 +262,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
     };
 
     return (
-        <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-6 sm:px-8 transition-colors">
+        <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-4 sm:px-8 transition-colors">
             <div className="flex items-center gap-3">
                 <button
                     onClick={onToggleMenu}
@@ -183,18 +284,132 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                 </Link>
             </div>
 
-            {/* Search */}
-            <div className="hidden max-w-md flex-1 lg:block mx-8">
+            {/* Global Search (Accesible en iPad, Laptop y Desktop) */}
+            <div className="relative flex-1 max-w-md mx-2 sm:mx-4 lg:mx-8" ref={searchRef}>
                 <div className="relative group">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors pointer-events-none">
                         <span className="material-symbols-outlined text-[20px]">search</span>
                     </span>
                     <input
-                        className="w-full rounded-2xl border border-border/60 bg-muted/40 py-2.5 pl-11 pr-4 text-xs font-bold text-foreground placeholder-muted-foreground/70 focus:border-indigo-500 focus:bg-background focus:outline-none transition-all shadow-inner"
-                        placeholder="Buscar por cliente, ID de pedido o pieza..."
+                        value={headerSearch}
+                        onChange={(e) => {
+                            setHeaderSearch(e.target.value);
+                            setIsSearchOpen(true);
+                        }}
+                        onFocus={() => {
+                            if (allOrders.length === 0) {
+                                OrdersService.getOrders().then((ords: any[]) => {
+                                    if (Array.isArray(ords)) setAllOrders(ords);
+                                }).catch(() => {});
+                            }
+                            if (headerSearch.trim()) setIsSearchOpen(true);
+                        }}
+                        onKeyDown={handleSearchKeyDown}
+                        className="w-full rounded-2xl border border-border/60 bg-muted/40 py-2.5 pl-11 pr-9 text-xs font-bold text-foreground placeholder-muted-foreground/70 focus:border-indigo-500 focus:bg-background focus:outline-none transition-all shadow-inner"
+                        placeholder="Buscar por orden (ej. REP-7), cliente o joya..."
                         type="text"
                     />
+                    {headerSearch && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setHeaderSearch('');
+                                setIsSearchOpen(false);
+                            }}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 size-5 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                            title="Limpiar búsqueda"
+                        >
+                            <span className="material-symbols-outlined text-[14px]">close</span>
+                        </button>
+                    )}
                 </div>
+
+                {/* Dropdown Live Results */}
+                {isSearchOpen && headerSearch.trim().length > 0 && (
+                    <div className="absolute left-0 right-0 mt-2 rounded-2xl bg-card border border-border shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl">
+                        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/50 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                            <span>Coincidencias ({matchingOrders.length})</span>
+                            <span className="text-[9px] text-muted-foreground/70 hidden sm:inline">Enter para abrir</span>
+                        </div>
+
+                        <div className="max-h-[360px] overflow-y-auto no-scrollbar py-1 space-y-1">
+                            {matchingOrders.length > 0 ? (
+                                matchingOrders.map((o) => {
+                                    const code = o.orderCode || formatOrderCode(o);
+                                    const typeInfo = getTypeInfo(o.type);
+                                    const statusInfo = getStatusInfo(o.status || o.stage);
+                                    const clientName = o.client?.name || o.clientName || 'Cliente';
+                                    const piece = o.pieceType || o.item || o.specifications?.items?.[0]?.item || 'Pieza';
+
+                                    return (
+                                        <button
+                                            key={o.id}
+                                            type="button"
+                                            onClick={() => {
+                                                navigate(`/orders/${o.id}`);
+                                                setIsSearchOpen(false);
+                                                setHeaderSearch('');
+                                            }}
+                                            className="w-full text-left p-2.5 rounded-xl hover:bg-muted/60 border border-transparent hover:border-border transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                                        >
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="flex flex-col items-start gap-1 shrink-0">
+                                                    <span className="font-mono text-xs font-black text-foreground group-hover:text-indigo-500 transition-colors">
+                                                        #{code}
+                                                    </span>
+                                                    <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border ${typeInfo.color}`}>
+                                                        {typeInfo.label}
+                                                    </span>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-foreground truncate">
+                                                        {clientName}
+                                                    </p>
+                                                    <p className="text-[11px] text-muted-foreground truncate">
+                                                        {piece}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col items-end gap-1 shrink-0">
+                                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusInfo.color}`}>
+                                                    {statusInfo.label}
+                                                </span>
+                                                {o.createdAt && (
+                                                    <span className="text-[9px] text-muted-foreground">
+                                                        {new Date(o.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit' })}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    );
+                                })
+                            ) : (
+                                <div className="p-4 text-center text-muted-foreground">
+                                    <span className="material-symbols-outlined text-2xl text-muted-foreground/60 mb-1">search_off</span>
+                                    <p className="text-xs font-bold text-foreground">No se encontraron pedidos</p>
+                                    <p className="text-[11px] mt-0.5">Verifica el código (ej. REP-7) o nombre del cliente.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {matchingOrders.length > 0 && (
+                            <div className="pt-1.5 mt-1 border-t border-border/50 px-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const targetType = matchingOrders[0]?.type || 'REPAIR';
+                                        navigate(`/orders?type=${targetType}&q=${encodeURIComponent(headerSearch.trim())}`);
+                                        setIsSearchOpen(false);
+                                    }}
+                                    className="w-full text-center py-2 text-[11px] font-bold text-indigo-500 hover:text-indigo-400 transition-colors cursor-pointer"
+                                >
+                                    Ver todos los resultados en el tablero →
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Right Actions */}

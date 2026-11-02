@@ -129,6 +129,13 @@ export const formatOrderCode = (order: any, seqIndex?: number) => {
     return `${prefix}-${seqNum}`;
 };
 
+const normalizeSearchText = (text: string) =>
+    (text || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
 const DELIVERED_COLUMN: Column = { id: 'DELIVERED', name: 'Entregado', color: 'bg-emerald-600' };
 
 const Orders: React.FC = () => {
@@ -137,6 +144,7 @@ const Orders: React.FC = () => {
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
     const orderType = queryParams.get('type');
+    const urlQuery = queryParams.get('q') || queryParams.get('search') || '';
     const autoOpenNew = queryParams.get('newOrder') === 'true';
     const prefillClientName = queryParams.get('clientName') || '';
     const prefillClientPhone = queryParams.get('clientPhone') || '';
@@ -532,37 +540,69 @@ const Orders: React.FC = () => {
         setActiveId(null);
     };
 
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(urlQuery);
+
+    useEffect(() => {
+        if (urlQuery !== undefined) {
+            setSearchQuery(urlQuery);
+        }
+    }, [urlQuery]);
 
     // Apply search and filters
     const filteredOrders = React.useMemo(() => {
         let result = orders;
+        const hasSearch = Boolean(searchQuery.trim());
 
-        // Default rule: Exclude DELIVERED orders unless user explicitly selected 'Entregados'
-        if (activeFilter !== 'Entregados') {
+        // Default rule: Exclude DELIVERED orders unless user explicitly selected 'Entregados' OR is actively searching
+        if (activeFilter !== 'Entregados' && !hasSearch) {
             result = result.filter(o => o.status !== 'DELIVERED' && o.stage !== 'DELIVERED');
         }
 
-        // Search filter
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase().trim();
-            const cleanNumeric = q.replace(/[^0-9]/g, '');
+        // Search filter (búsqueda insensible a mayúsculas, acentos, guiones o espacios)
+        if (hasSearch) {
+            const q = normalizeSearchText(searchQuery);
+            const qClean = q.replace(/[^a-z0-9]/g, '');
 
             result = result.filter(o => {
-                const code = (o.orderCode || formatOrderCode(o) || '').toLowerCase();
-                const client = String(o.client || '').toLowerCase();
-                const item = String(o.item || o.pieceType || '').toLowerCase();
-                const creator = String(o.createdByName || '').toLowerCase();
-                const notes = String(o.notes || '').toLowerCase();
+                const code = normalizeSearchText(o.orderCode || formatOrderCode(o) || '');
+                const codeClean = code.replace(/[^a-z0-9]/g, '');
+                const clientName = normalizeSearchText(typeof o.client === 'string' ? o.client : (o.client?.name || o.clientName || ''));
+                const clientPhone = (o.client?.phone || o.clientPhone || '').replace(/\D/g, '');
+                const item = normalizeSearchText(o.item || o.pieceType || '');
+                const creator = normalizeSearchText(o.createdByName || o.createdBy?.name || '');
+                const notes = normalizeSearchText(o.notes || o.description || '');
 
-                if (code.includes(q) || client.includes(q) || item.includes(q) || creator.includes(q) || notes.includes(q)) {
+                const specItems = (o.specifications?.items || []).map((it: any) =>
+                    normalizeSearchText(`${it.item || ''} ${it.metal || ''} ${it.notes || ''} ${it.description || ''}`)
+                ).join(' ');
+
+                // 1. Coincidencia por texto parcial (código, cliente, pieza, notas, etc.)
+                if (
+                    code.includes(q) ||
+                    clientName.includes(q) ||
+                    item.includes(q) ||
+                    specItems.includes(q) ||
+                    creator.includes(q) ||
+                    notes.includes(q)
+                ) {
                     return true;
                 }
 
-                if (cleanNumeric.length > 0) {
-                    const codeNumeric = code.replace(/[^0-9]/g, '');
-                    const codeNumTrimmed = codeNumeric.replace(/^0+/, '') || '0';
-                    if (codeNumeric.endsWith(cleanNumeric) || codeNumTrimmed === cleanNumeric) {
+                // 2. Coincidencia alfanumérica sin guiones (ej. "rep7" o "rep 7" coincide con "REP-7")
+                if (qClean && (codeClean.includes(qClean) || qClean.includes(codeClean))) {
+                    return true;
+                }
+
+                // 3. Coincidencia por teléfono del cliente
+                if (qClean.length >= 3 && clientPhone.includes(qClean)) {
+                    return true;
+                }
+
+                // 4. Coincidencia numérica pura (ej. "7" coincide con "REP-7" o sequenceNumber 7)
+                const num = q.replace(/[^0-9]/g, '');
+                if (num) {
+                    const codeNum = code.replace(/[^0-9]/g, '');
+                    if (codeNum === num || (o.sequenceNumber && String(o.sequenceNumber) === num)) {
                         return true;
                     }
                 }
@@ -571,8 +611,8 @@ const Orders: React.FC = () => {
             });
         }
 
-        // Active filter
-        if (activeFilter) {
+        // Active filter (no limitar por etapa si el usuario está buscando, para no esconder pedidos en otras etapas)
+        if (activeFilter && !hasSearch) {
             if (activeFilter === 'Recibido') {
                 result = result.filter(o => {
                     const label = (o.statusLabel || '').toUpperCase();
@@ -731,10 +771,20 @@ const Orders: React.FC = () => {
                             <input
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="block w-full pl-10 pr-3 py-3 border border-border rounded-xl bg-muted/50 text-foreground placeholder-muted-foreground focus:border-indigo-500 outline-none text-sm transition-all shadow-sm"
-                                placeholder="Buscar por cliente, ID de pedido o pieza..."
+                                className="block w-full pl-10 pr-9 py-3 border border-border rounded-xl bg-muted/50 text-foreground placeholder-muted-foreground focus:border-indigo-500 outline-none text-sm transition-all shadow-sm"
+                                placeholder="Buscar por cliente, ID de pedido (ej. REP-7) o joya..."
                                 type="text"
                             />
+                            {searchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 size-5 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                                    title="Limpiar búsqueda"
+                                >
+                                    <span className="material-symbols-outlined text-[14px]">close</span>
+                                </button>
+                            )}
                         </div>
                         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
                             {filterButtons.map(f => {
@@ -824,6 +874,50 @@ const Orders: React.FC = () => {
                     </div>
                 </div>
             </header>
+
+            {/* Sugerencia inteligente cuando no hay coincidencias en el tablero actual */}
+            {searchQuery.trim() && filteredOrders.length === 0 && (
+                <div className="mx-6 sm:mx-8 mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-foreground flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
+                    <div className="flex items-center gap-2.5">
+                        <span className="material-symbols-outlined text-amber-500 text-xl">search_off</span>
+                        <div>
+                            <p className="text-xs font-bold text-foreground">
+                                No hay pedidos de {effectiveOrderType === 'MANUFACTURE' ? 'Fabricación' : effectiveOrderType === 'REPAIR' ? 'Reparación' : 'este tipo'} que coincidan con "{searchQuery}".
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Puedes buscar en otros departamentos o usar el buscador superior global.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {effectiveOrderType !== 'REPAIR' && (
+                            <button
+                                type="button"
+                                onClick={() => navigate(`/orders?type=REPAIR&q=${encodeURIComponent(searchQuery)}`)}
+                                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                            >
+                                Buscar en Reparaciones
+                            </button>
+                        )}
+                        {effectiveOrderType !== 'MANUFACTURE' && (
+                            <button
+                                type="button"
+                                onClick={() => navigate(`/orders?type=MANUFACTURE&q=${encodeURIComponent(searchQuery)}`)}
+                                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                            >
+                                Buscar en Fabricación
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="px-3 py-2 rounded-xl border border-border text-xs font-bold hover:bg-muted transition-all cursor-pointer"
+                        >
+                            Limpiar filtro
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {isSystemAdmin && viewMode === 'kanban' ? (
                 <DndContext

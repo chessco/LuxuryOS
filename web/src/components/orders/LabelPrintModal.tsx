@@ -303,7 +303,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         thickness: order?.thickness || '-'
     };
 
-    const printLabelViaIframe = () => {
+    const printLabelViaIframe = async () => {
         const printElement = document.getElementById('print-label-area');
         if (!printElement) {
             window.print();
@@ -343,89 +343,56 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             || (/^((?!chrome|android).)*safari/i.test(navigator.userAgent));
 
         if (isAppleOrSafari) {
-            const dynamicStyle = document.createElement('style');
-            dynamicStyle.id = 'thermal-print-dynamic-style';
-            dynamicStyle.textContent = `
-                @page {
-                    size: 62mm ${heightMm}mm !important;
-                    margin: 0mm !important;
-                }
-                @page :first {
-                    margin: 0mm !important;
-                }
-                @media print {
-                    * {
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                        color-adjust: exact !important;
-                    }
-                    html, body {
-                        width: 62mm !important;
-                        min-width: 62mm !important;
-                        max-width: 62mm !important;
-                        height: ${heightMm}mm !important;
-                        min-height: 0 !important;
-                        max-height: ${heightMm}mm !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        background: #ffffff !important;
-                        background-color: #ffffff !important;
-                        color: #000000 !important;
-                        overflow: hidden !important;
-                    }
-                    body > *:not(#ios-print-portal) {
-                        display: none !important;
-                    }
-                    #ios-print-portal {
-                        display: flex !important;
-                        flex-direction: column !important;
-                        align-items: center !important;
-                        justify-content: flex-start !important;
-                        position: static !important;
-                        width: 62mm !important;
-                        max-width: 62mm !important;
-                        height: auto !important;
-                        min-height: 0 !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        opacity: 1 !important;
-                        visibility: visible !important;
-                        z-index: auto !important;
-                        background: #ffffff !important;
-                        overflow: hidden !important;
-                    }
-                    #ios-print-portal #print-label-portal-content {
-                        width: 58mm !important;
-                        max-width: 58mm !important;
-                        height: auto !important;
-                        min-height: 0 !important;
-                        margin: 0 auto !important;
-                        padding: 1.5mm 1mm !important;
-                        box-sizing: border-box !important;
-                        background: #ffffff !important;
-                        color: #000000 !important;
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                        page-break-after: avoid !important;
-                        break-after: avoid !important;
-                    }
-                    #ios-print-portal * {
-                        color: #000000 !important;
-                        border-color: #000000 !important;
-                    }
-                }
-            `;
-            document.head.appendChild(dynamicStyle);
-            void document.body.offsetHeight;
+            // Safari ignores custom HTML @page heights and prints a normal
+            // sheet (including the URL footer). A custom-size PDF preserves
+            // the exact roll length in AirPrint and avoids the blank tail.
+            const pdfWindow = window.open('', '_blank');
+            if (!pdfWindow) {
+                portal.remove();
+                window.alert('Safari bloqueó la vista de impresión. Permite ventanas emergentes para LuxuryOS e intenta nuevamente.');
+                return;
+            }
+            pdfWindow.document.write('<!doctype html><title>Preparando etiqueta</title><p style="font-family:sans-serif;padding:24px">Preparando etiqueta para AirPrint…</p>');
+            pdfWindow.document.close();
 
-            const prevTitle = document.title;
-            document.title = ' ';
             try {
-                window.print();
+                portal.style.left = '-10000px';
+                portal.style.opacity = '1';
+                portal.style.zIndex = '-1';
+                await document.fonts?.ready;
+                await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+                const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+                    import('html2canvas'),
+                    import('jspdf'),
+                ]);
+                const canvas = await html2canvas(portalContent as HTMLElement, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                });
+
+                const printScale = 1.00;
+                const imageWidthMm = 58 * printScale;
+                const imageHeightMm = (canvas.height / canvas.width) * imageWidthMm;
+                const pageHeightMm = Math.max(25, Math.ceil(imageHeightMm + 2));
+                const imageXmm = (62 - imageWidthMm) / 2;
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: [62, pageHeightMm],
+                    compress: true,
+                });
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', imageXmm, 1, imageWidthMm, imageHeightMm, undefined, 'FAST');
+                const pdfUrl = URL.createObjectURL(pdf.output('blob'));
+                pdfWindow.location.replace(pdfUrl);
+            } catch (error) {
+                console.error('AirPrint PDF generation failed', error);
+                pdfWindow.close();
+                window.alert('No se pudo preparar la etiqueta para AirPrint. Intenta nuevamente.');
             } finally {
-                setTimeout(() => {
-                    document.title = prevTitle;
-                }, 1000);
+                portal.remove();
             }
             return;
         }
