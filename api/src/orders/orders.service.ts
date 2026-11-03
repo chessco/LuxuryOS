@@ -51,6 +51,8 @@ const STATUS_ORDER: Record<string, number> = {
   CANCELLED: 4,
 };
 
+type OrderWhatsAppContext = 'WORKFLOW' | 'ORDER_CREATED';
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -601,7 +603,11 @@ export class OrdersService {
 
     // Trigger automatic WhatsApp notification on order creation (Recibido con QR)
     try {
-      await this.notifyOrderWorkflowStatus(tenantId, created.id);
+      await this.notifyOrderWorkflowStatus(
+        tenantId,
+        created.id,
+        'ORDER_CREATED',
+      );
     } catch (error) {
       console.error('[Create Order WhatsApp Notification Error]', error);
     }
@@ -1255,15 +1261,23 @@ export class OrdersService {
     });
   }
 
-  async notifyOrderWorkflowStatus(tenantId: string, id: string) {
+  async notifyOrderWorkflowStatus(
+    tenantId: string,
+    id: string,
+    context: OrderWhatsAppContext = 'WORKFLOW',
+  ) {
     try {
-      await this.sendOrderWhatsApp(tenantId, id);
+      await this.sendOrderWhatsApp(tenantId, id, context);
     } catch (error) {
       console.error('[Workflow WhatsApp Notification]', error);
     }
   }
 
-  async sendOrderWhatsApp(tenantId: string, id: string) {
+  async sendOrderWhatsApp(
+    tenantId: string,
+    id: string,
+    context: OrderWhatsAppContext = 'WORKFLOW',
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { id, tenantId },
       include: { client: true },
@@ -1297,11 +1311,8 @@ export class OrdersService {
                 : 'PED';
     const orderCode =
       specs.orderCode || `${prefix}-${order.id.substring(0, 6).toUpperCase()}`;
-    const clientName = (
-      order.client?.name ||
-      specs.clientName ||
-      'Cliente'
-    ).toUpperCase();
+    const customerName = order.client?.name || specs.clientName || 'Cliente';
+    const clientName = customerName.toUpperCase();
     const formatDate = (date?: Date | string | null) => {
       const d = date ? new Date(date) : new Date();
       return d.toLocaleDateString('es-MX', {
@@ -1475,13 +1486,47 @@ export class OrdersService {
       })
       .join('\n');
 
-    const totalNum = Number(order.totalAmount || order.laborCost || order.value || 0);
-    const totalStr = totalNum > 0
-      ? `\n*Precio Total:* $${totalNum.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`
-      : '';
+    const creationPieceLines = pieceItems
+      .flatMap((piece, index) => {
+        const itemDescription = String(
+          piece.item || piece.pieceType || `Pieza ${index + 1}`,
+        ).trim();
+        const pieceNotes = String(
+          piece.notes || piece.description || piece.trabajo || piece.work || '',
+        ).trim();
+
+        return [
+          `✦ Pieza: ${itemDescription}`,
+          ...(pieceNotes ? [`✦ Servicio: ${pieceNotes}`] : []),
+        ];
+      })
+      .join('\n');
+
+    const totalNum = Number(
+      order.totalAmount || order.laborCost || order.value || 0,
+    );
+    const totalStr =
+      totalNum > 0
+        ? `\n*Precio Total:* $${totalNum.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`
+        : '';
 
     let message = '';
-    if (isReceived) {
+    if (context === 'ORDER_CREATED') {
+      message = `${qrImageUrl}
+
+Hola, *${customerName}*
+
+Queremos que formes parte de cada etapa de tu proceso, por eso ahora puedes consultar su avance cuando lo desees.
+
+*Tu servicio:*
+✦ Orden: ${orderCode}
+${creationPieceLines}
+
+🔗 Sigue el proceso de tu pieza aquí:
+${trackingUrl}
+
+Gracias por confiar en nuestras manos el cuidado de tus piezas.`;
+    } else if (isReceived) {
       message = `*CARED*
 
 *Fecha:* ${dateStr}
