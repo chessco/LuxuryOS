@@ -20,6 +20,9 @@ describe('OrdersService Unit Tests', () => {
     client: {
       findFirst: jest.fn(),
     },
+    setting: {
+      findMany: jest.fn(),
+    },
     payment: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -33,6 +36,7 @@ describe('OrdersService Unit Tests', () => {
 
   const mockNotificationService = {
     sendNotification: jest.fn(),
+    sendCustomMessage: jest.fn(),
   };
 
   const mockSettingsService = {
@@ -52,6 +56,255 @@ describe('OrdersService Unit Tests', () => {
 
     service = module.get<OrdersService>(OrdersService);
     jest.clearAllMocks();
+    mockPrisma.setting.findMany.mockResolvedValue([]);
+    mockNotificationService.sendCustomMessage.mockResolvedValue({
+      success: true,
+    });
+  });
+
+  describe('WhatsApp order creation message', () => {
+    const makeOrder = (overrides: Record<string, any> = {}) => ({
+      id: 'order-whatsapp-1',
+      tenantId: 'tenant-1',
+      type: 'REPAIR',
+      status: 'RECEIVED',
+      pieceType: 'CADENA',
+      notes: 'NOTA GENERAL QUE NO DEBE USARSE',
+      createdAt: new Date('2026-11-03T12:00:00.000Z'),
+      totalAmount: 1500,
+      laborCost: 0,
+      value: 0,
+      client: { name: 'Ana López', phone: '526621234567' },
+      specifications: {
+        orderCode: 'REP-10',
+        items: [{ item: 'Cadena', notes: 'Soldar broche' }],
+      },
+      ...overrides,
+    });
+
+    const sentMessage = () =>
+      mockNotificationService.sendCustomMessage.mock.calls.at(
+        -1,
+      )?.[2] as string;
+
+    it('marks the automatic createOrder notification as ORDER_CREATED', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.order.count.mockResolvedValue(0);
+      mockPrisma.order.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'created-order-1', ...data }),
+      );
+      const notifySpy = jest
+        .spyOn(service, 'notifyOrderWorkflowStatus')
+        .mockResolvedValue(undefined);
+
+      await service.createOrder(
+        'tenant-1',
+        {
+          type: 'STANDARD',
+          pieceType: 'Cadena',
+          clientId: 'client-123',
+          promisedAt: '2026-12-01T00:00:00.000Z',
+          value: 0,
+          totalAmount: 0,
+          cost: 0,
+          specifications: {
+            items: [{ item: 'Cadena', notes: 'Soldar broche' }],
+          },
+        } as any,
+        'user-1',
+      );
+
+      expect(notifySpy).toHaveBeenCalledWith(
+        'tenant-1',
+        'created-order-1',
+        'ORDER_CREATED',
+      );
+    });
+
+    it.each([
+      ['REPAIR', 'RECEIVED'],
+      ['STANDARD', 'DRAFT'],
+      ['MANUFACTURE', 'RECEIVED'],
+      ['DESIGN', 'RECEIVED'],
+      ['LASER', 'RECEIVED'],
+      ['QUOTE', 'DRAFT'],
+      ['LAYAWAY', 'LAYAWAY_OPEN'],
+    ])(
+      'uses the unified creation template for %s orders',
+      async (type, status) => {
+        mockPrisma.order.findUnique.mockResolvedValue(
+          makeOrder({ type, status }),
+        );
+
+        await service.sendOrderWhatsApp(
+          'tenant-1',
+          'order-whatsapp-1',
+          'ORDER_CREATED',
+        );
+
+        const message = sentMessage();
+        expect(message).toContain('Hola, *Ana López*');
+        expect(message).toContain('*Tu servicio:*');
+        expect(message).toContain('✦ Orden: REP-10');
+        expect(message).toContain('✦ Pieza: Cadena');
+        expect(message).toContain('✦ Servicio: Soldar broche');
+        expect(message).not.toContain('*Concepto:*');
+        expect(message).not.toContain('NOTA GENERAL QUE NO DEBE USARSE');
+        expect(mockPrisma.order.findUnique).toHaveBeenCalledWith({
+          where: { id: 'order-whatsapp-1', tenantId: 'tenant-1' },
+          include: { client: true },
+        });
+      },
+    );
+
+    it('produces the exact requested customer-facing caption', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(makeOrder());
+      mockPrisma.setting.findMany.mockResolvedValue([
+        { key: 'label_code_type', value: 'QR' },
+      ]);
+
+      await service.sendOrderWhatsApp(
+        'tenant-1',
+        'order-whatsapp-1',
+        'ORDER_CREATED',
+      );
+
+      const rawMessage = sentMessage();
+      const imageUrl = rawMessage.match(/https?:\/\/api\.qrserver[^\s]+/i)?.[0];
+      const cleanCaption = imageUrl
+        ? rawMessage
+            .replace(imageUrl, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim()
+        : rawMessage;
+      const trackingUrl = rawMessage.match(
+        /https:\/\/luxuryos\.pitayacode\.io\/track\/[^\s]+/,
+      )?.[0];
+
+      expect(cleanCaption).toBe(`Hola, *Ana López*
+
+Queremos que formes parte de cada etapa de tu proceso, por eso ahora puedes consultar su avance cuando lo desees.
+
+*Tu servicio:*
+✦ Orden: REP-10
+✦ Pieza: Cadena
+✦ Servicio: Soldar broche
+
+🔗 Sigue el proceso de tu pieza aquí:
+${trackingUrl}
+
+Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
+    });
+
+    it('keeps each piece associated with its own notes and omits empty service lines', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(
+        makeOrder({
+          specifications: {
+            orderCode: 'REP-20',
+            items: [
+              { item: 'Cadena', notes: 'Soldar broche' },
+              { item: 'Anillo', description: 'Ajustar medida' },
+              { item: 'Dije', notes: '' },
+            ],
+          },
+        }),
+      );
+
+      await service.sendOrderWhatsApp(
+        'tenant-1',
+        'order-whatsapp-1',
+        'ORDER_CREATED',
+      );
+
+      expect(sentMessage()).toContain(
+        '✦ Orden: REP-20\n✦ Pieza: Cadena\n✦ Servicio: Soldar broche\n✦ Pieza: Anillo\n✦ Servicio: Ajustar medida\n✦ Pieza: Dije',
+      );
+      expect(sentMessage()).not.toContain('✦ Servicio: NOTA GENERAL');
+    });
+
+    it('preserves the tracking URL and QR attachment source', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(makeOrder());
+      mockPrisma.setting.findMany.mockResolvedValue([
+        { key: 'label_code_type', value: 'QR' },
+      ]);
+
+      await service.sendOrderWhatsApp(
+        'tenant-1',
+        'order-whatsapp-1',
+        'ORDER_CREATED',
+      );
+
+      expect(sentMessage()).toContain('https://luxuryos.pitayacode.io/track/');
+      expect(sentMessage()).toContain(
+        'https://api.qrserver.com/v1/create-qr-code/',
+      );
+    });
+
+    it('keeps the generated QR as the first media URL even when piece notes contain an image URL', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(
+        makeOrder({
+          specifications: {
+            orderCode: 'REP-30',
+            items: [
+              {
+                item: 'Cadena',
+                notes: 'Referencia https://example.com/reference.jpg',
+              },
+            ],
+          },
+        }),
+      );
+      mockPrisma.setting.findMany.mockResolvedValue([
+        { key: 'label_code_type', value: 'QR' },
+      ]);
+
+      await service.sendOrderWhatsApp(
+        'tenant-1',
+        'order-whatsapp-1',
+        'ORDER_CREATED',
+      );
+
+      const firstMediaUrl = sentMessage().match(
+        /(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|webp)|https?:\/\/api\.qrserver[^\s]+)/i,
+      )?.[0];
+      expect(firstMediaUrl).toContain('api.qrserver.com');
+    });
+
+    it('rejects an order that is not found inside the requested tenant', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.sendOrderWhatsApp(
+          'tenant-other',
+          'order-whatsapp-1',
+          'ORDER_CREATED',
+        ),
+      ).rejects.toThrow('Pedido no encontrado');
+      expect(mockNotificationService.sendCustomMessage).not.toHaveBeenCalled();
+    });
+
+    it('keeps the existing workflow template for non-creation sends', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(makeOrder());
+
+      await service.sendOrderWhatsApp('tenant-1', 'order-whatsapp-1');
+
+      expect(sentMessage()).toContain('*CARED*');
+      expect(sentMessage()).toContain('*Detalle de la Orden:*');
+      expect(sentMessage()).not.toContain('Hola, *Ana López*');
+    });
+
+    it('keeps the completed-order notification unchanged', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(
+        makeOrder({ status: 'REPAIR_COMPLETED' }),
+      );
+
+      await service.sendOrderWhatsApp('tenant-1', 'order-whatsapp-1');
+
+      expect(sentMessage()).toContain(
+        'Su pieza está lista para entrega en sucursal.',
+      );
+      expect(sentMessage()).not.toContain('Queremos que formes parte');
+    });
   });
 
   describe('createOrder', () => {
