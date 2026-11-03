@@ -60,8 +60,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     const amountValue = parseFloat(amount) || 0;
     const remainingAfter = Math.max(0, pendingAmount - amountValue);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+        if (e?.preventDefault) e.preventDefault();
         const value = parseFloat(amount);
         
         // Allow any positive payment if totalAmount is 0 (advance)
@@ -79,9 +79,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         try {
             await onRegisterPayment(value, method);
             onClose();
-        } catch (error) {
-            console.error(error);
-            alert('Error al registrar pago');
+        } catch (error: any) {
+            console.error('Error al registrar pago:', error);
+            const msg = error?.response?.data?.message || error?.message || 'Error al registrar pago';
+            alert(typeof msg === 'string' ? msg : 'Error al registrar pago');
         } finally {
             setIsLoading(false);
         }
@@ -114,8 +115,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                 <div className="size-10 rounded-xl bg-primary flex items-center justify-center transition-colors">
                                     <span className="material-symbols-outlined text-primary-foreground icon-fill transition-colors">payments</span>
                                 </div>
-                                <button onClick={onClose} className="size-8 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors">
-                                    <span className="material-symbols-outlined">close</span>
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="size-10 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer touch-manipulation"
+                                    title="Cerrar"
+                                >
+                                    <span className="material-symbols-outlined text-[22px]">close</span>
                                 </button>
                             </div>
                             <h3 className="text-foreground text-xl font-black mb-1 transition-colors">Registrar Pago</h3>
@@ -247,9 +253,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
                         <div className="p-6 sm:p-8 border-t border-border bg-muted/20 transition-colors">
                             <button
+                                type="button"
                                 onClick={handleSubmit}
                                 disabled={isLoading || !amount || parseFloat(amount) <= 0}
-                                className="w-full py-4 sm:py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-[0.25em] text-xs hover:opacity-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                                className="w-full py-4 sm:py-5 min-h-[48px] rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-[0.25em] text-xs hover:opacity-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl active:scale-95 cursor-pointer flex items-center justify-center gap-2 touch-manipulation"
                             >
                                 <span className="material-symbols-outlined text-[18px]">point_of_sale</span>
                                 <span>

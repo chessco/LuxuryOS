@@ -262,33 +262,33 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
     };
 
     return (
-        <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-4 sm:px-8 transition-colors">
-            <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-2.5 sm:px-8 gap-1 sm:gap-4 transition-colors">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
                 <button
                     onClick={onToggleMenu}
                     title="Alternar Menú Lateral"
-                    className="flex size-10 items-center justify-center rounded-xl bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-sm active:scale-95 border border-border/50 cursor-pointer"
+                    className="flex size-9 sm:size-10 items-center justify-center rounded-xl bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-sm active:scale-95 border border-border/50 cursor-pointer"
                 >
-                    <span className="material-symbols-outlined text-[22px]">menu</span>
+                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">menu</span>
                 </button>
-                <Link to="/orders?type=REPAIR" className="flex items-center self-center pl-2 pr-3 cursor-pointer" aria-label={atelierName}>
+                <Link to="/orders?type=REPAIR" className="flex items-center self-center pl-1 sm:pl-2 pr-1.5 sm:pr-3 cursor-pointer" aria-label={atelierName}>
                     {/* Logo corporativo (blanco): en temas claros se invierte a negro */}
                     <img
                         src="/cared-logo.png"
                         alt={atelierName}
                         width={655}
                         height={310}
-                        className="h-11 w-auto select-none invert dark:invert-0"
+                        className="h-8 sm:h-11 w-auto select-none invert dark:invert-0"
                         draggable={false}
                     />
                 </Link>
             </div>
 
-            {/* Global Search (Accesible en iPad, Laptop y Desktop) */}
-            <div className="relative flex-1 max-w-md mx-2 sm:mx-4 lg:mx-8" ref={searchRef}>
+            {/* Global Search (Accesible en iPad, iPhone, Laptop y Desktop) */}
+            <div className="relative flex-1 min-w-[100px] max-w-md mx-1 sm:mx-4 lg:mx-8" ref={searchRef}>
                 <div className="relative group">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors pointer-events-none">
-                        <span className="material-symbols-outlined text-[20px]">search</span>
+                    <span className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors pointer-events-none">
+                        <span className="material-symbols-outlined text-[18px] sm:text-[20px]">search</span>
                     </span>
                     <input
                         value={headerSearch}
@@ -305,8 +305,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                             if (headerSearch.trim()) setIsSearchOpen(true);
                         }}
                         onKeyDown={handleSearchKeyDown}
-                        className="w-full rounded-2xl border border-border/60 bg-muted/40 py-2.5 pl-11 pr-9 text-xs font-bold text-foreground placeholder-muted-foreground/70 focus:border-indigo-500 focus:bg-background focus:outline-none transition-all shadow-inner"
-                        placeholder="Buscar por orden (ej. REP-7), cliente o joya..."
+                        className="w-full rounded-2xl border border-border/60 bg-muted/40 py-2 sm:py-2.5 pl-9 sm:pl-11 pr-8 sm:pr-9 text-xs font-bold text-foreground placeholder-muted-foreground/70 focus:border-indigo-500 focus:bg-background focus:outline-none transition-all shadow-inner"
+                        placeholder="Buscar por orden, cliente o joya..."
                         type="text"
                     />
                     {headerSearch && (
@@ -316,7 +316,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                                 setHeaderSearch('');
                                 setIsSearchOpen(false);
                             }}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 size-5 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                            className="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 size-5 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
                             title="Limpiar búsqueda"
                         >
                             <span className="material-symbols-outlined text-[14px]">close</span>
@@ -324,9 +324,9 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                     )}
                 </div>
 
-                {/* Dropdown Live Results */}
+                {/* Dropdown Live Results: ancho completo en móvil (fixed), relativo en desktop */}
                 {isSearchOpen && headerSearch.trim().length > 0 && (
-                    <div className="absolute left-0 right-0 mt-2 rounded-2xl bg-card border border-border shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl">
+                    <div className="fixed left-3 right-3 top-[76px] sm:absolute sm:top-auto sm:left-0 sm:right-0 sm:w-full mt-2 rounded-2xl bg-card border border-border shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl">
                         <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/50 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
                             <span>Coincidencias ({matchingOrders.length})</span>
                             <span className="text-[9px] text-muted-foreground/70 hidden sm:inline">Enter para abrir</span>

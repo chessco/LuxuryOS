@@ -291,9 +291,10 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
         if (!foundOrder) return;
         try {
             await OrdersService.moveOrder(foundOrder.id, newStatus);
-            setActionMessage(`¡Orden actualizada con éxito a ${labelText}! ✨`);
-            const effectiveStatus = (newStatus === 'RETURNED' || newStatus === 'DEVUELTO') ? 'RECEIVED' : newStatus;
-            setFoundOrder((prev: any) => ({ ...prev, status: effectiveStatus, stage: effectiveStatus }));
+            playBeep();
+            setActionMessage(`¡Orden actualizada con éxito a ${labelText}! 🛠️✨`);
+            const updated = await OrdersService.getOrder(foundOrder.id);
+            setFoundOrder(updated);
             if (onOrderUpdated) onOrderUpdated();
         } catch (err: any) {
             console.error('Error changing status:', err);
@@ -810,6 +811,50 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                                                                 </div>
                                                             </button>
                                                         )}
+
+                                                        {/* Opción Mandar al Taller para Rol Ventas cuando la orden está en Recibido */}
+                                                        {(!isReadyForDelivery || isJoyeroReturned) && (() => {
+                                                            const rawStatus = (foundOrder.status || foundOrder.stage || '').toUpperCase();
+                                                            const isReceived =
+                                                                rawStatus === 'RECEIVED' ||
+                                                                rawStatus === 'RECIBIDO' ||
+                                                                rawStatus === 'DRAFT' ||
+                                                                rawStatus === 'SPEC_PENDING' ||
+                                                                rawStatus === 'INTERES_LEAD' ||
+                                                                rawStatus === 'COTIZACION_ENVIADA' ||
+                                                                rawStatus === 'APROBADO_ANTICIPO' ||
+                                                                isJoyeroReturned;
+
+                                                            if (!isReceived) return null;
+
+                                                            const workshopStatus =
+                                                                foundOrder.type === 'MANUFACTURE'
+                                                                    ? 'IN_PRODUCTION'
+                                                                    : foundOrder.type === 'STANDARD'
+                                                                    ? 'EN_PRODUCCION'
+                                                                    : 'IN_REPAIR';
+
+                                                            return (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleUpdateStatus(workshopStatus, 'En Taller')}
+                                                                    className="w-full flex items-center justify-between p-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-indigo-600/25 active:scale-95 transition-all cursor-pointer group"
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="size-10 rounded-xl bg-white/20 flex items-center justify-center">
+                                                                            <span className="material-symbols-outlined text-2xl">precision_manufacturing</span>
+                                                                        </div>
+                                                                        <div className="flex flex-col text-left">
+                                                                            <span className="text-sm">Mandar al taller</span>
+                                                                            <span className="text-[10px] font-medium opacity-90">
+                                                                                Enviar orden a producción / reparación en taller
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className="material-symbols-outlined text-xl group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                                                                </button>
+                                                            );
+                                                        })()}
 
                                                         {/* Advertencia si no está liberado por el Joyero */}
                                                         {!isReadyForDelivery && !isJoyeroReturned && (

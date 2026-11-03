@@ -92,8 +92,6 @@ export class PaymentsService {
                 updateData.status = 'DELIVERED';
                 if (order.type === 'STANDARD') {
                     updateData.stage = 'ENTREGADO_POSTVENTA';
-                } else {
-                    updateData.stage = 'DELIVERED';
                 }
 
                 updateData.specifications = {

@@ -348,62 +348,58 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         // Mínimo 64mm (> 62mm de ancho) para que WebKit/AirPrint siempre mantenga orientación vertical (Portrait).
         const heightMm = Math.max(64, Math.ceil((heightPx * 25.4) / 96) + 1);
 
-        const isAppleOrSafari = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
             || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
             || (/^((?!chrome|android).)*safari/i.test(navigator.userAgent));
 
-        if (isAppleOrSafari) {
-            // Safari ignores custom HTML @page heights and prints a normal
-            // sheet (including the URL footer). A custom-size PDF preserves
-            // the exact roll length in AirPrint and avoids the blank tail.
-            const pdfWindow = window.open('', '_blank');
-            if (!pdfWindow) {
-                portal.remove();
-                window.alert('Safari bloqueó la vista de impresión. Permite ventanas emergentes para LuxuryOS e intenta nuevamente.');
-                return;
-            }
-            pdfWindow.document.write('<!doctype html><title>Preparando etiqueta</title><p style="font-family:sans-serif;padding:24px">Preparando etiqueta para AirPrint…</p>');
-            pdfWindow.document.close();
+        if (isAppleMobile) {
+            // En iPad/iOS Safari, NUNCA usar window.open porque el bloqueador de ventanas emergentes lo bloquea.
+            // Inyectamos el contenedor directo con @page al tamaño exacto medido para corte sin desperdicio.
+            portal.remove();
 
-            try {
-                portal.style.left = '-10000px';
-                portal.style.opacity = '1';
-                portal.style.zIndex = '-1';
-                await document.fonts?.ready;
-                await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+            const existingPortal = document.getElementById('thermal-print-airprint-portal');
+            if (existingPortal) existingPortal.remove();
 
-                const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-                    import('html2canvas'),
-                    import('jspdf'),
-                ]);
-                const canvas = await html2canvas(portalContent as HTMLElement, {
-                    backgroundColor: '#ffffff',
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                });
+            const airprintDiv = document.createElement('div');
+            airprintDiv.id = 'thermal-print-airprint-portal';
+            airprintDiv.innerHTML = `
+                <style id="thermal-airprint-style">
+                    @media print {
+                        @page {
+                            size: 62mm ${heightMm}mm !important;
+                            margin: 0mm !important;
+                        }
+                        body > *:not(#thermal-print-airprint-portal) {
+                            display: none !important;
+                        }
+                        #thermal-print-airprint-portal {
+                            display: flex !important;
+                            flex-direction: column !important;
+                            align-items: center !important;
+                            width: 100% !important;
+                            background: #ffffff !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                        }
+                        #thermal-print-airprint-portal > div {
+                            width: 58mm !important;
+                            max-width: 58mm !important;
+                            margin: 0 auto !important;
+                        }
+                    }
+                </style>
+                <div class="bg-white text-black p-2 flex flex-col justify-between items-center text-center font-sans" style="width: 58mm; max-width: 58mm; margin: 0 auto; padding: 2mm 1mm; box-sizing: border-box;">
+                    ${labelHtml}
+                </div>
+            `;
+            document.body.appendChild(airprintDiv);
 
-                const printScale = 1.00;
-                const imageWidthMm = 58 * printScale;
-                const imageHeightMm = (canvas.height / canvas.width) * imageWidthMm;
-                const pageHeightMm = Math.max(25, Math.ceil(imageHeightMm + 2));
-                const imageXmm = (62 - imageWidthMm) / 2;
-                const pdf = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: [62, pageHeightMm],
-                    compress: true,
-                });
-                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', imageXmm, 1, imageWidthMm, imageHeightMm, undefined, 'FAST');
-                const pdfUrl = URL.createObjectURL(pdf.output('blob'));
-                pdfWindow.location.replace(pdfUrl);
-            } catch (error) {
-                console.error('AirPrint PDF generation failed', error);
-                pdfWindow.close();
-                window.alert('No se pudo preparar la etiqueta para AirPrint. Intenta nuevamente.');
-            } finally {
-                portal.remove();
-            }
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => {
+                    airprintDiv.remove();
+                }, 1000);
+            }, 120);
             return;
         }
 
