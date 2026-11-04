@@ -10,4 +10,5 @@ test('production build guard rejects loopback and requires the production API', 
   assert.throws(() => validateProductionBundle(['const api = "http://localhost:3002";']), /loopback/);
   assert.throws(() => validateProductionBundle(['const api = "https://example.com";']), /luxury-api/);
   assert.doesNotThrow(() => validateProductionBundle(['const api = "https://luxury-api.pitayacode.io";']));
+  assert.doesNotThrow(() => validateProductionBundle(['dependency help: http://localhost:5173; const api = "https://luxury-api.pitayacode.io";']));
 });

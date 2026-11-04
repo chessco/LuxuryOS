@@ -3,6 +3,9 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const LOOPBACK_PATTERN = /(?:https?:\/\/)?(?:localhost|127(?:\.\d{1,3}){3}|\[?::1\]?)(?::\d+)?/i;
+// Dependencies can legitimately contain generic localhost references. Only the API's
+// development endpoint is dangerous in a production bundle.
+const LOOPBACK_API_PATTERN = /(?:https?:\/\/)?(?:localhost|127(?:\.\d{1,3}){3}|\[?::1\]?)(?::3002)(?:[/'"`]|$)/i;
 export const PRODUCTION_API_URL = 'https://luxury-api.pitayacode.io';
 export const BUILD_CONFIG_FILE = 'build-config.json';
 
@@ -14,7 +17,7 @@ export function assertProductionApiUrl(configuredUrl) {
 }
 export function validateProductionBundle(bundleContents) {
   const bundle = bundleContents.join('\n');
-  if (LOOPBACK_PATTERN.test(bundle)) throw new Error('Production bundle contains a loopback API URL. Deployment blocked.');
+  if (LOOPBACK_API_PATTERN.test(bundle)) throw new Error('Production bundle contains a loopback API URL. Deployment blocked.');
   if (!bundle.includes(PRODUCTION_API_URL)) throw new Error(`Production bundle does not contain ${PRODUCTION_API_URL}. Deployment blocked.`);
 }
 export function readProductionBundles(rootDir = process.cwd()) {
