@@ -105,6 +105,7 @@ const OrderDetail: React.FC = () => {
 
         const items = foundOrder.specifications?.items;
         const totalItemsLabor = Array.isArray(items) ? items.reduce((acc: number, it: any) => acc + (parseFloat(it.laborCost) || 0), 0) : 0;
+        const totalItemsJewelerLabor = Array.isArray(items) ? items.reduce((acc: number, it: any) => acc + (parseFloat(it.jewelerLaborCost) || 0), 0) : 0;
         const totalItemsCommission = Array.isArray(items) ? items.reduce((acc: number, it: any) => acc + (parseFloat(it.commission) || 0), 0) : 0;
         const totalItemsMaterial = Array.isArray(items) ? items.reduce((acc: number, it: any) => acc + (parseFloat(it.materialCost || it.cost) || 0), 0) : 0;
 
@@ -128,6 +129,7 @@ const OrderDetail: React.FC = () => {
             paidAmount: paid,
             balance: balance,
             laborCost: laborCost,
+            jewelerLaborCost: totalItemsJewelerLabor,
             commission: commission,
             materialCost: materialCost,
             assignedTo: assignedTo,
@@ -613,6 +615,10 @@ const OrderDetail: React.FC = () => {
         : (order.specifications?.promisedDate || (order.dueDate ? fmtDate(order.dueDate) : 'Sin fecha'));
     const finishedByLabel = order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || 'Sin registrar';
     const deliveredByLabel = order.specifications?.deliveredByName || order.specifications?.deliveredBy?.name || order.deliveredByName || 'Sin registrar';
+    const finishedAt = order.specifications?.completedAt || order.specifications?.readyBy?.at || order.readyAt;
+    const deliveredAt = order.specifications?.deliveredBy?.at || order.deliveredAt;
+    const finishedAtLabel = finishedAt ? fmtDate(finishedAt, true) : 'Sin registrar';
+    const deliveredAtLabel = deliveredAt ? fmtDate(deliveredAt, true) : 'Sin registrar';
     const isReturned = Boolean(order.specifications?.isReturnedToClient || order.specifications?.isReturnedNotDone || order.status === 'DEVUELTO');
     const isDelivered = !isReturned && !!(order.deliveredAt || order.status === 'DELIVERED' || order.status === 'ENTREGADO' || order.stage === 'ENTREGADO_POSTVENTA');
     const priorityKey = (order.priority || 'MEDIA').toUpperCase();
@@ -698,7 +704,9 @@ const OrderDetail: React.FC = () => {
                                 tone="indigo" 
                             />
                             <MetaItem icon="verified" label="Terminó" value={finishedByLabel} tone="indigo" />
+                            <MetaItem icon="schedule" label="Fecha/Hora terminó" value={finishedAtLabel} tone="indigo" />
                             <MetaItem icon="local_shipping" label="Entregó" value={deliveredByLabel} tone="emerald" />
+                            <MetaItem icon="schedule" label="Fecha/Hora entrega" value={deliveredAtLabel} tone="emerald" />
                         </dl>
                     </div>
 
@@ -861,6 +869,12 @@ const OrderDetail: React.FC = () => {
                                         {Number(order.materialCost || order.cost || 0).toLocaleString()} MXN
                                     </span>
                                 </div>
+                                <div className="text-left sm:text-right border-l border-border pl-6">
+                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest block mb-0.5">M. O. Joyero</span>
+                                    <span className="text-foreground text-xl sm:text-2xl font-black tracking-tight font-display">
+                                        {Number(order.jewelerLaborCost || 0).toLocaleString()} MXN
+                                    </span>
+                                </div>
                             </div>
                         )}
 
@@ -937,6 +951,7 @@ const OrderDetail: React.FC = () => {
                         thickness: order.thickness || order.specifications?.thickness,
                         itemCode: order.itemCode || order.specifications?.itemCode,
                         laborCost: order.laborCost || order.specifications?.laborCost,
+                        jewelerLaborCost: order.specifications?.jewelerLaborCost,
                         commission: order.commission || order.specifications?.commission,
                         materialCost: order.materialCost || order.specifications?.materialCost,
                         description: order.description || order.specifications?.diagnosis || order.specifications?.description || '',
@@ -1032,6 +1047,12 @@ const OrderDetail: React.FC = () => {
                                                     <div>
                                                         <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Mano de Obra:</span>
                                                         <span className="font-bold text-foreground">{Number(piece.laborCost).toLocaleString()} MXN</span>
+                                                    </div>
+                                                )}
+                                                {piece.jewelerLaborCost !== undefined && piece.jewelerLaborCost !== null && piece.jewelerLaborCost !== '' && (
+                                                    <div>
+                                                        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-wider mr-2">Mano de Obra Joyero:</span>
+                                                        <span className="font-bold text-foreground">{Number(piece.jewelerLaborCost).toLocaleString()} MXN</span>
                                                     </div>
                                                 )}
                                                 {!isJoyero && !isVendedor && canViewCostsMargins && piece.materialCost && (
