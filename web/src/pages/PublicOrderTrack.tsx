@@ -151,7 +151,7 @@ export const PublicOrderTrack: React.FC = () => {
     const isPublicGate = !order;
 
     return (
-        <div className={`theme-cared dark min-h-screen text-cared-ink flex flex-col items-center justify-between selection:bg-cared-red selection:text-white ${isPublicGate ? 'cared-track-gate' : 'bg-cared-bg p-4 sm:p-8 font-sans'}`}>
+        <div className={`theme-cared dark min-h-screen text-cared-ink flex flex-col items-center selection:bg-cared-red selection:text-white ${isPublicGate ? 'cared-track-gate justify-between' : 'w-full min-h-[100dvh] overflow-x-hidden bg-cared-bg p-4 sm:p-8 font-sans'}`}>
             {/* Header / Brand */}
             <header className={isPublicGate ? 'cared-track-header' : 'w-full max-w-lg flex flex-col items-center justify-center pt-6 pb-8'}>
                 <h1>
@@ -167,7 +167,7 @@ export const PublicOrderTrack: React.FC = () => {
             </header>
 
             {/* Main Content Area */}
-            <main className={isPublicGate ? 'cared-track-main' : 'w-full max-w-lg my-auto py-8'}>
+            <main className={isPublicGate ? 'cared-track-main' : 'w-full max-w-lg py-6 sm:py-8'}>
                 {initialLoading ? (
                     <div className="bg-cared-card/60 border border-cared-line rounded-3xl p-12 text-center backdrop-blur-xl shadow-2xl flex flex-col items-center gap-4 animate-pulse">
                         <div className="size-10 rounded-full border-2 border-cared-gold border-t-transparent animate-spin"></div>
@@ -430,7 +430,7 @@ export const PublicOrderTrack: React.FC = () => {
             </main>
 
             {/* Public Page Footer */}
-            <footer className={isPublicGate ? 'cared-track-footer' : 'w-full max-w-lg text-center pt-6 border-t border-cared-line/80'}>
+            <footer className={isPublicGate ? 'cared-track-footer' : 'w-full max-w-lg mt-auto pt-6 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-cared-line/80'}>
                 {isPublicGate ? (
                     <>
                         <img src="/tracking/wolves-outline.png" alt="" draggable={false} />
