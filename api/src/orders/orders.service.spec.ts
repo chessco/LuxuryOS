@@ -77,7 +77,7 @@ describe('OrdersService Unit Tests', () => {
       client: { name: 'Ana López', phone: '526621234567' },
       specifications: {
         orderCode: 'REP-10',
-        items: [{ item: 'Cadena', notes: 'Soldar broche' }],
+        items: [{ item: 'Cadena', notes: 'Soldar broche', imageUrl: 'https://example.com/piece.jpg' }],
       },
       ...overrides,
     });
@@ -108,7 +108,7 @@ describe('OrdersService Unit Tests', () => {
           totalAmount: 0,
           cost: 0,
           specifications: {
-            items: [{ item: 'Cadena', notes: 'Soldar broche' }],
+            items: [{ item: 'Cadena', notes: 'Soldar broche', imageUrl: 'https://example.com/piece.jpg' }],
           },
         } as any,
         'user-1',
@@ -235,9 +235,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
       );
 
       expect(sentMessage()).toContain('https://luxuryos.pitayacode.io/track/');
-      expect(sentMessage()).toContain(
-        'https://api.qrserver.com/v1/create-qr-code/',
-      );
+      expect(sentMessage()).not.toContain('https://api.qrserver.com/v1/create-qr-code/');
     });
 
     it('keeps the generated QR as the first media URL even when piece notes contain an image URL', async () => {
@@ -264,10 +262,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         'ORDER_CREATED',
       );
 
-      const firstMediaUrl = sentMessage().match(
-        /(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|webp)|https?:\/\/api\.qrserver[^\s]+)/i,
-      )?.[0];
-      expect(firstMediaUrl).toContain('api.qrserver.com');
+      expect(sentMessage()).toContain('https://example.com/reference.jpg');
     });
 
     it('rejects an order that is not found inside the requested tenant', async () => {
@@ -339,6 +334,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         promisedAt: '2026-12-01T00:00:00.000Z',
         size: '7',
         thickness: '2mm',
+        imageUrl: 'https://example.com/piece.jpg',
       };
 
       const result: any = await service.createOrder('tenant-1', dto, 'user-1');
@@ -377,6 +373,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         promisedAt: '2026-12-01T00:00:00.000Z',
         size: '50cm',
         thickness: '3mm',
+        imageUrl: 'https://example.com/piece.jpg',
         advanceAmount: 400,
         advanceMethod: 'Tarjeta',
         advanceReference: 'AUTH-1234',
@@ -483,6 +480,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         pieceType: 'RELOJ',
         value: 3000,
         clientId: 'client-123',
+        imageUrl: 'https://example.com/piece.jpg',
         promisedAt: '2026-12-01T00:00:00.000Z',
       };
 
