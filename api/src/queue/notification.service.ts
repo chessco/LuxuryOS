@@ -252,7 +252,14 @@ Por favor pasa al módulo de atención en *${atelierName}*. ✨`;
     }
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const where = { tenantId, channel: 'WHATSAPP', createdAt: { gte: since } };
+    // Los mensajes entrantes se guardan como RECEIVED. No deben tapar el fallo
+    // de una notificación saliente en el indicador de salud del canal.
+    const where = {
+      tenantId,
+      channel: 'WHATSAPP',
+      status: { not: 'RECEIVED' },
+      createdAt: { gte: since },
+    };
 
     const last = await this.prisma.notificationLog.findFirst({
       where,
