@@ -462,6 +462,19 @@ export class OrdersService {
     if (!hasRequiredPhoto) {
       throw new BadRequestException('La fotografía de cada pieza es obligatoria para registrar la orden.');
     }
+    if (
+      items.length > 0 &&
+      items.some(
+        (item: any) =>
+          item?.jewelerLaborCost === undefined ||
+          item?.jewelerLaborCost === null ||
+          String(item.jewelerLaborCost).trim() === '',
+      )
+    ) {
+      throw new BadRequestException(
+        'La Mano de Obra Joyero es obligatoria para cada pieza.',
+      );
+    }
 
     // RF-08: con costos por pieza, el total es la suma de mano de obra + material de todas las piezas
     const itemCosts = this.sumItemCosts(data.specifications?.items);

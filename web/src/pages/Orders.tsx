@@ -408,6 +408,8 @@ const Orders: React.FC = () => {
                     imageUrl: item.imageUrl || undefined,
                     // RF-08: costos por pieza
                     laborCost: cleanNumber(item.laborCost),
+                    // Solo informativo para reportes de joyero; no entra a los totales.
+                    jewelerLaborCost: cleanNumber(item.jewelerLaborCost),
                     materialCost: cleanNumber(item.materialCost)
                 };
             });
@@ -1145,7 +1147,7 @@ const NewOrderDrawer: React.FC<{
     }, [initialClientName, initialClientPhone]);
 
     const [items, setItems] = useState<any[]>([
-        { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', materialCost: '' }
+        { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', jewelerLaborCost: '', materialCost: '' }
     ]);
 
     // RF-08: mano de obra y material se capturan por pieza; el total lo calcula el sistema
@@ -1162,7 +1164,7 @@ const NewOrderDrawer: React.FC<{
     };
 
     const addItem = () => {
-        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', materialCost: '' }]);
+        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', notes: '', imageUrl: '', laborCost: '', jewelerLaborCost: '', materialCost: '' }]);
     };
 
     const removeItem = (index: number) => {
@@ -1278,6 +1280,10 @@ const NewOrderDrawer: React.FC<{
             // RF-08: mano de obra y material obligatorios en cada pieza
             if (item.laborCost === undefined || item.laborCost === null || String(item.laborCost).trim() === '') {
                 alert(`El campo Mano de Obra es obligatorio para la pieza #${i + 1}.`);
+                return;
+            }
+            if (item.jewelerLaborCost === undefined || item.jewelerLaborCost === null || String(item.jewelerLaborCost).trim() === '') {
+                alert(`El campo Mano de Obra Joyero es obligatorio para la pieza #${i + 1}.`);
                 return;
             }
             if (item.materialCost === undefined || item.materialCost === null || String(item.materialCost).trim() === '') {
@@ -1923,6 +1929,21 @@ const NewOrderDrawer: React.FC<{
                                                 placeholder="0.00"
                                                 required
                                             />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
+                                                <span>Mano de Obra Joyero</span>
+                                                <span className="text-red-500 font-bold">*</span>
+                                            </label>
+                                            <input
+                                                inputMode="decimal"
+                                                value={item.jewelerLaborCost ?? ''}
+                                                onChange={(e) => handleItemChange(index, 'jewelerLaborCost', e.target.value)}
+                                                className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner"
+                                                placeholder="0.00"
+                                                required
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">Solo para reporte de joyero; no modifica el subtotal, total ni mensajes.</p>
                                         </div>
                                         <p className="col-span-2 text-[11px] text-muted-foreground px-1">
                                             Subtotal de la pieza: <span className="font-black text-foreground">{formatMoney(parseMoney(item.laborCost) + parseMoney(item.materialCost))}</span>

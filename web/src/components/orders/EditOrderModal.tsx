@@ -160,7 +160,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
     };
 
     const addItem = () => {
-        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', description: '', laborCost: 0, materialCost: 0 }]);
+        setItems([...items, { item: '', metal: '', color: '', karats: '', weight: '', size: '', thickness: '', itemCode: '', description: '', laborCost: 0, jewelerLaborCost: '', materialCost: 0 }]);
     };
 
     const removeItem = (index: number) => {
@@ -171,6 +171,10 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (items.some((item: any) => item.jewelerLaborCost === undefined || item.jewelerLaborCost === null || String(item.jewelerLaborCost).trim() === '')) {
+            alert('La Mano de Obra Joyero es obligatoria para cada pieza.');
+            return;
+        }
         setIsSaving(true);
         try {
             // Sync first item to top-level fields for consistency/listing
@@ -473,6 +477,11 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                                                 <input type="number" inputMode="decimal" value={item.materialCost ?? ''} onChange={(e) => handleItemChange(index, 'materialCost', e.target.value)} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner" placeholder="0.00" />
                                             </div>
                                         )}
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 transition-colors">Mano de Obra Joyero (MXN) <span className="text-red-500">*</span></label>
+                                            <input type="number" inputMode="decimal" value={item.jewelerLaborCost ?? ''} onChange={(e) => handleItemChange(index, 'jewelerLaborCost', e.target.value)} className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/30 outline-none transition-colors shadow-inner" placeholder="0.00" required />
+                                            <p className="text-[10px] text-muted-foreground">Solo se utiliza en Reportes de Joyero; no cambia los totales de la orden.</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

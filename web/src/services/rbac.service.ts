@@ -158,7 +158,9 @@ export class RBACService {
         if (role === 'JOYERO' || role.includes('JOYER') || email.includes('joyero') || name.includes('joyero')) {
             return 'JOYERO';
         }
-        if (role === 'VENDEDOR' || email.includes('ventas') || email.includes('vendedor')) {
+        // VENTAS es el nombre histórico del mismo rol; normalizarlo evita que
+        // pierda los permisos configurados para VENDEDOR en la interfaz.
+        if (role === 'VENDEDOR' || role === 'VENTAS' || email.includes('ventas') || email.includes('vendedor')) {
             return 'VENDEDOR';
         }
         return (role as RoleName) || 'TENANT_USER';

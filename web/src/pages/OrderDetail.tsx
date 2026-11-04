@@ -577,6 +577,7 @@ const OrderDetail: React.FC = () => {
 
     const isVendedor =
         userRoleUpper === 'VENDEDOR' ||
+        userRoleUpper === 'VENTAS' ||
         userRoleUpper.includes('VEND') ||
         userEmailLower.includes('ventas') ||
         userEmailLower.includes('vendedor') ||
@@ -596,8 +597,11 @@ const OrderDetail: React.FC = () => {
     const stageUpper = String(order.stage || '').toUpperCase();
     const isReceived = (!statusUpper || statusUpper === 'RECEIVED' || statusUpper === 'RECIBIDO' || statusUpper === 'DRAFT' || statusUpper === 'SPEC_PENDING') &&
                        (!stageUpper || stageUpper === 'RECEIVED' || stageUpper === 'RECIBIDO' || stageUpper === 'INTERES_LEAD');
-    const canModifyOrderDetails = isAuthorized || (!isJoyero && !isDesigner && RBACService.hasPermission('modify_order_details', user) && isReceived);
-    const canEditOrder = isAuthorized || isJoyero || (RBACService.hasPermission('modify_order_details', user) && isReceived);
+    // Ventas puede actualizar cualquier dato de una orden durante el trabajo
+    // de taller. La API conserva los bloqueos de entrega manual y de retroceso
+    // de flujo para proteger el proceso operativo.
+    const canModifyOrderDetails = isAuthorized || isVendedor || (!isJoyero && !isDesigner && RBACService.hasPermission('modify_order_details', user) && isReceived);
+    const canEditOrder = isAuthorized || isJoyero || isVendedor || (RBACService.hasPermission('modify_order_details', user) && isReceived);
 
     const fmtDate = (d: any, withTime = false) => new Date(d).toLocaleDateString('es-MX', {
         timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric',
@@ -607,15 +611,10 @@ const OrderDetail: React.FC = () => {
     const promisedLabel = order.promisedAt
         ? fmtDate(order.promisedAt)
         : (order.specifications?.promisedDate || (order.dueDate ? fmtDate(order.dueDate) : 'Sin fecha'));
-    const isWorkshopOrder = order.type === OrderType.REPAIR || order.type === OrderType.MANUFACTURE || order.type === OrderType.DESIGN || order.type === OrderType.LASER || order.type === 'DESIGN' || order.type === 'LASER' || order.type === 'MANUFACTURE';
-    const isFinishedStatus = ['DELIVERED', 'REPAIR_COMPLETED', 'READY_FOR_PICKUP'].includes(order.status);
-    const readyByLabel = order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName
-        || (isFinishedStatus && isWorkshopOrder ? 'Joyero' : null);
+    const finishedByLabel = order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || 'Sin registrar';
+    const deliveredByLabel = order.specifications?.deliveredByName || order.specifications?.deliveredBy?.name || order.deliveredByName || 'Sin registrar';
     const isReturned = Boolean(order.specifications?.isReturnedToClient || order.specifications?.isReturnedNotDone || order.status === 'DEVUELTO');
     const isDelivered = !isReturned && !!(order.deliveredAt || order.status === 'DELIVERED' || order.status === 'ENTREGADO' || order.stage === 'ENTREGADO_POSTVENTA');
-    const deliveredLabel = order.deliveredAt
-        ? fmtDate(order.deliveredAt, true)
-        : (order.updatedAt ? fmtDate(order.updatedAt, true) : 'Registrado');
     const priorityKey = (order.priority || 'MEDIA').toUpperCase();
     const statusTone = order.statusType === 'urgent'
         ? 'text-red-600 dark:text-red-400 border-red-500/30 bg-red-500/10'
@@ -683,7 +682,7 @@ const OrderDetail: React.FC = () => {
                             <MetaItem icon="person" label="Recibió" value={receivedByLabel} />
                             <MetaItem icon="history" label="Recibido" value={order.date} />
                             <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
-                            <MetaItem icon="event" label="Entrega" value={promisedLabel} tone="emerald" />
+                            <MetaItem icon="event" label="Promesa" value={promisedLabel} tone="emerald" />
                             {order.specifications?.assignedDesigner && (
                                 <MetaItem
                                     icon="draw"
@@ -698,12 +697,8 @@ const OrderDetail: React.FC = () => {
                                 value={order.assignedTo || order.specifications?.assignedTo || order.specifications?.assignedJeweler || order.assignedJeweler || order.jeweler || 'Sin asignar'} 
                                 tone="indigo" 
                             />
-                            {readyByLabel && <MetaItem icon="verified" label="Listo por" value={readyByLabel} tone="indigo" />}
-                            {isReturned ? (
-                                <MetaItem icon="assignment_return" label="Devolución" value="Devuelto al Cliente" tone="neutral" />
-                            ) : isDelivered && (
-                                <MetaItem icon="local_shipping" label="Entregado" value={deliveredLabel} tone="emerald" />
-                            )}
+                            <MetaItem icon="verified" label="Terminó" value={finishedByLabel} tone="indigo" />
+                            <MetaItem icon="local_shipping" label="Entregó" value={deliveredByLabel} tone="emerald" />
                         </dl>
                     </div>
 

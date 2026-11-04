@@ -43,6 +43,7 @@ interface OrderItem {
 
 type DateFilterPreset = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 type OrderTypeFilter = 'ALL' | 'REPAIR' | 'MANUFACTURE' | 'DESIGN' | 'LASER' | 'LAYAWAY';
+type ReportFocus = 'SALES' | 'JEWELER';
 
 // Helper to get local date in YYYY-MM-DD format (prevents UTC timezone shift bug)
 const getLocalDateString = (d: Date = new Date()): string => {
@@ -59,6 +60,7 @@ export const Reports: React.FC = () => {
     const [startDate, setStartDate] = useState<string>(() => getLocalDateString(new Date()));
     const [endDate, setEndDate] = useState<string>(() => getLocalDateString(new Date()));
     const [typeFilter, setTypeFilter] = useState<OrderTypeFilter>('ALL');
+    const [reportFocus, setReportFocus] = useState<ReportFocus>('SALES');
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
 
@@ -147,6 +149,16 @@ export const Reports: React.FC = () => {
         return 0;
     };
 
+    // La mano de obra del joyero vive por pieza. No forma parte de ventas,
+    // totales, balances, ni de las notificaciones al cliente.
+    const getJewelerLaborAmount = (order: OrderItem): number => {
+        const items = Array.isArray(order.specifications?.items) ? order.specifications.items : [];
+        return items.reduce((sum: number, item: any) => {
+            const amount = Number(String(item?.jewelerLaborCost ?? 0).replace(/[^0-9.-]/g, ''));
+            return sum + (Number.isFinite(amount) ? amount : 0);
+        }, 0);
+    };
+
     // Filter delivered orders in date range
     const filteredDeliveredOrders = useMemo(() => {
         const start = new Date(`${startDate}T00:00:00`);
@@ -204,18 +216,25 @@ export const Reports: React.FC = () => {
         let manufactureSum = 0;
         let layawayCount = 0;
         let layawaySum = 0;
+        let jewelerLaborSum = 0;
+        let repairJewelerLaborSum = 0;
+        let manufactureJewelerLaborSum = 0;
 
         filteredDeliveredOrders.forEach(order => {
             const amount = getOrderTotalAmount(order);
             totalCount++;
             totalSum += amount;
+            const jewelerLabor = getJewelerLaborAmount(order);
+            jewelerLaborSum += jewelerLabor;
 
             if (order.type === 'REPAIR') {
                 repairCount++;
                 repairSum += amount;
+                repairJewelerLaborSum += jewelerLabor;
             } else if (order.type === 'MANUFACTURE') {
                 manufactureCount++;
                 manufactureSum += amount;
+                manufactureJewelerLaborSum += jewelerLabor;
             } else if (order.type === 'LAYAWAY') {
                 layawayCount++;
                 layawaySum += amount;
@@ -233,7 +252,10 @@ export const Reports: React.FC = () => {
             manufactureSum,
             layawayCount,
             layawaySum,
-            avgTicket
+            avgTicket,
+            jewelerLaborSum,
+            repairJewelerLaborSum,
+            manufactureJewelerLaborSum,
         };
     }, [filteredDeliveredOrders]);
 
@@ -286,7 +308,7 @@ export const Reports: React.FC = () => {
             return;
         }
 
-        const headers = ['Folio', 'Tipo', 'Cliente', 'Telefono', 'Pieza', 'Detalles', 'Fecha Entrega', 'Fecha Recepcion', 'Valor Total'];
+        const headers = ['Folio', 'Tipo', 'Cliente', 'Telefono', 'Pieza', 'Detalles', 'Fecha Entrega', 'Fecha Recepcion', 'Valor Total', 'Mano de Obra Joyero'];
         const rows = filteredDeliveredOrders.map(o => {
             const delDate = getOrderDeliveryDate(o);
             const amount = getOrderTotalAmount(o);
@@ -299,7 +321,8 @@ export const Reports: React.FC = () => {
                 `"${[o.metal, o.karats, o.weight, o.size].filter(Boolean).join(' - ')}"`,
                 `"${delDate ? delDate.toLocaleString('es-MX') : ''}"`,
                 `"${new Date(o.createdAt).toLocaleDateString('es-MX')}"`,
-                amount
+                amount,
+                getJewelerLaborAmount(o)
             ];
         });
 
@@ -468,6 +491,21 @@ export const Reports: React.FC = () => {
                         )}
                     </div>
                 </div>
+                <div className="flex items-center gap-2 pt-4 border-t border-border">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">Vista:</span>
+                    <div className="flex bg-muted p-1 rounded-2xl border border-border">
+                        {([{ id: 'SALES', label: 'Ventas' }, { id: 'JEWELER', label: 'Joyero' }] as const).map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setReportFocus(tab.id)}
+                                className={`px-4 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${reportFocus === tab.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">{reportFocus === 'JEWELER' ? 'Suma exclusivamente mano de obra joyero.' : 'Valores comerciales de las órdenes.'}</span>
+                </div>
             </div>
 
             {/* Print Header (Only visible on physical/PDF print) */}
@@ -511,7 +549,7 @@ export const Reports: React.FC = () => {
                 <div className="p-6 rounded-3xl bg-card border border-emerald-500/20 shadow-sm flex flex-col justify-between hover:border-emerald-500/40 transition-all bg-gradient-to-br from-emerald-500/[0.03] to-transparent">
                     <div className="flex items-center justify-between mb-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">
-                            Valor Total Entregado
+                            {reportFocus === 'JEWELER' ? 'Mano de Obra Joyero' : 'Valor Total Entregado'}
                         </span>
                         <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                             <span className="material-symbols-outlined text-[20px]">attach_money</span>
@@ -519,10 +557,10 @@ export const Reports: React.FC = () => {
                     </div>
                     <div>
                         <div className="text-3xl font-black text-emerald-500 font-display tracking-tight">
-                            {formatMoney(kpis.totalSum)}
+                            {formatMoney(reportFocus === 'JEWELER' ? kpis.jewelerLaborSum : kpis.totalSum)}
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            Suma de valores de órdenes
+                            {reportFocus === 'JEWELER' ? 'Suma de mano de obra por pieza' : 'Suma de valores de órdenes'}
                         </p>
                     </div>
                 </div>
@@ -531,7 +569,7 @@ export const Reports: React.FC = () => {
                 <div className="p-6 rounded-3xl bg-card border border-border shadow-sm flex flex-col justify-between hover:border-blue-500/30 transition-all">
                     <div className="flex items-center justify-between mb-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">
-                            Reparaciones Entregadas
+                            {reportFocus === 'JEWELER' ? 'M. O. Joyero Reparaciones' : 'Reparaciones Entregadas'}
                         </span>
                         <div className="size-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
                             <span className="material-symbols-outlined text-[20px]">handyman</span>
@@ -540,14 +578,14 @@ export const Reports: React.FC = () => {
                     <div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-black text-foreground font-display">
-                                {formatMoney(kpis.repairSum)}
+                                {formatMoney(reportFocus === 'JEWELER' ? kpis.repairJewelerLaborSum : kpis.repairSum)}
                             </span>
                             <span className="text-xs font-bold text-muted-foreground">
                                 ({kpis.repairCount})
                             </span>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            Servicios de taller entregados
+                            {reportFocus === 'JEWELER' ? 'Mano de obra de joyero' : 'Servicios de taller entregados'}
                         </p>
                     </div>
                 </div>
@@ -556,7 +594,7 @@ export const Reports: React.FC = () => {
                 <div className="p-6 rounded-3xl bg-card border border-border shadow-sm flex flex-col justify-between hover:border-purple-500/30 transition-all">
                     <div className="flex items-center justify-between mb-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-purple-500">
-                            Fabricación Entregada
+                            {reportFocus === 'JEWELER' ? 'M. O. Joyero Fabricación' : 'Fabricación Entregada'}
                         </span>
                         <div className="size-9 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
                             <span className="material-symbols-outlined text-[20px]">diamond</span>
@@ -565,14 +603,14 @@ export const Reports: React.FC = () => {
                     <div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-black text-foreground font-display">
-                                {formatMoney(kpis.manufactureSum)}
+                                {formatMoney(reportFocus === 'JEWELER' ? kpis.manufactureJewelerLaborSum : kpis.manufactureSum)}
                             </span>
                             <span className="text-xs font-bold text-muted-foreground">
                                 ({kpis.manufactureCount})
                             </span>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            Joyería a medida entregada
+                            {reportFocus === 'JEWELER' ? 'Mano de obra de joyero' : 'Joyería a medida entregada'}
                         </p>
                     </div>
                 </div>
