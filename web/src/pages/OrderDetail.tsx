@@ -609,12 +609,30 @@ const OrderDetail: React.FC = () => {
         timeZone: 'America/Hermosillo', day: '2-digit', month: '2-digit', year: 'numeric',
         ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {})
     });
+    const getActorLabel = (actor?: any, storedValue?: unknown) => {
+        const storedText = typeof storedValue === 'string' ? storedValue.trim() : '';
+        const matchedUser = assignableUsers.find((candidate) =>
+            (actor?.id && candidate.id === actor.id) ||
+            (actor?.email && candidate.email === actor.email) ||
+            (storedText.includes('@') && candidate.email === storedText)
+        );
+
+        return matchedUser?.name || matchedUser?.username || actor?.name || actor?.username ||
+            (storedText && !storedText.includes('@') ? storedText : 'Sin registrar');
+    };
+
     const receivedByLabel = order.createdBy?.name || order.specifications?.receivedBy || order.specifications?.createdByName || '—';
     const promisedLabel = order.promisedAt
         ? fmtDate(order.promisedAt)
         : (order.specifications?.promisedDate || (order.dueDate ? fmtDate(order.dueDate) : 'Sin fecha'));
-    const finishedByLabel = order.specifications?.readyByName || order.specifications?.readyBy?.name || order.readyByName || order.completedByName || 'Sin registrar';
-    const deliveredByLabel = order.specifications?.deliveredByName || order.specifications?.deliveredBy?.name || order.deliveredByName || 'Sin registrar';
+    const finishedByLabel = getActorLabel(
+        order.specifications?.readyBy,
+        order.specifications?.readyByName || order.readyByName || order.completedByName,
+    );
+    const deliveredByLabel = getActorLabel(
+        order.specifications?.deliveredBy,
+        order.specifications?.deliveredByName || order.deliveredByName,
+    );
     const finishedAt = order.specifications?.completedAt || order.specifications?.readyBy?.at || order.readyAt;
     const deliveredAt = order.specifications?.deliveredBy?.at || order.deliveredAt;
     const finishedAtLabel = finishedAt ? fmtDate(finishedAt, true) : 'Sin registrar';
