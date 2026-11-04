@@ -82,10 +82,15 @@ export class QuotesService {
     if (quote.status !== QuoteStatus.AUTHORIZED) throw new ConflictException('La cotización debe estar autorizada');
     if (quote.convertedOrder) throw new ConflictException('La cotización ya fue convertida');
     const technicalTypes: OrderType[] = [OrderType.REPAIR, OrderType.MANUFACTURE, OrderType.DESIGN, OrderType.LASER];
+    const quoteSpecifications = (quote.specifications || {}) as Record<string, any>;
+    const firstItem = Array.isArray(quoteSpecifications.items)
+      ? quoteSpecifications.items[0] || {}
+      : {};
+    // Los campos que se capturan al cotizar son la base de la orden. En la
+    // conversión solo se complementan los datos operativos que hagan falta.
+    const source = { ...quoteSpecifications, ...firstItem, ...(dto.operationalFields || {}) };
     if (technicalTypes.includes(dto.targetType)) {
-      const source = (quote.specifications as any)?.items?.[0] || quote.specifications || {};
-      const fields = dto.operationalFields || {};
-      if (!String((fields as any).size || source.size || '').trim() || !String((fields as any).thickness || source.thickness || '').trim()) {
+      if (!String(source.size || '').trim() || !String(source.thickness || '').trim()) {
         throw new BadRequestException('La medida y el grosor son obligatorios para convertir a trabajo técnico');
       }
     }
@@ -104,7 +109,11 @@ export class QuotesService {
         balance: quote.totalAmount, laborCost: quote.laborCost, materialCost: quote.materialCost,
         paymentStatus: PaymentStatus.PENDIENTE, notes: quote.notes,
         promisedAt: dto.promisedAt ? new Date(dto.promisedAt) : undefined,
-        specifications: { ...((quote.specifications || {}) as object), ...(dto.operationalFields || {}), orderCode, sourceQuoteId: quote.id, sourceQuoteCode: quote.quoteCode } as Prisma.InputJsonValue,
+        metal: source.metal || undefined, color: source.color || undefined,
+        karats: source.karats || undefined, weight: source.weight || undefined,
+        size: source.size || undefined, thickness: source.thickness || undefined,
+        itemCode: source.itemCode || undefined, imageUrl: source.imageUrl || undefined,
+        specifications: { ...quoteSpecifications, ...(dto.operationalFields || {}), orderCode, sourceQuoteId: quote.id, sourceQuoteCode: quote.quoteCode } as Prisma.InputJsonValue,
       } });
       await tx.quote.update({ where: { id }, data: { status: QuoteStatus.CONVERTED, convertedOrderId: created.id, convertedAt: new Date() } });
       return created;
