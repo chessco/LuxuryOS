@@ -642,8 +642,8 @@ const OrderDetail: React.FC = () => {
                     <span aria-current="page" className="text-foreground/70">Pedido #{order.orderCode || formatOrderCode(order)}</span>
                 </nav>
 
-                <div className="flex flex-col xl:flex-row xl:justify-between xl:items-start gap-6">
-                    <div className="space-y-5 min-w-0">
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between xl:gap-8">
+                    <div className="min-w-0 space-y-5 xl:flex-1">
                         {/* Title row: code + status + priority */}
                         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                             <h1 className="text-foreground text-4xl sm:text-5xl font-black tracking-tighter font-display">Pedido #{order.orderCode || formatOrderCode(order)}</h1>
@@ -683,9 +683,8 @@ const OrderDetail: React.FC = () => {
                             </select>
                         </div>
 
-                        {/* Key facts: label over value, delivery date emphasised */}
-                        <dl className="w-full overflow-x-auto pb-1">
-                            <div className="flex min-w-max flex-nowrap items-stretch gap-x-8">
+                        {/* Key facts: compact responsive grid, never a nested horizontal scroll region */}
+                        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                                 <MetaItem icon="person" label="Recibió" value={receivedByLabel} />
                                 <MetaItem icon="history" label="Recibido" value={order.date} />
                                 <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
@@ -708,15 +707,14 @@ const OrderDetail: React.FC = () => {
                                 <MetaItem icon="schedule" label="Fecha/Hora terminó" value={finishedAtLabel} tone="indigo" />
                                 <MetaItem icon="local_shipping" label="Entregó" value={deliveredByLabel} tone="emerald" />
                                 <MetaItem icon="schedule" label="Fecha/Hora entrega" value={deliveredAtLabel} tone="emerald" />
-                            </div>
                         </dl>
                     </div>
 
                     {/* Actions: one primary, neutral secondary, danger separated */}
-                    <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+                    <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:shrink-0 xl:justify-end">
                         <button
                             onClick={() => setIsQRScannerOpen(true)}
-                            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-red-600/20 cursor-pointer"
+                            className="flex min-h-11 items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-md shadow-red-600/20 transition-all hover:bg-red-700 active:scale-95 cursor-pointer"
                             title="Escanear QR para Cobro o Entrega"
                         >
                             <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
@@ -734,7 +732,7 @@ const OrderDetail: React.FC = () => {
                                         return (
                                             <button
                                                 onClick={() => setIsPaymentModalOpen(true)}
-                                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-emerald-600/25 active:scale-95 cursor-pointer"
+                                                className="flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-md shadow-emerald-600/25 transition-all hover:bg-emerald-500 active:scale-95 cursor-pointer"
                                                 title="Cobrar saldo y entregar pieza automáticamente en un solo paso"
                                             >
                                                 <span className="material-symbols-outlined text-[18px]">point_of_sale</span>
@@ -753,7 +751,7 @@ const OrderDetail: React.FC = () => {
                                                         alert(e?.message || 'Error al confirmar entrega');
                                                     }
                                                 }}
-                                                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-emerald-600/25 active:scale-95 cursor-pointer"
+                                                className="flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-md shadow-emerald-600/25 transition-all hover:bg-emerald-500 active:scale-95 cursor-pointer"
                                                 title="Confirmar entrega de la pieza al cliente"
                                             >
                                                 <span className="material-symbols-outlined text-[18px]">task_alt</span>
@@ -766,7 +764,7 @@ const OrderDetail: React.FC = () => {
                                 return (
                                     <button
                                         onClick={() => setIsPaymentModalOpen(true)}
-                                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer"
+                                        className="flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-md transition-all hover:bg-emerald-500 active:scale-95 cursor-pointer"
                                         title="Agregar o registrar anticipo"
                                     >
                                         <span className="material-symbols-outlined text-[18px]">payments</span>
@@ -1609,10 +1607,10 @@ const META_TONES = {
 };
 
 const MetaItem: React.FC<{ icon: string; label: string; value: React.ReactNode; tone?: keyof typeof META_TONES }> = ({ icon, label, value, tone = 'neutral' }) => (
-    <div className="flex items-center gap-3 min-w-0">
-        <span className={`material-symbols-outlined text-[22px] ${META_TONES[tone].icon}`} aria-hidden="true">{icon}</span>
+    <div className="flex min-w-0 items-center gap-2.5 py-1">
+        <span className={`material-symbols-outlined text-[20px] ${META_TONES[tone].icon}`} aria-hidden="true">{icon}</span>
         <div className="min-w-0">
-            <dt className="text-muted-foreground text-[11px] font-black uppercase tracking-widest">{label}</dt>
+            <dt className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">{label}</dt>
             <dd className={`text-sm font-bold tracking-tight truncate ${META_TONES[tone].value}`}>{value}</dd>
         </div>
     </div>
