@@ -2,9 +2,11 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { assertProductionApiUrl, BUILD_CONFIG_FILE } from './scripts/verify-production-build.mjs';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  const productionApiUrl = mode === 'production' ? assertProductionApiUrl(env.VITE_API_URL) : env.VITE_API_URL;
   return {
     server: {
       port: 3000,
@@ -12,6 +14,13 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      {
+        name: 'luxuryos-production-config',
+        generateBundle() {
+          if (mode !== 'production') return;
+          this.emitFile({ type: 'asset', fileName: BUILD_CONFIG_FILE, source: JSON.stringify({ apiUrl: productionApiUrl }) });
+        },
+      },
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
