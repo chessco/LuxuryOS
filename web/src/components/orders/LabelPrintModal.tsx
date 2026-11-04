@@ -38,6 +38,11 @@ const getStatusLabel = (status: string) => {
     return s.replace(/_/g, ' ');
 };
 
+const isAppleMobileDevice = () => typeof navigator !== 'undefined' && (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+);
+
 interface LabelPrintModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -333,10 +338,10 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         portal.id = 'ios-print-portal';
         portal.style.position = 'fixed';
         portal.style.top = '0';
-        portal.style.left = '0';
+        portal.style.left = '-10000px';
         portal.style.width = '62mm';
-        portal.style.zIndex = '-9999';
-        portal.style.opacity = '0';
+        portal.style.zIndex = '2147483647';
+        portal.style.opacity = '1';
         portal.style.pointerEvents = 'none';
         portal.style.background = '#ffffff';
         portal.innerHTML = `<div id="print-label-portal-content" class="bg-white text-black p-2 flex flex-col justify-between items-center text-center font-sans" style="width: 58mm; max-width: 58mm; margin: 0 auto; padding: 2mm 1mm; box-sizing: border-box;">${labelHtml}</div>`;
@@ -348,58 +353,40 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         // Mínimo 64mm (> 62mm de ancho) para que WebKit/AirPrint siempre mantenga orientación vertical (Portrait).
         const heightMm = Math.max(64, Math.ceil((heightPx * 25.4) / 96) + 1);
 
-        const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent)
-            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-            || (/^((?!chrome|android).)*safari/i.test(navigator.userAgent));
+        const isAppleMobile = isAppleMobileDevice();
 
         if (isAppleMobile) {
-            // En iPad/iOS Safari, NUNCA usar window.open porque el bloqueador de ventanas emergentes lo bloquea.
-            // Inyectamos el contenedor directo con @page al tamaño exacto medido para corte sin desperdicio.
-            portal.remove();
-
-            const existingPortal = document.getElementById('thermal-print-airprint-portal');
-            if (existingPortal) existingPortal.remove();
-
-            const airprintDiv = document.createElement('div');
-            airprintDiv.id = 'thermal-print-airprint-portal';
-            airprintDiv.innerHTML = `
-                <style id="thermal-airprint-style">
-                    @media print {
-                        @page {
-                            size: 62mm ${heightMm}mm !important;
-                            margin: 0mm !important;
-                        }
-                        body > *:not(#thermal-print-airprint-portal) {
-                            display: none !important;
-                        }
-                        #thermal-print-airprint-portal {
-                            display: flex !important;
-                            flex-direction: column !important;
-                            align-items: center !important;
-                            width: 100% !important;
-                            background: #ffffff !important;
-                            margin: 0 !important;
-                            padding: 0 !important;
-                        }
-                        #thermal-print-airprint-portal > div {
-                            width: 58mm !important;
-                            max-width: 58mm !important;
-                            margin: 0 auto !important;
-                        }
-                    }
-                </style>
-                <div class="bg-white text-black p-2 flex flex-col justify-between items-center text-center font-sans" style="width: 58mm; max-width: 58mm; margin: 0 auto; padding: 2mm 1mm; box-sizing: border-box;">
-                    ${labelHtml}
-                </div>
-            `;
-            document.body.appendChild(airprintDiv);
-
-            setTimeout(() => {
-                window.print();
-                setTimeout(() => {
-                    airprintDiv.remove();
-                }, 1000);
-            }, 120);
+            const pdfWindow = window.open('', '_blank');
+            try {
+                if (!pdfWindow) throw new Error('Safari bloqueo la ventana de la etiqueta');
+                if (document.fonts?.ready) await document.fonts.ready;
+                const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+                    import('html2canvas'),
+                    import('jspdf'),
+                ]);
+                if (!portalContent) throw new Error('No se pudo preparar la etiqueta para AirPrint');
+                const canvas = await html2canvas(portalContent, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                });
+                const imageWidthMm = 58;
+                const imageHeightMm = (canvas.height / canvas.width) * imageWidthMm;
+                const pageHeightMm = Math.max(25, Math.ceil(imageHeightMm + 2));
+                const imageXmm = (62 - imageWidthMm) / 2;
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [62, pageHeightMm], compress: true });
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', imageXmm, 1, imageWidthMm, imageHeightMm, undefined, 'FAST');
+                const pdfUrl = URL.createObjectURL(pdf.output('blob'));
+                pdfWindow.location.replace(pdfUrl);
+                setTimeout(() => URL.revokeObjectURL(pdfUrl), 600000);
+            } catch (error) {
+                pdfWindow?.close();
+                console.error('AirPrint PDF generation failed', error);
+                alert('No se pudo preparar la etiqueta. Permite ventanas emergentes en Safari e intenta nuevamente.');
+            } finally {
+                portal.remove();
+            }
             return;
         }
 
@@ -600,7 +587,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
 
     // Impresión directa sin previsualización al abrir la etiqueta
     useEffect(() => {
-        if (!isOpen || !order) return;
+        if (!isOpen || !order || isAppleMobileDevice()) return;
         const currentKey = `${order.id}-${labelCodeType}`;
         if (autoPrintedRef.current === currentKey) return;
         autoPrintedRef.current = currentKey;
@@ -614,8 +601,13 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
 
     if (!isOpen || !order) return null;
 
+    const showApplePrintDialog = isAppleMobileDevice();
+
     return (
-        <div className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className={showApplePrintDialog
+            ? 'fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 overflow-y-auto'
+            : 'fixed top-0 left-0 -z-50 opacity-0 pointer-events-none overflow-hidden'}
+            aria-hidden={!showApplePrintDialog}>
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl text-left">
                 
                 {/* Modal Header */}

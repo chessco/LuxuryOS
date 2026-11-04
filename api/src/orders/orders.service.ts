@@ -455,6 +455,14 @@ export class OrdersService {
       }
     }
 
+    const items = Array.isArray(data.specifications?.items) ? data.specifications.items : [];
+    const hasRequiredPhoto = items.length > 0
+      ? items.every((item: any) => typeof item?.imageUrl === 'string' && item.imageUrl.trim().length > 0)
+      : typeof data.imageUrl === 'string' && data.imageUrl.trim().length > 0;
+    if (!hasRequiredPhoto) {
+      throw new BadRequestException('La fotografía de cada pieza es obligatoria para registrar la orden.');
+    }
+
     // RF-08: con costos por pieza, el total es la suma de mano de obra + material de todas las piezas
     const itemCosts = this.sumItemCosts(data.specifications?.items);
     const totalAmount = itemCosts.hasCosts
@@ -915,6 +923,7 @@ export class OrdersService {
 
     const userRole = currentUser?.role;
     const isAuthorized = isAdminRole(userRole, currentUser?.email);
+    const isVendedorUser = isVendedorRole(userRole, currentUser?.email, currentUser?.name);
 
     const currentStatusUpper = String(order.status || '').toUpperCase();
     const currentStageUpper = String(order.stage || '').toUpperCase();
@@ -996,7 +1005,7 @@ export class OrdersService {
       }
 
       // 1. Si no es admin/system y la orden ya no está en RECIBIDO, no se pueden modificar campos de detalle
-      if (!isReceived) {
+      if (!isReceived && !isVendedorUser) {
         const detailKeys = [
           'pieceType',
           'value',
@@ -1528,9 +1537,7 @@ export class OrdersService {
 
     let message = '';
     if (context === 'ORDER_CREATED') {
-      message = `${qrImageUrl}
-
-Hola, *${customerName}*
+      message = `Hola, *${customerName}*
 
 Queremos que formes parte de cada etapa de tu proceso, por eso ahora puedes consultar su avance cuando lo desees.
 
