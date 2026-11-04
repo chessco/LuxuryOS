@@ -336,7 +336,7 @@ const OrderDetail: React.FC = () => {
                 const foundOrder = await OrdersService.getOrder(id);
                 if (foundOrder) {
                     setOrder(enrichOrder(foundOrder));
-                    setNotesBuffer(foundOrder.notes || '');
+                    setNotesBuffer('');
 
                     // Synthesize Activities
                     const acts: any[] = [];
@@ -349,6 +349,17 @@ const OrderDetail: React.FC = () => {
                         target: "",
                         time: new Date(foundOrder.createdAt).toLocaleString(),
                         dotColor: "bg-muted-foreground/30"
+                    });
+
+                    // Las notas nuevas son append-only y también forman parte de la actividad.
+                    (foundOrder.notesHistory || []).forEach((note: any) => {
+                        acts.push({
+                            user: note.user?.name || note.user?.email || 'Usuario',
+                            action: 'agregó una nota',
+                            target: note.content,
+                            time: new Date(note.createdAt).toLocaleString(),
+                            dotColor: 'bg-indigo-500'
+                        });
                     });
 
                     // 2. Payments
@@ -1142,21 +1153,45 @@ const OrderDetail: React.FC = () => {
                     </section>
                 )}
 
-                {/* 2. Notas del Pedido */}
+                {/* 2. Notas del Pedido: historial append-only */}
                 <section className="bg-card border border-border rounded-[32px] p-8 backdrop-blur-sm shadow-sm flex flex-col justify-between min-h-[500px] transition-colors">
                     <div className="flex-1 flex flex-col">
                         <h3 className="text-foreground text-[10px] font-black uppercase tracking-widest mb-8 transition-colors">Notas del Pedido</h3>
+                        <div className="flex-1 max-h-[270px] overflow-y-auto space-y-3 mb-5 pr-1">
+                            {(order.notesHistory || []).length === 0 && !order.notes && (
+                                <p className="text-muted-foreground text-sm italic">Todavía no hay notas adicionales.</p>
+                            )}
+                            {order.notes && (
+                                <div className="rounded-2xl border border-border bg-muted/50 p-4">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Nota general original</p>
+                                    <p className="text-foreground text-sm whitespace-pre-wrap">{order.notes}</p>
+                                </div>
+                            )}
+                            {(order.notesHistory || []).map((note: any) => (
+                                <div key={note.id} className="rounded-2xl border border-border bg-muted/50 p-4">
+                                    <div className="flex items-center justify-between gap-3 mb-2">
+                                        <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{note.user?.name || note.user?.email || 'Usuario'}</span>
+                                        <span className="text-[10px] text-muted-foreground">{new Date(note.createdAt).toLocaleString()}</span>
+                                    </div>
+                                    <p className="text-foreground text-sm whitespace-pre-wrap">{note.content}</p>
+                                </div>
+                            ))}
+                        </div>
                         <textarea
                             value={notesBuffer}
                             onChange={(e) => setNotesBuffer(e.target.value)}
                             className="flex-1 w-full bg-muted rounded-2xl border border-border p-6 text-foreground text-sm leading-relaxed font-medium italic mb-6 resize-none outline-none focus:border-indigo-500/30 transition-all shadow-inner"
-                            placeholder="Escribe aquí notas adicionales del pedido..."
+                            placeholder="Escribe una nueva nota para el equipo..."
                         />
                     </div>
                     <button
-                        onClick={() => updateField('notes', notesBuffer)}
+                        onClick={async () => {
+                            if (!id || !notesBuffer.trim()) return;
+                            await OrdersService.addNote(id, notesBuffer);
+                            await fetchOrder();
+                        }}
                         className="w-full py-4 rounded-2xl bg-foreground text-background border border-border text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg active:scale-95">
-                        Guardar Notas
+                        Agregar Nota
                     </button>
                 </section>
 

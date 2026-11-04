@@ -30,6 +30,10 @@ export const OrdersService = {
         const response = await api.patch(`/kanban/orders/${id}`, data);
         return response.data;
     },
+    addNote: async (id: string, content: string) => {
+        const response = await api.post(`/kanban/orders/${id}/notes`, { content });
+        return response.data;
+    },
 
     async registerPayment(orderId: string, amount: number, method: string, reference?: string, autoDeliver?: boolean) {
         const response = await api.post('/payments', { orderId, amount, method, reference, autoDeliver });
