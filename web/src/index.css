@@ -176,10 +176,289 @@
     scrollbar-width: none;
 }
 
+@layer components {
+    .cared-track-gate {
+        width: 100%;
+        min-height: 100vh;
+        min-height: 100svh;
+        overflow-x: hidden;
+        padding: max(1.5rem, env(safe-area-inset-top)) 0 max(1rem, env(safe-area-inset-bottom));
+        background:
+            radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.035), transparent 35%),
+            #020202;
+        color: #f7f7f7;
+        font-family: 'Archivo', 'Inter', sans-serif;
+    }
+
+    .cared-track-header {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        padding: clamp(0.75rem, 4vh, 2.5rem) 1.5rem clamp(1.5rem, 4vh, 2.75rem);
+    }
+
+    .cared-track-logo {
+        display: block;
+        width: clamp(9.75rem, 46vw, 12rem);
+        height: auto;
+        user-select: none;
+    }
+
+    .cared-track-main {
+        width: min(100%, 25rem);
+        margin: auto 0;
+        padding: 0 1.35rem;
+    }
+
+    .cared-track-card {
+        width: 100%;
+        padding: 1px;
+        background: linear-gradient(145deg, #545454, #1d1d1d 42%, #4a4a4a);
+        clip-path: polygon(0.8rem 0, calc(100% - 0.8rem) 0, 100% 0.8rem, 100% calc(100% - 0.8rem), calc(100% - 0.8rem) 100%, 0.8rem 100%, 0 calc(100% - 0.8rem), 0 0.8rem);
+    }
+
+    .cared-track-card-inner {
+        padding: clamp(1.35rem, 5vw, 1.75rem) clamp(1.15rem, 5vw, 1.6rem) 1.15rem;
+        background: #050505;
+        text-align: center;
+        clip-path: polygon(0.76rem 0, calc(100% - 0.76rem) 0, 100% 0.76rem, 100% calc(100% - 0.76rem), calc(100% - 0.76rem) 100%, 0.76rem 100%, 0 calc(100% - 0.76rem), 0 0.76rem);
+    }
+
+    .cared-track-kicker,
+    .cared-track-card-signature {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.7rem;
+    }
+
+    .cared-track-kicker span {
+        width: 2.2rem;
+        height: 1px;
+        background: #353535;
+    }
+
+    .cared-track-kicker p {
+        color: #bcbcbc;
+        font-size: 0.66rem;
+        font-weight: 400;
+        letter-spacing: 0.025em;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    .cared-track-title {
+        margin: 1rem auto 0;
+        color: #f4f4f4;
+        font-family: 'Archivo', 'Inter', sans-serif;
+        font-size: clamp(1.34rem, 6vw, 1.7rem);
+        font-stretch: 125%;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        line-height: 0.98;
+        text-transform: uppercase;
+    }
+
+    .cared-track-copy {
+        max-width: 15.5rem;
+        margin: 0.9rem auto 0;
+        color: #a7a7a7;
+        font-size: 0.78rem;
+        font-weight: 400;
+        line-height: 1.4;
+    }
+
+    .cared-track-form {
+        margin-top: 1.05rem;
+    }
+
+    .cared-track-digits {
+        display: flex;
+        justify-content: center;
+        gap: clamp(0.45rem, 2.5vw, 0.62rem);
+    }
+
+    .cared-track-digit {
+        width: clamp(2.7rem, 13vw, 3rem);
+        height: clamp(2.7rem, 13vw, 3rem);
+        border: 1px solid #4a4a4a;
+        border-radius: 0.38rem;
+        outline: none;
+        background: #030303;
+        color: #f7f7f7;
+        font-family: 'Archivo', sans-serif;
+        font-size: 1.35rem;
+        font-weight: 600;
+        text-align: center;
+        transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    .cared-track-digit:hover {
+        border-color: #737373;
+    }
+
+    .cared-track-digit:focus-visible {
+        border-color: #ed1527;
+        box-shadow: 0 0 0 3px rgba(237, 21, 39, 0.2);
+        transform: translateY(-1px);
+    }
+
+    .cared-track-error {
+        margin-top: 0.8rem;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid rgba(237, 21, 39, 0.35);
+        border-radius: 0.45rem;
+        background: rgba(237, 21, 39, 0.08);
+        color: #ff8390;
+        font-size: 0.72rem;
+        line-height: 1.35;
+    }
+
+    .cared-track-submit {
+        width: 100%;
+        min-height: 3.05rem;
+        margin-top: 1.15rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.65rem;
+        border: 0;
+        border-radius: 0.42rem;
+        background: #ed1527;
+        color: #fff;
+        cursor: pointer;
+        font-family: 'Archivo', 'Inter', sans-serif;
+        font-size: 0.78rem;
+        font-stretch: 125%;
+        font-weight: 600;
+        letter-spacing: 0.025em;
+        text-transform: uppercase;
+        box-shadow: 0 0.5rem 1.5rem rgba(237, 21, 39, 0.12);
+        transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    .cared-track-submit:hover:not(:disabled) {
+        background: #ff1d31;
+        box-shadow: 0 0.65rem 1.75rem rgba(237, 21, 39, 0.24);
+        transform: translateY(-1px);
+    }
+
+    .cared-track-submit:active:not(:disabled) {
+        transform: translateY(0);
+    }
+
+    .cared-track-submit:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 3px;
+    }
+
+    .cared-track-submit:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+    }
+
+    .cared-track-arrow {
+        font-size: 1.2rem;
+        font-weight: 400;
+        line-height: 1;
+    }
+
+    .cared-track-spinner {
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: cared-track-spin 700ms linear infinite;
+    }
+
+    .cared-track-card-signature {
+        margin-top: 1.05rem;
+    }
+
+    .cared-track-card-signature span {
+        width: 4rem;
+        height: 1px;
+        background: #393939;
+    }
+
+    .cared-track-card-signature img {
+        width: 0.72rem;
+        height: 0.72rem;
+        object-fit: contain;
+        opacity: 0.72;
+    }
+
+    .cared-track-footer {
+        position: relative;
+        width: min(100%, 32rem);
+        margin-top: clamp(2rem, 6vh, 4.5rem);
+        padding: 0 0.6rem;
+        text-align: center;
+    }
+
+    .cared-track-footer img {
+        display: block;
+        width: 100%;
+        height: auto;
+        opacity: 0.34;
+        user-select: none;
+    }
+
+    .cared-track-footer p {
+        position: absolute;
+        left: 50%;
+        bottom: 0.2rem;
+        padding: 0.1rem 0.55rem;
+        background: #020202;
+        color: #a8a8a8;
+        font-size: clamp(0.58rem, 2.6vw, 0.72rem);
+        font-weight: 400;
+        letter-spacing: 0.015em;
+        text-transform: uppercase;
+        transform: translateX(-50%);
+        white-space: nowrap;
+    }
+}
+
+@keyframes cared-track-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cared-track-digit,
+    .cared-track-submit {
+        transition: none;
+    }
+
+    .cared-track-spinner {
+        animation-duration: 1.4s;
+    }
+}
+
+@media (max-height: 700px) {
+    .cared-track-header {
+        padding-top: 0.5rem;
+        padding-bottom: 1rem;
+    }
+
+    .cared-track-logo {
+        width: 8.75rem;
+    }
+
+    .cared-track-footer {
+        margin-top: 1.25rem;
+    }
+}
+
 /* iOS Safari Specific Fixes */
 @supports (-webkit-touch-callout: none) {
     /* Prevent iOS auto zoom on focus by ensuring font-size is at least 16px */
     input, select, textarea {
         font-size: 16px !important;
+    }
+
+    .cared-track-digit {
+        font-size: 1.35rem !important;
     }
 }

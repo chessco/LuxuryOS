@@ -38,12 +38,12 @@ export const PublicOrderTrack: React.FC = () => {
     const [globalError, setGlobalError] = useState<string | null>(null);
 
     // Verification state
-    const [phoneDigits, setPhoneDigits] = useState('');
+    const [phoneDigits, setPhoneDigits] = useState(['', '', '', '']);
     const [verifying, setVerifying] = useState(false);
     const [verifyError, setVerifyError] = useState<string | null>(null);
     const [order, setOrder] = useState<OrderTrackData | null>(null);
 
-    const inputRef = useRef<HTMLInputElement>(null);
+    const digitInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
     useEffect(() => {
         const checkOrderExists = async () => {
@@ -55,7 +55,7 @@ export const PublicOrderTrack: React.FC = () => {
                 if (res.data?.exists) {
                     setOrderExists(true);
                     setOrderCode(res.data.orderCode);
-                    setTimeout(() => inputRef.current?.focus(), 150);
+                    setTimeout(() => digitInputRefs.current[0]?.focus(), 150);
                 }
             } catch (err: any) {
                 console.error("Order check error", err);
@@ -70,7 +70,7 @@ export const PublicOrderTrack: React.FC = () => {
 
     const handleVerify = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (phoneDigits.length < 4) {
+        if (phoneDigits.some((digit) => !digit)) {
             setVerifyError('Por favor ingresa los 4 dígitos completos.');
             return;
         }
@@ -79,7 +79,7 @@ export const PublicOrderTrack: React.FC = () => {
             setVerifying(true);
             setVerifyError(null);
             const res = await axios.post(`${API_URL}/public/orders/track/${id}/verify`, {
-                phoneDigits: phoneDigits.trim()
+                phoneDigits: phoneDigits.join('')
             });
             if (res.data?.verified) {
                 setOrder(res.data);
@@ -100,24 +100,74 @@ export const PublicOrderTrack: React.FC = () => {
         }).format(amount || 0);
     };
 
+    const handleDigitChange = (index: number, value: string) => {
+        const digits = value.replace(/\D/g, '');
+
+        if (digits.length > 1) {
+            const nextDigits = Array.from({ length: 4 }, (_, digitIndex) => digits[digitIndex] || '');
+            setPhoneDigits(nextDigits);
+            digitInputRefs.current[Math.min(digits.length, 4) - 1]?.focus();
+        } else {
+            setPhoneDigits((current) => {
+                const next = [...current];
+                next[index] = digits;
+                return next;
+            });
+
+            if (digits && index < 3) {
+                digitInputRefs.current[index + 1]?.focus();
+            }
+        }
+
+        if (verifyError) setVerifyError(null);
+    };
+
+    const handleDigitKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Backspace' && !phoneDigits[index] && index > 0) {
+            digitInputRefs.current[index - 1]?.focus();
+        }
+
+        if (event.key === 'ArrowLeft' && index > 0) {
+            event.preventDefault();
+            digitInputRefs.current[index - 1]?.focus();
+        }
+
+        if (event.key === 'ArrowRight' && index < 3) {
+            event.preventDefault();
+            digitInputRefs.current[index + 1]?.focus();
+        }
+    };
+
+    const handleDigitsPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+        const pastedDigits = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+        if (!pastedDigits) return;
+
+        event.preventDefault();
+        setPhoneDigits(Array.from({ length: 4 }, (_, digitIndex) => pastedDigits[digitIndex] || ''));
+        digitInputRefs.current[Math.min(pastedDigits.length, 4) - 1]?.focus();
+        if (verifyError) setVerifyError(null);
+    };
+
+    const isPublicGate = !order;
+
     return (
-        <div className="theme-cared dark min-h-screen bg-cared-bg text-cared-ink flex flex-col items-center justify-between p-4 sm:p-8 font-sans selection:bg-cared-gold selection:text-black">
+        <div className={`theme-cared dark min-h-screen text-cared-ink flex flex-col items-center justify-between selection:bg-cared-red selection:text-white ${isPublicGate ? 'cared-track-gate' : 'bg-cared-bg p-4 sm:p-8 font-sans'}`}>
             {/* Header / Brand */}
-            <header className="w-full max-w-lg flex flex-col items-center justify-center pt-6 pb-8">
+            <header className={isPublicGate ? 'cared-track-header' : 'w-full max-w-lg flex flex-col items-center justify-center pt-6 pb-8'}>
                 <h1>
                     <img
-                        src="/cared-logo.png"
+                        src={isPublicGate ? '/tracking/cared-logo-mark.png' : '/cared-logo.png'}
                         alt="CARED"
-                        width={655}
-                        height={310}
-                        className="h-24 sm:h-28 w-auto select-none"
+                        width={isPublicGate ? 4500 : 655}
+                        height={isPublicGate ? 2351 : 310}
+                        className={isPublicGate ? 'cared-track-logo' : 'h-24 sm:h-28 w-auto select-none'}
                         draggable={false}
                     />
                 </h1>
             </header>
 
             {/* Main Content Area */}
-            <main className="w-full max-w-lg my-auto py-8">
+            <main className={isPublicGate ? 'cared-track-main' : 'w-full max-w-lg my-auto py-8'}>
                 {initialLoading ? (
                     <div className="bg-cared-card/60 border border-cared-line rounded-3xl p-12 text-center backdrop-blur-xl shadow-2xl flex flex-col items-center gap-4 animate-pulse">
                         <div className="size-10 rounded-full border-2 border-cared-gold border-t-transparent animate-spin"></div>
@@ -134,62 +184,77 @@ export const PublicOrderTrack: React.FC = () => {
                     </div>
                 ) : !order ? (
                     /* Security Gate Verification Card */
-                    <div className="bg-cared-card/70 border border-cared-line rounded-3xl p-8 sm:p-10 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
-                        <div className="size-14 rounded-2xl bg-cared-gold/10 border border-cared-gold/20 flex items-center justify-center mx-auto mb-4 text-cared-gold shadow-[0_0_20px_rgba(201,162,75,0.15)]">
-                            <span className="material-symbols-outlined text-3xl">lock</span>
-                        </div>
-
-                        <h2 className="text-base font-black uppercase tracking-wider text-cared-ink mb-2">
-                            Verificación de Seguridad
-                        </h2>
-                        <p className="text-xs text-cared-mute leading-relaxed max-w-xs mx-auto mb-6">
-                            Para consultar el seguimiento en línea, ingrese los <strong className="text-cared-ink">últimos 4 dígitos</strong> de su número de teléfono registrado.
-                        </p>
-
-                        <form onSubmit={handleVerify} className="space-y-6">
-                            <div>
-                                <input
-                                    ref={inputRef}
-                                    type="password"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    maxLength={4}
-                                    value={phoneDigits}
-                                    onChange={(e) => {
-                                        const val = e.target.value.replace(/\D/g, '');
-                                        setPhoneDigits(val);
-                                        if (verifyError) setVerifyError(null);
-                                    }}
-                                    placeholder="••••"
-                                    className="w-48 mx-auto text-center tracking-[0.6em] text-3xl font-black py-3 px-4 bg-cared-bg border border-cared-line focus:border-cared-gold rounded-2xl outline-none text-cared-gold transition-all shadow-inner"
-                                    autoFocus
-                                />
+                    <div className="cared-track-card animate-in fade-in zoom-in-95 duration-200">
+                        <div className="cared-track-card-inner">
+                            <div className="cared-track-kicker" aria-hidden="true">
+                                <span />
+                                <p>Seguimiento en línea</p>
+                                <span />
                             </div>
 
-                            {verifyError && (
-                                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold animate-in fade-in">
-                                    {verifyError}
-                                </div>
-                            )}
+                            <h2 className="cared-track-title">
+                                Consulta el<br />estado de tu pieza
+                            </h2>
+                            <p className="cared-track-copy">
+                                Ingresa los últimos cuatro dígitos de tu número registrado para conocer el avance de tu servicio.
+                            </p>
 
-                            <button
-                                type="submit"
-                                disabled={verifying || phoneDigits.length < 4}
-                                className="w-full py-3.5 px-6 rounded-2xl bg-cared-red text-white font-black text-xs uppercase tracking-widest hover:bg-cared-red/85 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-lg shadow-cared-red/20 flex items-center justify-center gap-2"
-                            >
-                                {verifying ? (
-                                    <>
-                                        <div className="size-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
-                                        <span>Verificando...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>Consultar Pedido</span>
-                                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                                    </>
+                            <form onSubmit={handleVerify} className="cared-track-form">
+                                <fieldset>
+                                    <legend className="sr-only">Últimos cuatro dígitos de tu teléfono</legend>
+                                    <div className="cared-track-digits">
+                                        {phoneDigits.map((digit, index) => (
+                                            <input
+                                                key={index}
+                                                ref={(element) => { digitInputRefs.current[index] = element; }}
+                                                type="password"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
+                                                maxLength={1}
+                                                value={digit}
+                                                onChange={(event) => handleDigitChange(index, event.target.value)}
+                                                onKeyDown={(event) => handleDigitKeyDown(index, event)}
+                                                onPaste={handleDigitsPaste}
+                                                aria-label={`Dígito ${index + 1} de 4`}
+                                                autoComplete="off"
+                                                autoFocus={index === 0}
+                                                className="cared-track-digit"
+                                            />
+                                        ))}
+                                    </div>
+                                </fieldset>
+
+                                {verifyError && (
+                                    <div className="cared-track-error animate-in fade-in" role="alert">
+                                        {verifyError}
+                                    </div>
                                 )}
-                            </button>
-                        </form>
+
+                                <button
+                                    type="submit"
+                                    disabled={verifying || phoneDigits.some((digit) => !digit)}
+                                    className="cared-track-submit"
+                                >
+                                    {verifying ? (
+                                        <>
+                                            <span className="cared-track-spinner" aria-hidden="true" />
+                                            <span>Verificando</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Ver seguimiento</span>
+                                            <span aria-hidden="true" className="cared-track-arrow">→</span>
+                                        </>
+                                    )}
+                                </button>
+                            </form>
+
+                            <div className="cared-track-card-signature" aria-hidden="true">
+                                <span />
+                                <img src="/tracking/cared-mark.png" alt="" draggable={false} />
+                                <span />
+                            </div>
+                        </div>
                     </div>
                 ) : (
                     /* Verified Order Workflow Stepper */
@@ -365,10 +430,17 @@ export const PublicOrderTrack: React.FC = () => {
             </main>
 
             {/* Public Page Footer */}
-            <footer className="w-full max-w-lg text-center pt-6 border-t border-cared-line/80">
-                <p className="text-[10px] font-bold text-cared-mute uppercase tracking-widest">
-                    CARED &copy; {new Date().getFullYear()} &bull; Todos los derechos reservados
-                </p>
+            <footer className={isPublicGate ? 'cared-track-footer' : 'w-full max-w-lg text-center pt-6 border-t border-cared-line/80'}>
+                {isPublicGate ? (
+                    <>
+                        <img src="/tracking/wolves-outline.png" alt="" draggable={false} />
+                        <p>Joyería · Fabricación · Reparación</p>
+                    </>
+                ) : (
+                    <p className="text-[10px] font-bold text-cared-mute uppercase tracking-widest">
+                        CARED &copy; {new Date().getFullYear()} &bull; Todos los derechos reservados
+                    </p>
+                )}
             </footer>
         </div>
     );
