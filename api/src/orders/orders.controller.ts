@@ -19,6 +19,7 @@ import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OrderStage } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateOrderNoteDto } from './dto/create-order-note.dto';
 import { isAdminRole } from '../common/roles.util';
 
 @Controller('kanban')
@@ -65,6 +66,11 @@ export class OrdersController {
     @Patch('orders/:id/advance')
     async advanceStatus(@Param('id') id: string, @Request() req) {
         return this.ordersService.advanceStatus(req.user.tenantId, id, req.user);
+    }
+
+    @Post('orders/:id/notes')
+    async addNote(@Param('id') id: string, @Body() body: CreateOrderNoteDto, @Request() req) {
+        return this.ordersService.addNote(req.user.tenantId, id, req.user.id || req.user.userId, body.content);
     }
 
     @Patch('orders/:id')

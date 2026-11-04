@@ -653,6 +653,7 @@ export class OrdersService {
         createdBy: { select: { id: true, name: true, email: true } },
         payments: true,
         queueTicket: true,
+        notesHistory: { include: { user: { select: { id: true, name: true, email: true } } }, orderBy: { createdAt: 'asc' } },
       },
     });
 
@@ -664,6 +665,7 @@ export class OrdersService {
           createdBy: { select: { id: true, name: true, email: true } },
           payments: true,
           queueTicket: true,
+          notesHistory: { include: { user: { select: { id: true, name: true, email: true } } }, orderBy: { createdAt: 'asc' } },
         },
       });
 
@@ -804,6 +806,16 @@ export class OrdersService {
         orderCode,
       },
     };
+  }
+
+  async addNote(tenantId: string, orderId: string, userId: string, content: string) {
+    const normalized = String(content || '').trim();
+    if (!normalized) throw new BadRequestException('La nota no puede estar vacía');
+    const order = await this.prisma.order.findFirst({ where: { id: orderId, tenantId }, select: { id: true } });
+    if (!order) throw new NotFoundException('Pedido no encontrado');
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true, email: true } });
+    if (!user) throw new ForbiddenException('Usuario no válido para este negocio');
+    return this.prisma.orderNote.create({ data: { orderId, tenantId, userId: user.id, content: normalized }, include: { user: { select: { id: true, name: true, email: true } } } });
   }
 
   async advanceStatus(tenantId: string, id: string, user?: any) {

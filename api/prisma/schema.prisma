@@ -15,6 +15,7 @@ model Tenant {
   users                User[]
   clients              Client[]
   orders               Order[]
+  orderNotes           OrderNote[]
   quotes               Quote[]
   conversations        Conversation[]
   queueTickets         QueueTicket[]
@@ -50,6 +51,7 @@ model User {
   messages      Message[]
   createdOrders Order[]        @relation("OrderCreatedBy")
   createdQuotes Quote[]        @relation("QuoteCreatedBy")
+  orderNotes    OrderNote[]
 }
 
 model Conversation {
@@ -167,6 +169,22 @@ model Order {
   payments    Payment[]
   queueTicket QueueTicket?
   sourceQuote Quote? @relation("QuoteConversion")
+  notesHistory OrderNote[]
+}
+
+model OrderNote {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 enum QuoteStatus {
