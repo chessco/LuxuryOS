@@ -12,6 +12,7 @@ import { ChatModule } from './chat/chat.module';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
 import { AiModule } from './ai/ai.module';
+import { QuotesModule } from './quotes/quotes.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AiModule } from './ai/ai.module';
     QueueModule,
     SettingsModule,
     AiModule,
+    QuotesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

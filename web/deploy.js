@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+import { verifyProductionBuild } from './scripts/verify-production-build.mjs';
 
 // Cargar variables de entorno
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +29,7 @@ async function deploy() {
     console.error('Error: La carpeta "dist" no existe. Ejecuta "npm run build" primero.');
     process.exit(1);
   }
+  verifyProductionBuild(__dirname);
 
   try {
     console.log(`Conectando a Hostinger (${config.host})...`);

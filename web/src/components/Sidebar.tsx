@@ -40,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 { name: 'Fabricación', icon: 'diamond', path: '/orders?type=MANUFACTURE' },
                 { name: 'Diseño', icon: 'draw', path: '/orders?type=DESIGN' },
                 { name: 'Laser', icon: 'flare', path: '/orders?type=LASER' },
-                { name: 'Cotizaciones', icon: 'request_quote', path: '/orders?type=QUOTE' },
+                { name: 'Cotizaciones', icon: 'request_quote', path: '/quotes' },
                 { name: 'Apartados', icon: 'loyalty', path: '/orders?type=LAYAWAY' },
                 { name: 'Pedidos', icon: 'receipt_long', path: '/orders' },
                 { name: 'Inventario', icon: 'precision_manufacturing', path: '/inventory' },
