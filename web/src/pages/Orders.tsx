@@ -1068,6 +1068,7 @@ const NewOrderDrawer: React.FC<{
     const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
     const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [validationError, setValidationError] = useState<string | null>(null);
     const [advanceAmount, setAdvanceAmount] = useState<string>('');
     const [advanceMethod, setAdvanceMethod] = useState<string>('Efectivo');
     const [advanceReference, setAdvanceReference] = useState<string>('');
@@ -1160,6 +1161,7 @@ const NewOrderDrawer: React.FC<{
     const handleItemChange = (index: number, field: string, value: string) => {
         const newItems = [...items];
         newItems[index][field] = value;
+        setValidationError(null);
         setItems(newItems);
     };
 
@@ -1229,14 +1231,24 @@ const NewOrderDrawer: React.FC<{
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
+        setValidationError(null);
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const executeSubmit = async (printLabel: boolean) => {
         if (isSubmitting) return;
 
+        const failValidation = (message: string, targetId?: string) => {
+            setValidationError(message);
+            window.requestAnimationFrame(() => {
+                const target = targetId ? document.getElementById(targetId) : undefined;
+                target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (target instanceof HTMLElement) target.focus({ preventScroll: true });
+            });
+        };
+
         if (!formData.client?.trim()) {
-            alert("El nombre del cliente es obligatorio para registrar el pedido.");
+            failValidation('Selecciona o registra el cliente antes de continuar.');
             return;
         }
 
@@ -1244,56 +1256,56 @@ const NewOrderDrawer: React.FC<{
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
             if (!item.item?.trim()) {
-                alert(`Por favor, selecciona o introduce la pieza #${i + 1}.`);
+                failValidation(`Selecciona o introduce la pieza #${i + 1}.`);
                 return;
             }
             if (!item.imageUrl?.trim()) {
-                alert(`La fotografía de la pieza #${i + 1} es obligatoria para registrar la orden.`);
+                failValidation(`Agrega la fotografía de la pieza #${i + 1} para registrar la orden.`, `piece-photo-${i}`);
                 return;
             }
             if (!item.metal) {
-                alert(`Por favor, selecciona el metal para la pieza #${i + 1}.`);
+                failValidation(`Selecciona el metal de la pieza #${i + 1}.`);
                 return;
             }
             if (!item.color) {
-                alert(`Por favor, selecciona el color para la pieza #${i + 1}.`);
+                failValidation(`Selecciona el color de la pieza #${i + 1}.`);
                 return;
             }
             if (!item.karats) {
-                alert(`Por favor, selecciona los quilates para la pieza #${i + 1}.`);
+                failValidation(`Selecciona los quilates de la pieza #${i + 1}.`);
                 return;
             }
             // En Fabricación (MANUFACTURE) el peso es obligatorio.
             if (orderType === 'MANUFACTURE' && !item.weight?.trim()) {
-                alert(`Por favor, introduce el peso para la pieza #${i + 1}.`);
+                failValidation(`Introduce el peso de la pieza #${i + 1}.`);
                 return;
             }
             // RF-01: Medida y grosor obligatorios en formularios de registro de órdenes
             if (!item.size || !item.size.trim()) {
-                alert('La medida es obligatoria.');
+                failValidation('La medida es obligatoria.');
                 return;
             }
             if (!item.thickness || !item.thickness.trim()) {
-                alert('El grosor es obligatorio.');
+                failValidation('El grosor es obligatorio.');
                 return;
             }
             // RF-08: mano de obra y material obligatorios en cada pieza
             if (item.laborCost === undefined || item.laborCost === null || String(item.laborCost).trim() === '') {
-                alert(`El campo Mano de Obra es obligatorio para la pieza #${i + 1}.`);
+                failValidation(`Captura la mano de obra de la pieza #${i + 1}.`);
                 return;
             }
             if (item.jewelerLaborCost === undefined || item.jewelerLaborCost === null || String(item.jewelerLaborCost).trim() === '') {
-                alert(`El campo Mano de Obra Joyero es obligatorio para la pieza #${i + 1}.`);
+                failValidation(`Captura la mano de obra del joyero para la pieza #${i + 1}.`);
                 return;
             }
             if (item.materialCost === undefined || item.materialCost === null || String(item.materialCost).trim() === '') {
-                alert(`El campo Material es obligatorio para la pieza #${i + 1}.`);
+                failValidation(`Captura el material de la pieza #${i + 1}.`);
                 return;
             }
         }
 
         if (!formData.promisedDate) {
-            alert('Por favor, especifica la Fecha Compromiso de Entrega para poder guardar la orden.');
+            failValidation('Indica la fecha compromiso de entrega para continuar.');
             return;
         }
 
@@ -1336,6 +1348,7 @@ const NewOrderDrawer: React.FC<{
         };
 
         try {
+            setValidationError(null);
             setIsSubmitting(true);
             await onSave(submissionData);
         } finally {
@@ -1951,7 +1964,7 @@ const NewOrderDrawer: React.FC<{
                                     </div>
 
                                     {/* Subir foto de la pieza: Cámara y Galería */}
-                                    <div className="space-y-2 pt-1">
+                                    <div id={`piece-photo-${index}`} className="space-y-2 pt-1">
                                         <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1 flex items-center justify-between">
                                             <span>Fotografía de la Pieza</span>
                                             <span className="text-[9px] text-zinc-400 font-normal">Cámara o archivo</span>
@@ -2230,7 +2243,13 @@ const NewOrderDrawer: React.FC<{
                 </form>
 
                 {/* Footer Actions */}
-                <div className="p-4 sm:p-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] border-t border-border bg-muted/20 grid grid-cols-2 gap-4 shrink-0">
+                <div className="p-4 sm:p-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] border-t border-border bg-muted/20 shrink-0">
+                    {validationError && (
+                        <p role="alert" className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                            {validationError}
+                        </p>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
                     <button
                         type="button"
                         onClick={onClose}
@@ -2241,12 +2260,10 @@ const NewOrderDrawer: React.FC<{
                     </button>
                     {/* Un solo botón: ventas/admin registran e imprimen la etiqueta; el joyero solo registra */}
                     <button
-                        type="button"
+                        type="submit"
+                        form="new-order-form"
                         disabled={isSubmitting}
-                        onClick={() => {
-                            executeSubmit(!isJoyero);
-                        }}
-                        className="py-3.5 sm:py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                        className="touch-manipulation py-3.5 sm:py-4 bg-foreground text-background rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                     >
                         {isSubmitting ? (
                             <>
@@ -2264,6 +2281,7 @@ const NewOrderDrawer: React.FC<{
                             </>
                         )}
                     </button>
+                    </div>
                 </div>
             </motion.div>
 
