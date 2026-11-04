@@ -684,29 +684,33 @@ const OrderDetail: React.FC = () => {
                         </div>
 
                         {/* Key facts: label over value, delivery date emphasised */}
-                        <dl className="flex flex-wrap items-stretch gap-x-8 gap-y-4">
-                            <MetaItem icon="person" label="Recibió" value={receivedByLabel} />
-                            <MetaItem icon="history" label="Recibido" value={order.date} />
-                            <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
-                            <MetaItem icon="event" label="Promesa" value={promisedLabel} tone="emerald" />
-                            {order.specifications?.assignedDesigner && (
+                        <dl className="flex flex-col items-start gap-y-4">
+                            <div className="flex flex-wrap items-stretch gap-x-8 gap-y-4">
+                                <MetaItem icon="person" label="Recibió" value={receivedByLabel} />
+                                <MetaItem icon="history" label="Recibido" value={order.date} />
+                                <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
+                                <MetaItem icon="event" label="Promesa" value={promisedLabel} tone="emerald" />
+                                {order.specifications?.assignedDesigner && (
+                                    <MetaItem
+                                        icon="draw"
+                                        label="Diseñador"
+                                        value={order.specifications?.assignedDesignerName || order.specifications?.assignedDesigner}
+                                        tone="indigo"
+                                    />
+                                )}
                                 <MetaItem
-                                    icon="draw"
-                                    label="Diseñador"
-                                    value={order.specifications?.assignedDesignerName || order.specifications?.assignedDesigner}
+                                    icon="assignment_ind"
+                                    label="Joyero"
+                                    value={order.assignedTo || order.specifications?.assignedTo || order.specifications?.assignedJeweler || order.assignedJeweler || order.jeweler || 'Sin asignar'}
                                     tone="indigo"
                                 />
-                            )}
-                            <MetaItem 
-                                icon="assignment_ind" 
-                                label="Joyero" 
-                                value={order.assignedTo || order.specifications?.assignedTo || order.specifications?.assignedJeweler || order.assignedJeweler || order.jeweler || 'Sin asignar'} 
-                                tone="indigo" 
-                            />
+                            </div>
+                            <div className="flex flex-wrap items-stretch gap-x-8 gap-y-4">
                             <MetaItem icon="verified" label="Terminó" value={finishedByLabel} tone="indigo" />
                             <MetaItem icon="schedule" label="Fecha/Hora terminó" value={finishedAtLabel} tone="indigo" />
                             <MetaItem icon="local_shipping" label="Entregó" value={deliveredByLabel} tone="emerald" />
                             <MetaItem icon="schedule" label="Fecha/Hora entrega" value={deliveredAtLabel} tone="emerald" />
+                            </div>
                         </dl>
                     </div>
 
