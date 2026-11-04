@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { OrderType } from '@prisma/client';
 import { OrderStrategy } from './order-strategy.interface';
 import { RepairStrategy } from './repair.strategy';
@@ -17,6 +17,8 @@ export class OrderStrategyFactory {
 
     getStrategy(type: OrderType): OrderStrategy {
         switch (type) {
+            case OrderType.QUOTE:
+                throw new BadRequestException('Las cotizaciones usan un flujo independiente');
             case OrderType.REPAIR:
             case OrderType.DESIGN:
             case OrderType.LASER:

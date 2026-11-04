@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import AppLayout from './components/AppLayout';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
@@ -25,6 +25,8 @@ import PublicOrderTrack from './pages/PublicOrderTrack';
 import PublicQueueTrack from './pages/PublicQueueTrack';
 import RBACSettings from './pages/RBACSettings';
 import { ThemeProvider } from './context/ThemeContext';
+import Quotes from './pages/Quotes';
+import PublicQuote from './pages/PublicQuote';
 
 const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.ReactNode, allowedRoles: string[], redirectTo: string }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -38,6 +40,13 @@ const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.
         return <Navigate to={redirectTo} replace />;
     }
     return <>{children}</>;
+};
+
+const OrdersRoute = () => {
+    const location = useLocation();
+    return new URLSearchParams(location.search).get('type') === 'QUOTE'
+        ? <Navigate to="/quotes" replace />
+        : <Orders />;
 };
 
 function App() {
@@ -58,6 +67,7 @@ function App() {
                     <Route path="/login" element={<Login />} />
                     <Route path="/track/:id" element={<PublicOrderTrack />} />
                     <Route path="/q/:token" element={<PublicQueueTrack />} />
+                    <Route path="/quote/:token" element={<PublicQuote />} />
                     <Route path="/kiosk" element={<Kiosk />} />
                     <Route path="/screen" element={<PublicScreen />} />
 
@@ -68,7 +78,8 @@ function App() {
                                 <Dashboard />
                             </RoleRedirect>
                         } />
-                        <Route path="/orders" element={<Orders />} />
+                        <Route path="/orders" element={<OrdersRoute />} />
+                        <Route path="/quotes" element={<Quotes />} />
                         <Route path="/orders/:id" element={<OrderDetail />} />
                         <Route path="/clients" element={
                             <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN', 'TENANT_USER', 'VENDEDOR', 'VENTAS']} redirectTo="/orders">

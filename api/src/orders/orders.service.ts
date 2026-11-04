@@ -63,6 +63,7 @@ export class OrdersService {
   ) {}
 
   async getBoard(tenantId: string, type?: string) {
+    if (type === 'QUOTE') throw new BadRequestException('Las cotizaciones no pertenecen al Kanban');
     const query: any = { tenantId };
     if (type) {
       query.type = type;
@@ -123,6 +124,7 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Pedido no encontrado');
     if (order.tenantId !== tenantId)
       throw new ForbiddenException('No tienes permiso para mover este pedido');
+    if (order.type === 'QUOTE') throw new BadRequestException('Las cotizaciones no usan estados operativos');
 
     const usesStatus =
       order.type === 'REPAIR' ||
@@ -409,6 +411,7 @@ export class OrdersService {
   }
 
   async createOrder(tenantId: string, data: CreateOrderDto, userId?: string) {
+    if (data.type === 'QUOTE') throw new BadRequestException('Use el módulo de cotizaciones');
     await this.assertClientInTenant(tenantId, data.clientId);
     if (
       !data.promisedAt &&
@@ -617,7 +620,7 @@ export class OrdersService {
 
   async getOrders(tenantId: string) {
     const orders = await this.prisma.order.findMany({
-      where: { tenantId },
+      where: { tenantId, type: { not: 'QUOTE' } },
       include: {
         client: true,
         createdBy: { select: { id: true, name: true, email: true } },
@@ -812,6 +815,7 @@ export class OrdersService {
 
     const order = await this.getOrder(tenantId, id);
     if (!order) throw new NotFoundException('Order not found');
+    if (order.type === 'QUOTE') throw new BadRequestException('Las cotizaciones no usan estados operativos');
 
     const strategy = this.strategyFactory.getStrategy(order.type);
     const specs = (order.specifications as any) || {};
@@ -1580,6 +1584,7 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia.`;
     if (!order) {
       throw new NotFoundException('Orden no encontrada');
     }
+    if (order.type === 'QUOTE') throw new BadRequestException('Las cotizaciones no se entregan desde el flujo operativo');
 
     const specs = (order.specifications as any) || {};
     const currentStatus = String(order.status || '').toUpperCase();
