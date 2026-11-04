@@ -111,8 +111,8 @@
         /* dorado #C9A24B */
         --primary-foreground: 240 10% 5%;
         --accent: 40 20% 14%;
-        --cared-red: 351 85% 42%;
-        /* rojo corporativo #C8102E (ajustar aquí si cambia el tono) */
+        --cared-red: 357 83% 48%;
+        /* rojo corporativo #E01520 */
     }
 
     body {
@@ -298,17 +298,17 @@
     }
 
     .cared-track-digit:focus-visible {
-        border-color: #ed1527;
-        box-shadow: 0 0 0 3px rgba(237, 21, 39, 0.2);
+        border-color: #e01520;
+        box-shadow: 0 0 0 3px rgba(224, 21, 32, 0.2);
         transform: translateY(-1px);
     }
 
     .cared-track-error {
         margin-top: 0.8rem;
         padding: 0.65rem 0.75rem;
-        border: 1px solid rgba(237, 21, 39, 0.35);
+        border: 1px solid rgba(224, 21, 32, 0.35);
         border-radius: 0.45rem;
-        background: rgba(237, 21, 39, 0.08);
+        background: rgba(224, 21, 32, 0.08);
         color: #ff8390;
         font-size: 0.72rem;
         line-height: 1.35;
@@ -324,7 +324,7 @@
         gap: 0.65rem;
         border: 0;
         border-radius: 0.42rem;
-        background: #ed1527;
+        background: #e01520;
         color: #fff;
         cursor: pointer;
         font-family: 'Archivo', 'Inter', sans-serif;
@@ -333,13 +333,13 @@
         font-weight: 600;
         letter-spacing: 0.025em;
         text-transform: uppercase;
-        box-shadow: 0 0.5rem 1.5rem rgba(237, 21, 39, 0.12);
+        box-shadow: 0 0.5rem 1.5rem rgba(224, 21, 32, 0.12);
         transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
     }
 
     .cared-track-submit:hover:not(:disabled) {
-        background: #ff1d31;
-        box-shadow: 0 0.65rem 1.75rem rgba(237, 21, 39, 0.24);
+        background: #e01520;
+        box-shadow: 0 0.65rem 1.75rem rgba(224, 21, 32, 0.24);
         transform: translateY(-1px);
     }
 
