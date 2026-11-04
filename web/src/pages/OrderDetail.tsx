@@ -642,8 +642,9 @@ const OrderDetail: React.FC = () => {
                     <span aria-current="page" className="text-foreground/70">Pedido #{order.orderCode || formatOrderCode(order)}</span>
                 </nav>
 
-                <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between xl:gap-8">
-                    <div className="min-w-0 space-y-5 xl:flex-1">
+                <div className="space-y-5">
+                    <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between xl:gap-8">
+                        <div className="min-w-0">
                         {/* Title row: code + status + priority */}
                         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                             <h1 className="text-foreground text-4xl sm:text-5xl font-black tracking-tighter font-display">Pedido #{order.orderCode || formatOrderCode(order)}</h1>
@@ -683,35 +684,10 @@ const OrderDetail: React.FC = () => {
                             </select>
                         </div>
 
-                        {/* Key facts: compact responsive grid, never a nested horizontal scroll region */}
-                        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                                <MetaItem icon="person" label="Recibió" value={receivedByLabel} />
-                                <MetaItem icon="history" label="Recibido" value={order.date} />
-                                <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
-                                <MetaItem icon="event" label="Promesa" value={promisedLabel} tone="emerald" />
-                                {order.specifications?.assignedDesigner && (
-                                    <MetaItem
-                                        icon="draw"
-                                        label="Diseñador"
-                                        value={order.specifications?.assignedDesignerName || order.specifications?.assignedDesigner}
-                                        tone="indigo"
-                                    />
-                                )}
-                                <MetaItem
-                                    icon="assignment_ind"
-                                    label="Joyero"
-                                    value={order.assignedTo || order.specifications?.assignedTo || order.specifications?.assignedJeweler || order.assignedJeweler || order.jeweler || 'Sin asignar'}
-                                    tone="indigo"
-                                />
-                                <MetaItem icon="verified" label="Terminó" value={finishedByLabel} tone="indigo" />
-                                <MetaItem icon="schedule" label="Fecha/Hora terminó" value={finishedAtLabel} tone="indigo" />
-                                <MetaItem icon="local_shipping" label="Entregó" value={deliveredByLabel} tone="emerald" />
-                                <MetaItem icon="schedule" label="Fecha/Hora entrega" value={deliveredAtLabel} tone="emerald" />
-                        </dl>
-                    </div>
+                        </div>
 
-                    {/* Actions: one primary, neutral secondary, danger separated */}
-                    <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:shrink-0 xl:justify-end">
+                        {/* Actions remain aligned with the order title on desktop. */}
+                        <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:shrink-0 xl:justify-end">
                         <button
                             onClick={() => setIsQRScannerOpen(true)}
                             className="flex min-h-11 items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-md shadow-red-600/20 transition-all hover:bg-red-700 active:scale-95 cursor-pointer"
@@ -803,7 +779,34 @@ const OrderDetail: React.FC = () => {
                                 </button>
                             </>
                         )}
+                        </div>
                     </div>
+
+                    {/* The facts have the full row on desktop, keeping complete date/time values visible. */}
+                    <dl className={`grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5 ${order.specifications?.assignedDesigner ? 'xl:grid-cols-10' : 'xl:grid-cols-9'}`}>
+                        <MetaItem icon="person" label="Recibió" value={receivedByLabel} />
+                        <MetaItem icon="history" label="Recibido" value={order.date} />
+                        <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
+                        <MetaItem icon="event" label="Promesa" value={promisedLabel} tone="emerald" />
+                        {order.specifications?.assignedDesigner && (
+                            <MetaItem
+                                icon="draw"
+                                label="Diseñador"
+                                value={order.specifications?.assignedDesignerName || order.specifications?.assignedDesigner}
+                                tone="indigo"
+                            />
+                        )}
+                        <MetaItem
+                            icon="assignment_ind"
+                            label="Joyero"
+                            value={order.assignedTo || order.specifications?.assignedTo || order.specifications?.assignedJeweler || order.assignedJeweler || order.jeweler || 'Sin asignar'}
+                            tone="indigo"
+                        />
+                        <MetaItem icon="verified" label="Terminó" value={finishedByLabel} tone="indigo" />
+                        <MetaItem icon="schedule" label="Fecha/Hora terminó" value={finishedAtLabel} tone="indigo" />
+                        <MetaItem icon="local_shipping" label="Entregó" value={deliveredByLabel} tone="emerald" />
+                        <MetaItem icon="schedule" label="Fecha/Hora entrega" value={deliveredAtLabel} tone="emerald" />
+                    </dl>
                 </div>
             </header>
 
@@ -1611,7 +1614,7 @@ const MetaItem: React.FC<{ icon: string; label: string; value: React.ReactNode; 
         <span className={`material-symbols-outlined text-[20px] ${META_TONES[tone].icon}`} aria-hidden="true">{icon}</span>
         <div className="min-w-0">
             <dt className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">{label}</dt>
-            <dd className={`text-sm font-bold tracking-tight truncate ${META_TONES[tone].value}`}>{value}</dd>
+            <dd className={`truncate text-sm font-bold tracking-tight lg:overflow-visible lg:whitespace-nowrap lg:text-[13px] ${META_TONES[tone].value}`}>{value}</dd>
         </div>
     </div>
 );
