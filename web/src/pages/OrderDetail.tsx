@@ -684,8 +684,8 @@ const OrderDetail: React.FC = () => {
                         </div>
 
                         {/* Key facts: label over value, delivery date emphasised */}
-                        <dl className="flex flex-col items-start gap-y-4">
-                            <div className="flex flex-wrap items-stretch gap-x-8 gap-y-4">
+                        <dl className="w-full overflow-x-auto pb-1">
+                            <div className="flex min-w-max flex-nowrap items-stretch gap-x-8">
                                 <MetaItem icon="person" label="Recibió" value={receivedByLabel} />
                                 <MetaItem icon="history" label="Recibido" value={order.date} />
                                 <MetaItem icon="store" label="Depto" value={order.specifications?.department || order.department || 'CARED'} />
@@ -704,12 +704,10 @@ const OrderDetail: React.FC = () => {
                                     value={order.assignedTo || order.specifications?.assignedTo || order.specifications?.assignedJeweler || order.assignedJeweler || order.jeweler || 'Sin asignar'}
                                     tone="indigo"
                                 />
-                            </div>
-                            <div className="flex flex-wrap items-stretch gap-x-8 gap-y-4">
-                            <MetaItem icon="verified" label="Terminó" value={finishedByLabel} tone="indigo" />
-                            <MetaItem icon="schedule" label="Fecha/Hora terminó" value={finishedAtLabel} tone="indigo" />
-                            <MetaItem icon="local_shipping" label="Entregó" value={deliveredByLabel} tone="emerald" />
-                            <MetaItem icon="schedule" label="Fecha/Hora entrega" value={deliveredAtLabel} tone="emerald" />
+                                <MetaItem icon="verified" label="Terminó" value={finishedByLabel} tone="indigo" />
+                                <MetaItem icon="schedule" label="Fecha/Hora terminó" value={finishedAtLabel} tone="indigo" />
+                                <MetaItem icon="local_shipping" label="Entregó" value={deliveredByLabel} tone="emerald" />
+                                <MetaItem icon="schedule" label="Fecha/Hora entrega" value={deliveredAtLabel} tone="emerald" />
                             </div>
                         </dl>
                     </div>
