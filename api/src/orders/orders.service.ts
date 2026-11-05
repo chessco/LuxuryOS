@@ -1479,7 +1479,7 @@ export class OrdersService {
         });
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-          console.log(`[sendOrderWhatsApp] Ready notification already reserved for ${order.orderCode}`);
+          console.log(`[sendOrderWhatsApp] Ready notification already reserved for ${order.id}`);
           return { success: true, duplicate: true, reason: 'Notificación de terminado ya enviada' };
         }
         throw error;
