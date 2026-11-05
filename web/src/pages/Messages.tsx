@@ -394,7 +394,7 @@ export const Messages: React.FC = () => {
                                                     </span>
                                                 </div>
                                                 <p className={`text-[10px] truncate font-medium tracking-tight ${selectedId === conv.id ? 'opacity-80' : 'opacity-60'}`}>
-                                                    {conv.messages?.[0]?.content || 'Sin mensajes aún'}
+                                                    {/^\/(?:9j\/|iVBOR)/.test(conv.messages?.[0]?.content || '') ? 'Imagen recibida' : (conv.messages?.[0]?.content || 'Sin mensajes aún')}
                                                 </p>
                                             </div>
                                         </button>
@@ -430,7 +430,20 @@ export const Messages: React.FC = () => {
                                             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                                 <div className="max-w-[70%] group relative">
                                                     <div className={`px-5 py-3 rounded-2xl text-sm font-medium shadow-sm dark:shadow-xl ${isMe ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-background text-foreground rounded-tl-none border border-border'}`}>
-                                                        {msg.content}
+                                                    {(() => {
+                                                        const rawContent = msg.content || '';
+                                                        const isJpegBase64 = /^\/9j\//.test(rawContent);
+                                                        const isPngBase64 = /^iVBOR/.test(rawContent);
+                                                        const mediaUrl = isJpegBase64
+                                                            ? `data:image/jpeg;base64,${rawContent}`
+                                                            : isPngBase64
+                                                                ? `data:image/png;base64,${rawContent}`
+                                                                : null;
+                                                        if (mediaUrl) {
+                                                            return <img src={mediaUrl} alt="Imagen recibida por WhatsApp" className="max-w-full rounded-xl object-contain" />;
+                                                        }
+                                                        return rawContent;
+                                                    })()}
                                                         <div className="text-[8px] font-black uppercase tracking-tighter mt-1 opacity-40 text-right">
                                                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </div>
@@ -599,8 +612,14 @@ export const Messages: React.FC = () => {
                                         waMessages.map((msg) => {
                                             const isOutbound = msg.direction === 'OUTBOUND';
                                             const imgMatch = msg.content?.match(/(https?:\/\/[^\s]+\.(?:png|jpg|jpeg|webp)|https?:\/\/bwipjs-api[^\s]+|https?:\/\/api\.qrserver[^\s]+)/i);
-                                            const mediaUrl = imgMatch ? imgMatch[0] : null;
-                                            const textBody = mediaUrl ? msg.content.replace(mediaUrl, '').replace(/\n{3,}/g, '\n\n').trim() : msg.content;
+                                            const isJpegBase64 = /^\/9j\//.test(msg.content || '');
+                                            const isPngBase64 = /^iVBOR/.test(msg.content || '');
+                                            const mediaUrl = imgMatch?.[0] || (isJpegBase64 ? `data:image/jpeg;base64,${msg.content}` : isPngBase64 ? `data:image/png;base64,${msg.content}` : null);
+                                            const textBody = isJpegBase64 || isPngBase64
+                                                ? 'Imagen recibida'
+                                                : imgMatch
+                                                    ? msg.content.replace(imgMatch[0], '').replace(/\n{3,}/g, '\n\n').trim()
+                                                    : msg.content;
 
                                             return (
                                                 <div key={msg.id} className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
@@ -614,7 +633,7 @@ export const Messages: React.FC = () => {
                                                                 <div className="mb-3 p-2 bg-white rounded-xl flex items-center justify-center max-w-[260px] shadow-sm border border-black/10">
                                                                     <img 
                                                                         src={mediaUrl} 
-                                                                        alt="Código de Orden" 
+                                                                        alt={isJpegBase64 || isPngBase64 ? 'Imagen recibida por WhatsApp' : 'Código de Orden'}
                                                                         className="max-h-40 max-w-full object-contain rounded"
                                                                     />
                                                                 </div>
