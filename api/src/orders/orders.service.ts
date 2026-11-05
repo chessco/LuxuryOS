@@ -1447,23 +1447,23 @@ export class OrdersService {
     const statusLabel = getStatusLabel(rawStatus);
     const isReceived = statusLabel === 'RECIBIDO' || statusLabel === 'APARTADO';
     const isReady = statusLabel === 'TERMINADO' || statusLabel === 'LISTO';
+    const isDelivered = statusLabel === 'ENTREGADO';
 
-    // Regla: Solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp
-    if (!isReceived && !isReady) {
+    // Solo los eventos relevantes para el cliente generan un WhatsApp.
+    if (!isReceived && !isReady && !isDelivered) {
       console.log(
-        `[sendOrderWhatsApp] Omitido: solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp. Estatus actual: ${statusLabel}`,
+        `[sendOrderWhatsApp] Omitido: estatus sin aviso al cliente. Estatus actual: ${statusLabel}`,
       );
       return {
         success: false,
-        reason:
-          'Solo los estatus RECIBIDO, APARTADO y TERMINADO envían WhatsApp',
+        reason: 'El estatus actual no genera aviso de WhatsApp',
       };
     }
 
     // A workflow completion may be requested more than once (double tap, slow
     // network retry, or concurrent clients). Reserve the customer notification
     // atomically before sending it so WhatsApp receives the ready message once.
-    if (context === 'WORKFLOW' && (isReceived || isReady)) {
+    if (context === 'WORKFLOW' && (isReceived || isReady || isDelivered)) {
       const dedupeKey = `order:${order.id}:workflow:${statusLabel}`;
       try {
         await this.prisma.notificationLog.create({
@@ -1612,6 +1612,16 @@ ${pieceSummaries}${totalStr}
 ${trackingUrl}
 
 Su pieza está lista para entrega en sucursal. Gracias por su preferencia.`;
+    } else if (isDelivered) {
+      message = `*CARED*
+
+Hola, *${customerName}*.
+
+Confirmamos la entrega de su servicio:
+✦ Orden: ${orderCode}
+${creationPieceLines}
+
+Gracias por confiar en nuestras manos el cuidado de sus piezas.`;
     }
 
     console.log(

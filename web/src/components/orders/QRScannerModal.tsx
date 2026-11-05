@@ -325,6 +325,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
         const updated = await OrdersService.getOrder(foundOrder.id);
         setFoundOrder(updated);
         if (onOrderUpdated) onOrderUpdated();
+        if (isReadyForDelivery) onClose();
     };
 
     // RF-03 Flujo A: Liquidar saldo pendiente y entregar físicamente en un solo escaneo
@@ -348,6 +349,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
             const updated = await OrdersService.getOrder(foundOrder.id);
             setFoundOrder(updated);
             if (onOrderUpdated) onOrderUpdated();
+            onClose();
         } catch (err: any) {
             console.error('Error settling and delivering via QR:', err);
             const msg = err?.response?.data?.message || err?.message || 'Error al liquidar y entregar la orden';
@@ -371,6 +373,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
             const updated = await OrdersService.getOrder(foundOrder.id);
             setFoundOrder(updated);
             if (onOrderUpdated) onOrderUpdated();
+            onClose();
         } catch (err: any) {
             console.error('Error confirming QR delivery:', err);
             const msg = err?.response?.data?.message || err?.message || 'Error al registrar la entrega';
