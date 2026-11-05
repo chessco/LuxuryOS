@@ -40,8 +40,8 @@ export default {
                 }
             },
             fontFamily: {
-                sans: ['Inter', 'sans-serif'],
-                display: ['Manrope', 'sans-serif'],
+                sans: ['Archivo', 'sans-serif'],
+                display: ['Archivo', 'sans-serif'],
             },
         },
     },
