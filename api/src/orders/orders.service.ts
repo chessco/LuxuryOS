@@ -1497,12 +1497,6 @@ export class OrdersService {
     );
     const codeType = map['label_code_type'] || 'BARCODE';
 
-    // Usamos el enlace de tracking para el QR (para que al escanear abra el portal) y orderCode para barcode
-    const qrImageUrl =
-      codeType === 'QR'
-        ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`
-        : `https://bwipjs-api.metafloor.com/?bcid=code128&text=${orderCode}&scale=3`;
-
     const pieceItems: any[] =
       specs.items && specs.items.length > 0
         ? specs.items
@@ -1599,8 +1593,6 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`;
 *Detalle de la Orden:*
 ${pieceSummaries}${totalStr}
 
-${qrImageUrl}
-
 *Ver seguimiento en línea:*
 ${trackingUrl}
 
@@ -1615,8 +1607,6 @@ Gracias por su preferencia.`;
 
 *Detalle de la Orden:*
 ${pieceSummaries}${totalStr}
-
-${qrImageUrl}
 
 *Ver seguimiento en línea:*
 ${trackingUrl}
