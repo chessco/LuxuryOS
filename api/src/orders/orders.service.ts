@@ -1460,6 +1460,32 @@ export class OrdersService {
       };
     }
 
+    // A workflow completion may be requested more than once (double tap, slow
+    // network retry, or concurrent clients). Reserve the customer notification
+    // atomically before sending it so WhatsApp receives the ready message once.
+    if (context === 'WORKFLOW' && isReady) {
+      const dedupeKey = `order:${order.id}:workflow-ready`;
+      try {
+        await this.prisma.notificationLog.create({
+          data: {
+            tenantId,
+            ticketId: null,
+            channel: 'WHATSAPP',
+            templateKey: 'ORDER_READY_GUARD',
+            to: phone,
+            dedupeKey,
+            status: 'RESERVED',
+          },
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          console.log(`[sendOrderWhatsApp] Ready notification already reserved for ${order.orderCode}`);
+          return { success: true, duplicate: true, reason: 'Notificación de terminado ya enviada' };
+        }
+        throw error;
+      }
+    }
+
     const trackToken = generateTrackToken(order.id);
     const trackingUrl = `https://luxuryos.pitayacode.io/track/${trackToken}`;
     const settings = await this.prisma.setting.findMany({

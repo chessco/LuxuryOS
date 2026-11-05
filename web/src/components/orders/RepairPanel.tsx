@@ -29,6 +29,7 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
     const [diagnosis, setDiagnosis] = useState(order.specifications?.diagnosis || '');
     const [partsNeeded, setPartsNeeded] = useState(order.specifications?.partsNeeded || '');
     const [isSaving, setIsSaving] = useState(false);
+    const [isCompleting, setIsCompleting] = useState(false);
     const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
 
     const customStepIcons: Record<number, string> = order.specifications?.customStepIcons || {};
@@ -269,10 +270,16 @@ export const RepairPanel: React.FC<RepairPanelProps> = ({ order, onUpdateStatus 
 
                     {!isDesigner && currentStatus !== OrderStatus.REPAIR_COMPLETED && currentStatus !== OrderStatus.DELIVERED && currentStatus !== OrderStatus.RETURNED && (
                         <button
-                            onClick={() => onUpdateStatus({ status: OrderStatus.REPAIR_COMPLETED })}
-                            className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                            disabled={isCompleting}
+                            onClick={async () => {
+                                if (isCompleting) return;
+                                setIsCompleting(true);
+                                try { await onUpdateStatus({ status: OrderStatus.REPAIR_COMPLETED }); }
+                                finally { setIsCompleting(false); }
+                            }}
+                            className="px-6 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm disabled:opacity-50"
                         >
-                            Marcar como Terminado
+                            {isCompleting ? 'Marcando…' : 'Marcar como Terminado'}
                         </button>
                     )}
                 </div>
