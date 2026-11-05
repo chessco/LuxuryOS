@@ -281,10 +281,15 @@ Por favor pasa al módulo de atención en *${atelierName}*. ✨`;
       }),
     ]);
 
+    const lastFailureAt = lastFailure?.createdAt ?? null;
+    const activeFailure = lastFailureAt
+      ? Date.now() - lastFailureAt.getTime() <= 30 * 60 * 1000
+      : false;
+
     return {
-      connected: false,
+      connected: !activeFailure,
       failedCount,
-      lastFailureAt: lastFailure?.createdAt ?? null,
+      lastFailureAt,
     };
   }
 }

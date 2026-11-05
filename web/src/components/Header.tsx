@@ -139,14 +139,20 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                     setWhatsappAlert(null);
                     return;
                 }
+                const failureTime = status.lastFailureAt
+                    ? new Date(status.lastFailureAt).toLocaleString('es-MX', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    })
+                    : 'hora no disponible';
                 setWhatsappAlert({
                     id: 'whatsapp-disconnected',
                     href: '/settings/integrations',
                     title: 'WhatsApp sin conexión',
-                    description: `No se pudieron enviar ${status.failedCount} notificación(es) a clientes. Vuelve a vincular el número en PitayaCore.`,
+                    description: `No se pudieron enviar ${status.failedCount} notificación(es). Último evento: ${failureTime}.`,
                     type: 'danger',
                     icon: 'wifi_off',
-                    time: 'Sin conexión'
+                    time: failureTime
                 });
             }).catch(() => {});
         };
