@@ -133,6 +133,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
     useEffect(() => {
         let isMounted = true;
         const checkWhatsApp = () => {
+            let currentRole = '';
+            try {
+                currentRole = String(JSON.parse(localStorage.getItem('user') || '{}').role || '').toUpperCase();
+            } catch {}
+            if (currentRole !== 'SYSTEM_ADMIN') {
+                setWhatsappAlert(null);
+                return;
+            }
             NotificationsService.getWhatsAppStatus().then((status) => {
                 if (!isMounted) return;
                 if (status.connected) {
