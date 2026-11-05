@@ -51,7 +51,11 @@ export default defineConfig(({ mode }) => {
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+          // Never precache executable bundles. A partially cached JavaScript
+          // asset can fail before React is able to run its recovery handler,
+          // leaving the application blank. Vite fingerprints these assets and
+          // the server handles their cache lifetime safely instead.
+          globPatterns: ['**/*.{ico,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
