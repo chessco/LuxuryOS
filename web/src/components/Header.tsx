@@ -148,9 +148,9 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                 setWhatsappAlert({
                     id: 'whatsapp-disconnected',
                     href: '/settings/integrations',
-                    title: 'WhatsApp sin conexión',
-                    description: `No se pudieron enviar ${status.failedCount} notificación(es). Último evento: ${failureTime}.`,
-                    type: 'danger',
+                    title: 'Revisar conexión de WhatsApp',
+                    description: `Detectamos una incidencia reciente. Revisa o vuelve a vincular el número en PitayaCore. Evento: ${failureTime}.`,
+                    type: 'warning',
                     icon: 'wifi_off',
                     time: failureTime
                 });
