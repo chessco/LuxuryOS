@@ -183,8 +183,18 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
         data = JSON.parse(text);
       } catch (e) {}
 
-      // Retry with 52 if 521 fails, or vice versa
-      if (!response.ok || data.success === false) {
+      // A gateway can accept a message and still fail while serializing its
+      // acknowledgement. Retrying that ambiguous result with the alternate
+      // Mexican prefix sends the same WhatsApp twice. Only retry when the
+      // gateway explicitly rejected the recipient format before sending.
+      const canRetryWithAlternatePrefix =
+        response.status === 400 &&
+        data.success === false &&
+        /(?:n[uú]mero|number|phone|recipient|destinatario|invalid)/i.test(
+          String(data.error || ''),
+        );
+
+      if (canRetryWithAlternatePrefix) {
         const altRecipient = recipient.startsWith('521')
           ? `52${recipient.substring(3)}`
           : `521${recipient.replace(/^52/, '')}`;
@@ -225,6 +235,8 @@ export class PitayaCoreWhatsAppProvider implements IWhatsAppProvider {
         if (!retryResponse.ok || data.success === false) {
           return null;
         }
+      } else if (!response.ok || data.success === false) {
+        return null;
       }
 
       return data.id || data.providerId || data.messageId || 'SUCCESS';

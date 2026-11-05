@@ -89,7 +89,22 @@ describe('PitayaCoreWhatsAppProvider', () => {
     expect(sentPayload(1).content).not.toContain('qrserver.com');
   });
 
-  it('devuelve null si ambos intentos fallan', async () => {
+  it('no reintenta una respuesta ambigua del gateway para evitar duplicados', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          success: false,
+          error: "Cannot read properties of undefined (reading 'id')",
+        }),
+    });
+
+    expect(await send('Hola')).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('devuelve null sin reintentar si el fallo no es un número inválido', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 500,
@@ -97,6 +112,6 @@ describe('PitayaCoreWhatsAppProvider', () => {
     });
 
     expect(await send('Hola')).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
