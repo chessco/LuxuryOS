@@ -1463,8 +1463,8 @@ export class OrdersService {
     // A workflow completion may be requested more than once (double tap, slow
     // network retry, or concurrent clients). Reserve the customer notification
     // atomically before sending it so WhatsApp receives the ready message once.
-    if (context === 'WORKFLOW' && isReady) {
-      const dedupeKey = `order:${order.id}:workflow-ready`;
+    if (context === 'WORKFLOW' && (isReceived || isReady)) {
+      const dedupeKey = `order:${order.id}:workflow:${statusLabel}`;
       try {
         await this.prisma.notificationLog.create({
           data: {
