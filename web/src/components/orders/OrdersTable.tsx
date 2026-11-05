@@ -147,6 +147,16 @@ const getOrderSeq = (order: any) => {
     return digits ? parseInt(digits, 10) : 0;
 };
 
+const displayAssignedUser = (value: unknown) => {
+    const text = String(value || '').trim();
+    if (!text || text === '—') return 'Sin asignar';
+    if (text.includes('@')) {
+        const username = text.split('@')[0].replace(/[._-]+/g, ' ').trim();
+        return username ? username.replace(/\b\w/g, char => char.toUpperCase()) : 'Sin asignar';
+    }
+    return text;
+};
+
 const getInputValueForPromisedDate = (order: any) => {
     if (order.promisedAt) {
         try {
@@ -484,7 +494,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                 <td className="px-6 py-5">
                                     <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
                                         <span className="material-symbols-outlined text-[15px] text-indigo-500">assignment_ind</span>
-                                        <span>{order.jeweler && order.jeweler !== '—' ? order.jeweler : (order.specifications?.assignedTo || order.specifications?.assignedJeweler || 'Sin asignar')}</span>
+                                        <span>{displayAssignedUser(order.jeweler || order.specifications?.assignedTo || order.specifications?.assignedJeweler)}</span>
                                     </div>
                                 </td>
 
