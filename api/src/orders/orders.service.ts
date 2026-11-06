@@ -430,6 +430,20 @@ export class OrdersService {
       type === 'DESIGN' ||
       type === 'LASER';
 
+    // Las órdenes que entran directamente al taller deben tener responsable.
+    // Diseño conserva su asignación posterior al terminar el diseño.
+    const requiresJewelerAssignment =
+      type === 'REPAIR' || type === 'MANUFACTURE' || type === 'LASER';
+    const assignedJeweler =
+      (data as any).assignedTo ||
+      data.specifications?.assignedJeweler ||
+      data.specifications?.assignedTo;
+    if (requiresJewelerAssignment && !String(assignedJeweler || '').trim()) {
+      throw new BadRequestException(
+        'Selecciona un Joyero antes de registrar la orden.',
+      );
+    }
+
     // RF-01: Medida y grosor obligatorios en trabajos técnicos
     if (isWorkshopJob) {
       const sizeVal = data.size || data.specifications?.items?.[0]?.size;

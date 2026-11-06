@@ -1309,6 +1309,11 @@ const NewOrderDrawer: React.FC<{
             return;
         }
 
+        if (['REPAIR', 'MANUFACTURE', 'LASER'].includes(orderType || '') && !String(formData.assignedTo || '').trim()) {
+            failValidation('Selecciona un Joyero antes de registrar la orden.');
+            return;
+        }
+
         // Sync first item to top-level fields for backward compatibility
         const mainItem = items[0] || {};
         const requiresDesign = Boolean(formData.requiresDesign || orderType === 'DESIGN');
@@ -2207,7 +2212,9 @@ const NewOrderDrawer: React.FC<{
                                 )}
                             </div>
                             <div className="space-y-2">
-                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">Asignar a</label>
+                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-widest px-1">
+                                    Asignar Joyero {['REPAIR', 'MANUFACTURE', 'LASER'].includes(orderType || '') && <span className="text-red-500">*</span>}
+                                </label>
                                 <div className="relative">
                                     <select
                                         name="assignedTo"
@@ -2215,7 +2222,7 @@ const NewOrderDrawer: React.FC<{
                                         onChange={handleChange as any}
                                         className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
                                     >
-                                        <option value="">Sin asignar / Pendiente</option>
+                                        <option value="">Seleccionar Joyero...</option>
                                         {assignableUsers.map(u => (
                                             <option key={u.id} value={u.name || u.email}>
                                                 {u.name || u.email} ({formatUserRole(u.role, u.name, u.email)})
