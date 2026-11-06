@@ -1310,7 +1310,7 @@ const NewOrderDrawer: React.FC<{
         }
 
         if (['REPAIR', 'MANUFACTURE', 'LASER'].includes(orderType || '') && !String(formData.assignedTo || '').trim()) {
-            failValidation('Selecciona un Joyero antes de registrar la orden.');
+            failValidation('Selecciona un Joyero antes de registrar la orden.', 'assigned-jeweler');
             return;
         }
 
@@ -2217,9 +2217,11 @@ const NewOrderDrawer: React.FC<{
                                 </label>
                                 <div className="relative">
                                     <select
+                                        id="assigned-jeweler"
                                         name="assignedTo"
                                         value={formData.assignedTo || ''}
                                         onChange={handleChange as any}
+                                        aria-invalid={Boolean(validationError?.toLowerCase().includes('joyero'))}
                                         className="w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-base sm:text-sm text-foreground focus:border-indigo-500 outline-none appearance-none cursor-pointer"
                                     >
                                         <option value="">Seleccionar Joyero...</option>
