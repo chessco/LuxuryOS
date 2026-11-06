@@ -489,9 +489,9 @@ export const Messages: React.FC = () => {
 
             {/* TAB 2: WHATSAPP CUSTOMER MESSAGES */}
             {!isJoyero && activeTab === 'whatsapp' && (
-                <div className="flex flex-1 gap-6 overflow-hidden">
+                <div className="flex flex-1 min-h-0 gap-6 overflow-hidden">
                     {/* Sidebar: WhatsApp Client List */}
-                    <div className="w-80 flex flex-col bg-card border border-border rounded-[32px] overflow-hidden backdrop-blur-sm shadow-sm transition-colors">
+                    <div className={`w-full md:w-80 flex-col bg-card border border-border rounded-[32px] overflow-hidden backdrop-blur-sm shadow-sm transition-colors ${selectedWaConv ? 'hidden md:flex' : 'flex'}`}>
                         <div className="p-6 border-b border-border space-y-4">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -574,12 +574,15 @@ export const Messages: React.FC = () => {
                     </div>
 
                     {/* WhatsApp Chat Main Window */}
-                    <div className="flex-1 flex flex-col bg-card border border-border rounded-[32px] overflow-hidden backdrop-blur-sm shadow-sm transition-colors">
+                    <div className={`flex-1 min-w-0 flex-col bg-card border border-border rounded-[32px] overflow-hidden backdrop-blur-sm shadow-sm transition-colors ${selectedWaConv ? 'flex' : 'hidden md:flex'}`}>
                         {selectedWaConv ? (
                             <>
                                 {/* Header */}
                                 <div className="px-8 py-5 border-b border-border flex items-center justify-between bg-emerald-950/10 border-l-4 border-l-emerald-500">
                                     <div className="flex items-center gap-4">
+                                        <button type="button" onClick={() => setSelectedWaPhone(null)} className="md:hidden size-9 rounded-xl border border-border bg-card text-muted-foreground flex items-center justify-center" aria-label="Volver a conversaciones">
+                                            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                                        </button>
                                         <div className="size-11 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black text-xs flex items-center justify-center border border-emerald-500/30">
                                             {selectedWaConv.clientName.substring(0, 2).toUpperCase()}
                                         </div>
