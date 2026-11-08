@@ -226,8 +226,8 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="w-full max-w-xl bg-background border border-border rounded-[40px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="flex w-full max-w-xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-[32px] sm:rounded-[40px] border border-border bg-background shadow-2xl animate-in zoom-in-95 duration-300">
                 <div className="px-10 py-8 border-b border-border flex items-center justify-between bg-muted/20">
                     <div className="flex items-center gap-4">
                         <div className="size-12 rounded-2xl bg-foreground text-background flex items-center justify-center shadow-lg">
@@ -244,13 +244,14 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
                     </button>
                 </div>
 
-                <form className="p-10 space-y-8" onSubmit={(e) => {
+                <form className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => {
                     e.preventDefault();
                     // Do not send a jeweler-only field for any other role.
                     const payload = { ...formData };
                     if (payload.role !== 'JOYERO') delete payload.jewelerPercentage;
                     onSave(payload);
                 }}>
+                    <div className="min-h-0 flex-1 space-y-8 overflow-y-auto p-6 sm:p-10">
                     <div className="grid grid-cols-2 gap-8">
                         <div className="space-y-3">
                             <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest px-1">Usuario</label>
@@ -353,7 +354,9 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
                         </div>
                     )}
 
-                    <div className="pt-6 flex justify-end gap-6">
+                    </div>
+
+                    <div className="flex shrink-0 justify-end gap-3 border-t border-border bg-background/95 px-6 py-4 backdrop-blur sm:gap-6 sm:px-10 sm:py-5">
                         <button type="button" onClick={onClose} className="px-8 py-4 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-[10px] font-black uppercase tracking-[0.2em]">Cancelar</button>
                         <button type="submit" className="px-12 py-4 rounded-2xl bg-foreground text-background hover:opacity-90 transition-all text-[10px] font-black uppercase tracking-[0.3em] shadow-xl">
                             {user ? 'Guardar Cambios' : 'Confirmar Registro'}
