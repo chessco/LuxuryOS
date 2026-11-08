@@ -262,7 +262,7 @@ export const PublicOrderTrack: React.FC = () => {
                         {/* Order Summary Pill */}
                         <div className="p-6 sm:p-8 border-b border-cared-line/80 bg-cared-card/40">
                             <div className="flex items-center justify-between gap-4 mb-4">
-                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-cared-gold">
+                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
                                     {order.concept}
                                 </span>
                                 <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black tracking-widest bg-cared-red border border-cared-red text-white">
@@ -274,7 +274,7 @@ export const PublicOrderTrack: React.FC = () => {
                                 <ul className="space-y-1 mb-2">
                                     {order.pieces.map((piece, idx) => (
                                         <li key={idx} className="flex items-baseline gap-3 text-2xl font-black text-cared-ink uppercase tracking-tight">
-                                            <span className="text-[11px] font-mono font-black text-cared-gold tracking-widest">{String(idx + 1).padStart(2, '0')}</span>
+                                            <span className="text-[11px] font-mono font-black text-white tracking-widest">{String(idx + 1).padStart(2, '0')}</span>
                                             <span>{piece}</span>
                                         </li>
                                     ))}
@@ -293,10 +293,10 @@ export const PublicOrderTrack: React.FC = () => {
                                         : order.statusLabel === 'TERMINADO'
                                         ? 'bg-black/30 text-white border-cared-red shadow-[0_0_0_1px_rgba(217,38,38,0.18)]'
                                         : order.statusLabel === 'LISTO'
-                                        ? 'bg-cared-gold/10 text-cared-gold border-cared-gold/30'
+                                        ? 'bg-cared-gold/10 text-white border-cared-gold/30'
                                         : order.statusLabel === 'EN TALLER'
                                         ? 'bg-cared-gold text-black border-cared-gold font-black'
-                                        : 'bg-cared-gold/10 text-cared-gold border-cared-gold/30'
+                                        : 'bg-cared-gold/10 text-white border-cared-gold/30'
                                 }`}>
                                     {order.statusLabel}
                                 </span>
@@ -335,7 +335,7 @@ export const PublicOrderTrack: React.FC = () => {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <h4 className={`text-xs font-black uppercase tracking-wider ${
-                                                        isCurrent ? 'text-cared-gold' : isDone ? 'text-cared-ink' : 'text-cared-mute'
+                                                        isCurrent ? 'text-white' : isDone ? 'text-cared-ink' : 'text-cared-mute'
                                                     }`}>
                                                         {step.label}
                                                     </h4>
@@ -374,10 +374,10 @@ export const PublicOrderTrack: React.FC = () => {
                                     </span>
                                 </div>
                                 <div className="pt-3 border-t border-cared-line/60 flex items-center justify-between">
-                                    <span className="text-xs font-black uppercase tracking-wider text-cared-gold">
+                                    <span className="text-xs font-black uppercase tracking-wider text-white">
                                         Total de la Orden
                                     </span>
-                                    <span className="text-lg font-mono font-black text-cared-gold">
+                                    <span className="text-lg font-mono font-black text-white">
                                         {formatMoney(order.totalAmount || ((order.laborCost || 0) + (order.materialCost || 0)))}
                                     </span>
                                 </div>
@@ -413,7 +413,7 @@ export const PublicOrderTrack: React.FC = () => {
                                     className="size-36 object-contain"
                                 />
                             </div>
-                            <span className="text-[11px] font-mono font-black tracking-widest text-cared-gold">
+                            <span className="text-[11px] font-mono font-black tracking-widest text-white">
                                 {order.orderCode}
                             </span>
                             <p className="text-[9px] text-cared-mute mt-1 max-w-xs">
