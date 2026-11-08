@@ -151,23 +151,23 @@ export const PublicOrderTrack: React.FC = () => {
     const isPublicGate = !order;
 
     return (
-        <div className={`theme-cared dark min-h-screen text-cared-ink flex flex-col items-center selection:bg-cared-red selection:text-white ${isPublicGate ? 'cared-track-gate justify-between' : 'w-full min-h-[100dvh] overflow-x-hidden bg-cared-bg p-4 sm:p-8 font-sans'}`}>
+        <div className={`theme-cared dark min-h-screen text-cared-ink flex flex-col items-center selection:bg-cared-red selection:text-white ${isPublicGate ? 'cared-track-gate justify-between' : 'cared-track-order'}`}>
             {/* Header / Brand */}
-            <header className={isPublicGate ? 'cared-track-header' : 'w-full max-w-lg flex flex-col items-center justify-center pt-6 pb-8'}>
+            <header className={isPublicGate ? 'cared-track-header' : 'cared-track-order-header'}>
                 <h1>
                     <img
                         src={isPublicGate ? '/tracking/cared-logo-mark.png' : '/cared-logo.png'}
                         alt="CARED"
                         width={isPublicGate ? 4500 : 655}
                         height={isPublicGate ? 2351 : 310}
-                        className={isPublicGate ? 'cared-track-logo' : 'h-24 sm:h-28 w-auto select-none'}
+                        className={isPublicGate ? 'cared-track-logo' : 'cared-track-order-logo'}
                         draggable={false}
                     />
                 </h1>
             </header>
 
             {/* Main Content Area */}
-            <main className={isPublicGate ? 'cared-track-main' : 'w-full max-w-lg py-6 sm:py-8'}>
+            <main className={isPublicGate ? 'cared-track-main' : 'cared-track-order-main'}>
                 {initialLoading ? (
                     <div className="bg-cared-card/60 border border-cared-line rounded-3xl p-12 text-center backdrop-blur-xl shadow-2xl flex flex-col items-center gap-4 animate-pulse">
                         <div className="size-10 rounded-full border-2 border-cared-gold border-t-transparent animate-spin"></div>

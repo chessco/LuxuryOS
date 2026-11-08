@@ -204,6 +204,38 @@
         user-select: none;
     }
 
+    /* Pantalla verificada de seguimiento: se mantiene compacta y centrada
+       tanto en iPhone como en escritorio, sin heredar proporciones de tablero. */
+    .cared-track-order {
+        width: 100%;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        padding: max(0.75rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+        background: #0b0b0c;
+        color: #f3eee2;
+        font-family: 'Archivo', 'Inter', sans-serif;
+    }
+
+    .cared-track-order-header {
+        width: min(100%, 32rem);
+        display: flex;
+        justify-content: center;
+        padding: clamp(0.85rem, 4vh, 2rem) 0 clamp(1.25rem, 4vh, 2rem);
+    }
+
+    .cared-track-order-logo {
+        display: block;
+        width: clamp(9.25rem, 52vw, 13.5rem);
+        height: auto;
+        user-select: none;
+    }
+
+    .cared-track-order-main {
+        width: min(100%, 32rem);
+        padding: 0 0 max(1rem, env(safe-area-inset-bottom));
+    }
+
     .cared-track-main {
         width: min(100%, 25rem);
         margin: auto 0;
