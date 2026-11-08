@@ -8,7 +8,6 @@ import { RepairPanel } from '../components/orders/RepairPanel';
 import { ManufacturePanel } from '../components/orders/ManufacturePanel';
 import { PaymentModal } from '../components/orders/PaymentModal';
 import { EditOrderModal } from '../components/orders/EditOrderModal';
-import { RepairPrintView } from '../components/orders/RepairPrintView';
 import { LabelPrintModal } from '../components/orders/LabelPrintModal';
 import { ClientWhatsAppModal } from '../components/orders/ClientWhatsAppModal';
 import { DesignStageCard } from '../components/orders/DesignStageCard';
@@ -40,7 +39,6 @@ const OrderDetail: React.FC = () => {
     const [editPaymentReference, setEditPaymentReference] = useState<string>('');
     const [isSavingPayment, setIsSavingPayment] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
     const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
     const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
     const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false);
@@ -779,10 +777,6 @@ const OrderDetail: React.FC = () => {
                                 <span>Etiqueta</span>
                             </button>
                         )}
-                        <button onClick={() => setIsPrintViewOpen(true)} className={headerBtnNeutral}>
-                            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">mail</span>
-                            <span>Ver Sobre</span>
-                        </button>
                         {isAuthorized && (
                             <>
                                 <span className="hidden sm:block h-8 w-px bg-border" aria-hidden="true"></span>
@@ -1409,12 +1403,6 @@ const OrderDetail: React.FC = () => {
                     />
                 )}
             </AnimatePresence>
-
-            <RepairPrintView
-                isOpen={isPrintViewOpen}
-                onClose={() => setIsPrintViewOpen(false)}
-                order={order}
-            />
 
             <LabelPrintModal
                 isOpen={isLabelPrintOpen}
