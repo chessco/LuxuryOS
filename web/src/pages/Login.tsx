@@ -50,15 +50,19 @@ export default function LoginPage() {
         <div className="min-h-[100dvh] w-full flex items-center justify-center bg-zinc-100 text-zinc-900 p-4 sm:p-6 md:p-8 selection:bg-black selection:text-white">
             {/* Contenedor Proporción Áurea (Phi = 1.618 | Escala Fibonacci 8, 13, 21, 34, 55, 89, 144, 420) */}
             <div className="w-full max-w-[420px] bg-white p-[34px] sm:p-[42px] rounded-[34px] border border-zinc-200/80 shadow-[0_21px_55px_rgba(0,0,0,0.06)] flex flex-col transition-all">
-                {/* Zona Superior de Marca: Logo destacado y visible */}
-                <div className="flex flex-col items-center justify-center pt-2 pb-6 sm:pb-8">
-                    <img
-                        src="/cared-login-logo.png"
-                        alt="CARED"
-                        className="w-[220px] sm:w-[260px] max-h-[145px] h-auto object-contain transition-all hover:scale-105 duration-300 drop-shadow-xs"
-                        loading="eager"
-                        decoding="async"
-                    />
+                {/* Logo corporativo original (655px) para conservar nitidez Retina en iPhone. */}
+                <div className="flex flex-col items-center justify-center pt-1 pb-6 sm:pb-8">
+                    <div className="flex w-full items-center justify-center rounded-[22px] bg-black px-6 py-5 shadow-[0_14px_28px_rgba(0,0,0,0.16)] sm:px-8 sm:py-6">
+                        <img
+                            src="/cared-logo.png"
+                            alt="CARED"
+                            width="655"
+                            height="310"
+                            className="h-auto w-[210px] max-w-full object-contain sm:w-[245px]"
+                            loading="eager"
+                            decoding="sync"
+                        />
+                    </div>
                 </div>
 
                 {error && (

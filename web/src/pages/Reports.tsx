@@ -202,7 +202,9 @@ export const Reports: React.FC = () => {
 
         return {
             id: rawId || profile?.id,
-            name: rawName || profile?.name || 'Sin joyero asignado',
+            // Historical orders can store the e-mail in readyByName. Prefer
+            // the profile name whenever we can resolve that user.
+            name: profile?.name || profile?.username || rawName || 'Sin joyero asignado',
             percentage,
             baseLabor,
             payout: baseLabor * (percentage / 100),
@@ -409,6 +411,10 @@ export const Reports: React.FC = () => {
     const handlePrint = () => {
         window.print();
     };
+
+    const selectedJewelerCompensation = selectedOrder
+        ? getJewelerCompensation(selectedOrder)
+        : null;
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-y-auto px-6 py-8 transition-colors">
@@ -947,25 +953,38 @@ export const Reports: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Fechas y Responsable */}
+                            {/* Responsable y fechas */}
                             <div className="grid grid-cols-3 gap-3 text-muted-foreground">
                                 <div>
                                     <span className="text-[10px] font-bold uppercase">Recepción:</span>
                                     <p className="font-mono text-foreground">{formatDateOnly(selectedOrder.createdAt)}</p>
                                 </div>
                                 <div>
-                                    <span className="text-[10px] font-bold uppercase">Listo Por:</span>
+                                    <span className="text-[10px] font-bold uppercase">Joyero:</span>
                                     <p className="font-bold text-foreground truncate">
-                                        {selectedOrder.specifications?.readyByName ||
-                                         selectedOrder.specifications?.readyBy?.name ||
-                                         selectedOrder.readyByName ||
-                                         selectedOrder.completedByName ||
-                                         (selectedOrder.type === 'REPAIR' || selectedOrder.type === 'MANUFACTURE' ? 'Joyero' : (selectedOrder.createdBy?.name || '—'))}
+                                        {selectedJewelerCompensation?.name || 'Sin joyero asignado'}
                                     </p>
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-bold uppercase">Entrega:</span>
                                     <p className="font-mono text-foreground">{formatDateTime(getOrderDeliveryDate(selectedOrder))}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 sm:grid-cols-3">
+                                <div>
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Mano de Obra Joyero</span>
+                                    <p className="mt-1 font-bold text-foreground">{formatMoney(selectedJewelerCompensation?.baseLabor || 0)}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Porcentaje</span>
+                                    <p className="mt-1 font-bold text-cyan-600 dark:text-cyan-400">
+                                        {(selectedJewelerCompensation?.percentage || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })}%
+                                    </p>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Pago Joyero</span>
+                                    <p className="mt-1 font-black text-cyan-600 dark:text-cyan-400">{formatMoney(selectedJewelerCompensation?.payout || 0)}</p>
                                 </div>
                             </div>
 
