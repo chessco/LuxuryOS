@@ -53,7 +53,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // Deliberately invalidate legacy Workbox caches that could still
           // hold an executable bundle from a deployment before this safeguard.
-          cacheId: 'cared-v2',
+          cacheId: 'cared-v3-track-mobile',
           // Never precache executable bundles. A partially cached JavaScript
           // asset can fail before React is able to run its recovery handler,
           // leaving the application blank. Vite fingerprints these assets and

@@ -236,6 +236,25 @@
         padding: 0 0 max(1rem, env(safe-area-inset-bottom));
     }
 
+    @media (max-width: 30rem) {
+        .cared-track-order {
+            padding-top: max(0.35rem, env(safe-area-inset-top));
+        }
+
+        .cared-track-order-header {
+            padding-top: 0.75rem;
+            padding-bottom: 1rem;
+        }
+
+        .cared-track-order-logo {
+            width: 10.5rem;
+        }
+
+        .cared-track-order-card {
+            border-radius: 1.35rem;
+        }
+    }
+
     .cared-track-main {
         width: min(100%, 25rem);
         margin: auto 0;

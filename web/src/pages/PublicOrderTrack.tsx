@@ -258,14 +258,14 @@ export const PublicOrderTrack: React.FC = () => {
                     </div>
                 ) : (
                     /* Verified Order Workflow Stepper */
-                    <div className="bg-cared-card/60 border border-cared-line rounded-3xl overflow-hidden backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                    <div className="cared-track-order-card bg-cared-card/60 border border-cared-line rounded-3xl overflow-hidden backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                         {/* Order Summary Pill */}
-                        <div className="p-6 sm:p-8 border-b border-cared-line/80 bg-cared-card/40">
+                        <div className="cared-track-order-summary p-5 sm:p-8 border-b border-cared-line/80 bg-cared-card/40">
                             <div className="flex items-center justify-between gap-4 mb-4">
-                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
+                                <span className="text-xs sm:text-[11px] font-black uppercase tracking-[0.2em] text-white">
                                     {order.concept}
                                 </span>
-                                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black tracking-widest bg-cared-red border border-cared-red text-white">
+                                <span className="px-3 py-1 rounded-full text-[11px] sm:text-[10px] font-mono font-black tracking-widest bg-cared-red border border-cared-red text-white">
                                     {order.orderCode}
                                 </span>
                             </div>
@@ -273,21 +273,21 @@ export const PublicOrderTrack: React.FC = () => {
                             {order.pieces && order.pieces.length > 1 ? (
                                 <ul className="space-y-1 mb-2">
                                     {order.pieces.map((piece, idx) => (
-                                        <li key={idx} className="flex items-baseline gap-3 text-2xl font-black text-cared-ink uppercase tracking-tight">
-                                            <span className="text-[11px] font-mono font-black text-white tracking-widest">{String(idx + 1).padStart(2, '0')}</span>
+                                        <li key={idx} className="flex items-baseline gap-3 text-xl sm:text-2xl font-black text-cared-ink uppercase tracking-tight">
+                                            <span className="text-xs sm:text-[11px] font-mono font-black text-white tracking-widest">{String(idx + 1).padStart(2, '0')}</span>
                                             <span>{piece}</span>
                                         </li>
                                     ))}
                                 </ul>
                             ) : (
-                                <h2 className="text-2xl font-black text-cared-ink uppercase tracking-tight mb-2">
+                                <h2 className="text-xl sm:text-2xl font-black text-cared-ink uppercase tracking-tight mb-2">
                                     {order.pieces?.[0] || order.pieceType}
                                 </h2>
                             )}
 
                             <div className="flex items-center gap-2 mt-4 pt-4 border-t border-cared-line/50">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-cared-mute">Estado Actual:</span>
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                                <span className="text-[11px] sm:text-[10px] font-black uppercase tracking-widest text-cared-mute">Estado Actual:</span>
+                                <span className={`px-3 py-1 rounded-full text-[11px] sm:text-[10px] font-black uppercase tracking-widest border ${
                                     order.statusLabel === 'ENTREGADO'
                                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                                         : order.statusLabel === 'TERMINADO'
@@ -304,12 +304,12 @@ export const PublicOrderTrack: React.FC = () => {
                         </div>
 
                         {/* Progress Stepper Timeline */}
-                        <div className="p-6 sm:p-8">
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cared-mute mb-6">
+                        <div className="cared-track-order-timeline p-5 sm:p-8">
+                            <h3 className="text-[11px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-cared-mute mb-5 sm:mb-6">
                                 Seguimiento del Flujo
                             </h3>
 
-                            <div className="relative pl-6 space-y-8 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-0.5 before:bg-cared-line">
+                            <div className="relative pl-6 space-y-6 sm:space-y-8 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-0.5 before:bg-cared-line">
                                 {order.steps.map((step, idx) => {
                                     const isDone = step.isCompleted;
                                     const isCurrent = step.isCurrent;
@@ -334,18 +334,18 @@ export const PublicOrderTrack: React.FC = () => {
                                             {/* Step Info */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <h4 className={`text-xs font-black uppercase tracking-wider ${
+                                                    <h4 className={`text-sm sm:text-xs font-black uppercase tracking-wider ${
                                                         isCurrent ? 'text-white' : isDone ? 'text-cared-ink' : 'text-cared-mute'
                                                     }`}>
                                                         {step.label}
                                                     </h4>
                                                     {step.date && (
-                                                        <span className="text-[10px] font-mono text-cared-mute">
+                                                        <span className="text-[11px] sm:text-[10px] font-mono text-cared-mute">
                                                             {step.date}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="text-[11px] text-cared-mute leading-normal mt-1">
+                                                <p className="text-xs sm:text-[11px] text-cared-mute leading-normal mt-1">
                                                     {step.description}
                                                 </p>
                                             </div>

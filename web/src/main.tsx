@@ -5,7 +5,7 @@ import './index.css';
 import { registerSW } from 'virtual:pwa-register';
 
 // Forces a fresh fingerprinted bundle for clients that retained a bad immutable asset.
-document.documentElement.dataset.caredRelease = '2026-11-07-cache-recovery';
+document.documentElement.dataset.caredRelease = '2026-11-07-track-mobile-v3';
 
 // Auto-recover from dynamic import / outdated deployment chunk errors
 window.addEventListener('vite:preloadError', (event) => {
