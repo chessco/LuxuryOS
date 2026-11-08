@@ -4,6 +4,9 @@ import App from './App';
 import './index.css';
 import { registerSW } from 'virtual:pwa-register';
 
+// Forces a fresh fingerprinted bundle for clients that retained a bad immutable asset.
+document.documentElement.dataset.caredRelease = '2026-11-07-cache-recovery';
+
 // Auto-recover from dynamic import / outdated deployment chunk errors
 window.addEventListener('vite:preloadError', (event) => {
     console.warn('Vite preload error detected, reloading to get latest bundle...', event);
