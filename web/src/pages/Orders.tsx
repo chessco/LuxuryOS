@@ -2044,14 +2044,22 @@ const NewOrderDrawer: React.FC<{
                                                 </div>
                                             </div>
                                         ) : (
-                                                    <div className="grid grid-cols-1 gap-2">
+                                            <div className="grid grid-cols-2 gap-2">
                                                 <button
                                                     type="button"
-                                                        onClick={() => isAppleMobileDevice() ? document.getElementById(`piece-camera-${index}`)?.click() : setCameraPieceIndex(index)}
+                                                    onClick={() => isAppleMobileDevice() ? document.getElementById(`piece-camera-${index}`)?.click() : setCameraPieceIndex(index)}
                                                     className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-border hover:border-red-500/50 bg-muted/30 hover:bg-muted/60 text-xs font-bold text-muted-foreground hover:text-foreground transition-all active:scale-95"
                                                 >
                                                     <span className="material-symbols-outlined text-base text-red-500">photo_camera</span>
                                                     <span>Cámara</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => document.getElementById(`piece-gallery-${index}`)?.click()}
+                                                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-indigo-500/40 hover:border-indigo-500/70 bg-indigo-500/5 hover:bg-indigo-500/10 text-xs font-bold text-muted-foreground hover:text-foreground transition-all active:scale-95"
+                                                >
+                                                    <span className="material-symbols-outlined text-base text-indigo-500">upload_file</span>
+                                                    <span>Subir archivo</span>
                                                 </button>
                                             </div>
                                         )}
