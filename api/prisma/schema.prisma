@@ -44,6 +44,9 @@ model User {
   name         String?
   passwordHash String
   role         Role     @default(TENANT_USER)
+  // Porcentaje aplicado sobre la Mano de Obra Joyero al calcular su pago.
+  // Solo se usa para usuarios con rol JOYERO.
+  jewelerPercentage Decimal @default(100) @db.Decimal(5, 2)
   createdAt    DateTime @default(now())
 
   // Real-time Chat relations

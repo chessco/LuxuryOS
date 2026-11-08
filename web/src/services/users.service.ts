@@ -6,6 +6,7 @@ export interface User {
     username?: string | null;
     name?: string;
     role: string;
+    jewelerPercentage?: number | string;
     createdAt: string;
 }
 

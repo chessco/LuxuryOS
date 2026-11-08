@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { OrdersService } from '../services/orders.service';
+import { UsersService, User } from '../services/users.service';
 
 interface OrderItem {
     id: string;
@@ -45,6 +46,14 @@ type DateFilterPreset = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 type OrderTypeFilter = 'ALL' | 'REPAIR' | 'MANUFACTURE' | 'DESIGN' | 'LASER' | 'LAYAWAY';
 type ReportFocus = 'SALES' | 'JEWELER';
 
+interface JewelerCompensation {
+    id?: string;
+    name: string;
+    percentage: number;
+    baseLabor: number;
+    payout: number;
+}
+
 // Helper to get local date in YYYY-MM-DD format (prevents UTC timezone shift bug)
 const getLocalDateString = (d: Date = new Date()): string => {
     const year = d.getFullYear();
@@ -55,20 +64,26 @@ const getLocalDateString = (d: Date = new Date()): string => {
 
 export const Reports: React.FC = () => {
     const [orders, setOrders] = useState<OrderItem[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [datePreset, setDatePreset] = useState<DateFilterPreset>('today');
     const [startDate, setStartDate] = useState<string>(() => getLocalDateString(new Date()));
     const [endDate, setEndDate] = useState<string>(() => getLocalDateString(new Date()));
     const [typeFilter, setTypeFilter] = useState<OrderTypeFilter>('ALL');
     const [reportFocus, setReportFocus] = useState<ReportFocus>('SALES');
+    const [jewelerFilter, setJewelerFilter] = useState<string>('ALL');
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
 
     const fetchOrders = async () => {
         setIsLoading(true);
         try {
-            const data = await OrdersService.getOrders();
-            setOrders(data || []);
+            const [ordersData, usersData] = await Promise.all([
+                OrdersService.getOrders(),
+                UsersService.getAll(),
+            ]);
+            setOrders(ordersData || []);
+            setUsers(usersData || []);
         } catch (error) {
             console.error('Error fetching orders for reports', error);
         } finally {
@@ -159,6 +174,43 @@ export const Reports: React.FC = () => {
         }, 0);
     };
 
+    // New orders save the assigned jeweler's percentage as a snapshot. For
+    // older orders, fall back to the active jeweler profile without changing
+    // sales totals or the order itself.
+    const getJewelerCompensation = (order: OrderItem): JewelerCompensation => {
+        const specs = order.specifications || {};
+        const rawName = String(
+            specs.assignedJeweler || specs.assignedTo || specs.jewelerName ||
+            specs.readyByName || specs.readyBy?.name || order.readyByName ||
+            order.completedByName || ''
+        ).trim();
+        const rawId = specs.jewelerId || specs.readyBy?.id;
+        const profile = users.find(user =>
+            (rawId && user.id === rawId) ||
+            (rawName && [user.name, user.username, user.email]
+                .filter(Boolean)
+                .some(value => String(value).trim().toLowerCase() === rawName.toLowerCase()))
+        );
+        const snapshotPercentage = Number(specs.jewelerPercentage);
+        const profilePercentage = Number(profile?.jewelerPercentage);
+        const percentage = Number.isFinite(snapshotPercentage)
+            ? snapshotPercentage
+            : Number.isFinite(profilePercentage)
+                ? profilePercentage
+                : 0;
+        const baseLabor = getJewelerLaborAmount(order);
+
+        return {
+            id: rawId || profile?.id,
+            name: rawName || profile?.name || 'Sin joyero asignado',
+            percentage,
+            baseLabor,
+            payout: baseLabor * (percentage / 100),
+        };
+    };
+
+    const jewelers = useMemo(() => users.filter(user => user.role === 'JOYERO'), [users]);
+
     // Filter delivered orders in date range
     const filteredDeliveredOrders = useMemo(() => {
         const start = new Date(`${startDate}T00:00:00`);
@@ -174,6 +226,11 @@ export const Reports: React.FC = () => {
 
             // Type filter check
             if (typeFilter !== 'ALL' && order.type !== typeFilter) return false;
+
+            if (reportFocus === 'JEWELER' && jewelerFilter !== 'ALL') {
+                const compensation = getJewelerCompensation(order);
+                if (compensation.id !== jewelerFilter) return false;
+            }
 
             // Search query filter
             if (searchQuery.trim()) {
@@ -204,7 +261,7 @@ export const Reports: React.FC = () => {
             const dateB = getOrderDeliveryDate(b)?.getTime() || 0;
             return dateB - dateA; // Most recent first
         });
-    }, [orders, startDate, endDate, typeFilter, searchQuery]);
+    }, [orders, startDate, endDate, typeFilter, searchQuery, reportFocus, jewelerFilter, users]);
 
     // Financial & KPI Aggregations
     const kpis = useMemo(() => {
@@ -217,24 +274,30 @@ export const Reports: React.FC = () => {
         let layawayCount = 0;
         let layawaySum = 0;
         let jewelerLaborSum = 0;
+        let jewelerPayoutSum = 0;
         let repairJewelerLaborSum = 0;
+        let repairJewelerPayoutSum = 0;
         let manufactureJewelerLaborSum = 0;
+        let manufactureJewelerPayoutSum = 0;
 
         filteredDeliveredOrders.forEach(order => {
             const amount = getOrderTotalAmount(order);
             totalCount++;
             totalSum += amount;
-            const jewelerLabor = getJewelerLaborAmount(order);
-            jewelerLaborSum += jewelerLabor;
+            const jewelerCompensation = getJewelerCompensation(order);
+            jewelerLaborSum += jewelerCompensation.baseLabor;
+            jewelerPayoutSum += jewelerCompensation.payout;
 
             if (order.type === 'REPAIR') {
                 repairCount++;
                 repairSum += amount;
-                repairJewelerLaborSum += jewelerLabor;
+                repairJewelerLaborSum += jewelerCompensation.baseLabor;
+                repairJewelerPayoutSum += jewelerCompensation.payout;
             } else if (order.type === 'MANUFACTURE') {
                 manufactureCount++;
                 manufactureSum += amount;
-                manufactureJewelerLaborSum += jewelerLabor;
+                manufactureJewelerLaborSum += jewelerCompensation.baseLabor;
+                manufactureJewelerPayoutSum += jewelerCompensation.payout;
             } else if (order.type === 'LAYAWAY') {
                 layawayCount++;
                 layawaySum += amount;
@@ -254,8 +317,11 @@ export const Reports: React.FC = () => {
             layawaySum,
             avgTicket,
             jewelerLaborSum,
+            jewelerPayoutSum,
             repairJewelerLaborSum,
+            repairJewelerPayoutSum,
             manufactureJewelerLaborSum,
+            manufactureJewelerPayoutSum,
         };
     }, [filteredDeliveredOrders]);
 
@@ -308,10 +374,11 @@ export const Reports: React.FC = () => {
             return;
         }
 
-        const headers = ['Folio', 'Tipo', 'Cliente', 'Telefono', 'Pieza', 'Detalles', 'Fecha Entrega', 'Fecha Recepcion', 'Valor Total', 'Mano de Obra Joyero'];
+        const headers = ['Folio', 'Tipo', 'Cliente', 'Telefono', 'Pieza', 'Detalles', 'Fecha Entrega', 'Fecha Recepcion', 'Valor Total', 'Joyero', 'Porcentaje Joyero', 'Mano de Obra Joyero', 'Pago Joyero'];
         const rows = filteredDeliveredOrders.map(o => {
             const delDate = getOrderDeliveryDate(o);
             const amount = getOrderTotalAmount(o);
+            const compensation = getJewelerCompensation(o);
             return [
                 `#${o.id.substring(0, 8).toUpperCase()}`,
                 o.type === 'REPAIR' ? 'REPARACION' : o.type === 'MANUFACTURE' ? 'FABRICACION' : o.type,
@@ -322,7 +389,10 @@ export const Reports: React.FC = () => {
                 `"${delDate ? delDate.toLocaleString('es-MX') : ''}"`,
                 `"${new Date(o.createdAt).toLocaleDateString('es-MX')}"`,
                 amount,
-                getJewelerLaborAmount(o)
+                `"${compensation.name.replace(/"/g, '""')}"`,
+                compensation.percentage,
+                compensation.baseLabor,
+                compensation.payout,
             ];
         });
 
@@ -506,6 +576,23 @@ export const Reports: React.FC = () => {
                     </div>
                     <span className="text-[11px] text-muted-foreground">{reportFocus === 'JEWELER' ? 'Suma exclusivamente mano de obra joyero.' : 'Valores comerciales de las órdenes.'}</span>
                 </div>
+                {reportFocus === 'JEWELER' && (
+                    <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border">
+                        <label htmlFor="report-jeweler" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">Joyero:</label>
+                        <select
+                            id="report-jeweler"
+                            value={jewelerFilter}
+                            onChange={event => setJewelerFilter(event.target.value)}
+                            className="min-w-52 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs font-bold text-foreground outline-none focus:border-cyan-500"
+                        >
+                            <option value="ALL">Todos los joyeros</option>
+                            {jewelers.map(jeweler => (
+                                <option key={jeweler.id} value={jeweler.id}>{jeweler.name || jeweler.username || jeweler.email}</option>
+                            ))}
+                        </select>
+                        <span className="text-[11px] text-muted-foreground">El pago es Mano de Obra Joyero × porcentaje asignado.</span>
+                    </div>
+                )}
             </div>
 
             {/* Print Header (Only visible on physical/PDF print) */}
@@ -549,7 +636,7 @@ export const Reports: React.FC = () => {
                 <div className="p-6 rounded-3xl bg-card border border-emerald-500/20 shadow-sm flex flex-col justify-between hover:border-emerald-500/40 transition-all bg-gradient-to-br from-emerald-500/[0.03] to-transparent">
                     <div className="flex items-center justify-between mb-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">
-                            {reportFocus === 'JEWELER' ? 'Mano de Obra Joyero' : 'Valor Total Entregado'}
+                            {reportFocus === 'JEWELER' ? 'Pago a Joyeros' : 'Valor Total Entregado'}
                         </span>
                         <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
                             <span className="material-symbols-outlined text-[20px]">attach_money</span>
@@ -557,10 +644,10 @@ export const Reports: React.FC = () => {
                     </div>
                     <div>
                         <div className="text-3xl font-black text-emerald-500 font-display tracking-tight">
-                            {formatMoney(reportFocus === 'JEWELER' ? kpis.jewelerLaborSum : kpis.totalSum)}
+                            {formatMoney(reportFocus === 'JEWELER' ? kpis.jewelerPayoutSum : kpis.totalSum)}
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            {reportFocus === 'JEWELER' ? 'Suma de mano de obra por pieza' : 'Suma de valores de órdenes'}
+                            {reportFocus === 'JEWELER' ? 'Mano de obra joyero × porcentaje' : 'Suma de valores de órdenes'}
                         </p>
                     </div>
                 </div>
@@ -569,7 +656,7 @@ export const Reports: React.FC = () => {
                 <div className="p-6 rounded-3xl bg-card border border-border shadow-sm flex flex-col justify-between hover:border-blue-500/30 transition-all">
                     <div className="flex items-center justify-between mb-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">
-                            {reportFocus === 'JEWELER' ? 'M. O. Joyero Reparaciones' : 'Reparaciones Entregadas'}
+                            {reportFocus === 'JEWELER' ? 'Pago Joyero Reparaciones' : 'Reparaciones Entregadas'}
                         </span>
                         <div className="size-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
                             <span className="material-symbols-outlined text-[20px]">handyman</span>
@@ -578,14 +665,14 @@ export const Reports: React.FC = () => {
                     <div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-black text-foreground font-display">
-                                {formatMoney(reportFocus === 'JEWELER' ? kpis.repairJewelerLaborSum : kpis.repairSum)}
+                                {formatMoney(reportFocus === 'JEWELER' ? kpis.repairJewelerPayoutSum : kpis.repairSum)}
                             </span>
                             <span className="text-xs font-bold text-muted-foreground">
                                 ({kpis.repairCount})
                             </span>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            {reportFocus === 'JEWELER' ? 'Mano de obra de joyero' : 'Servicios de taller entregados'}
+                            {reportFocus === 'JEWELER' ? 'Mano de obra × porcentaje' : 'Servicios de taller entregados'}
                         </p>
                     </div>
                 </div>
@@ -594,7 +681,7 @@ export const Reports: React.FC = () => {
                 <div className="p-6 rounded-3xl bg-card border border-border shadow-sm flex flex-col justify-between hover:border-purple-500/30 transition-all">
                     <div className="flex items-center justify-between mb-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-purple-500">
-                            {reportFocus === 'JEWELER' ? 'M. O. Joyero Fabricación' : 'Fabricación Entregada'}
+                            {reportFocus === 'JEWELER' ? 'Pago Joyero Fabricación' : 'Fabricación Entregada'}
                         </span>
                         <div className="size-9 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
                             <span className="material-symbols-outlined text-[20px]">diamond</span>
@@ -603,14 +690,14 @@ export const Reports: React.FC = () => {
                     <div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-black text-foreground font-display">
-                                {formatMoney(reportFocus === 'JEWELER' ? kpis.manufactureJewelerLaborSum : kpis.manufactureSum)}
+                                {formatMoney(reportFocus === 'JEWELER' ? kpis.manufactureJewelerPayoutSum : kpis.manufactureSum)}
                             </span>
                             <span className="text-xs font-bold text-muted-foreground">
                                 ({kpis.manufactureCount})
                             </span>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            {reportFocus === 'JEWELER' ? 'Mano de obra de joyero' : 'Joyería a medida entregada'}
+                            {reportFocus === 'JEWELER' ? 'Mano de obra × porcentaje' : 'Joyería a medida entregada'}
                         </p>
                     </div>
                 </div>
@@ -656,9 +743,9 @@ export const Reports: React.FC = () => {
                                     <th className="py-4 px-6">Cliente</th>
                                     <th className="py-4 px-6">Pieza / Detalles</th>
                                     <th className="py-4 px-6">Fecha Entrega</th>
-                                    <th className="py-4 px-6">Usuario</th>
+                                    <th className="py-4 px-6">{reportFocus === 'JEWELER' ? 'Joyero' : 'Usuario'}</th>
                                     <th className="py-4 px-6">Fecha Recepción</th>
-                                    <th className="py-4 px-6 text-right">Valor de la Orden</th>
+                                    <th className="py-4 px-6 text-right">{reportFocus === 'JEWELER' ? 'Pago Joyero' : 'Valor de la Orden'}</th>
                                     <th className="py-4 px-6 text-center no-print">Detalle</th>
                                 </tr>
                             </thead>
@@ -666,6 +753,7 @@ export const Reports: React.FC = () => {
                                 {filteredDeliveredOrders.map(order => {
                                     const deliveryDate = getOrderDeliveryDate(order);
                                     const totalAmount = getOrderTotalAmount(order);
+                                    const compensation = getJewelerCompensation(order);
                                     const isRepair = order.type === 'REPAIR';
 
                                     return (
@@ -729,20 +817,27 @@ export const Reports: React.FC = () => {
                                                 </span>
                                             </td>
 
-                                            {/* Usuario que puso la orden en status Listo */}
+                                            {/* Responsable operativo o joyero con porcentaje de pago */}
                                             <td className="py-4 px-6">
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="material-symbols-outlined text-[15px] text-emerald-500">done_all</span>
+                                                    <span className={`material-symbols-outlined text-[15px] ${reportFocus === 'JEWELER' ? 'text-cyan-500' : 'text-emerald-500'}`}>{reportFocus === 'JEWELER' ? 'handyman' : 'done_all'}</span>
                                                     <span className="font-bold text-foreground uppercase tracking-tight text-xs">
-                                                        {order.specifications?.readyByName ||
-                                                         order.specifications?.readyBy?.name ||
-                                                         order.readyByName ||
-                                                         order.completedByName ||
-                                                         (order.type === 'REPAIR' || order.type === 'MANUFACTURE'
-                                                             ? 'Joyero'
-                                                             : (order.createdBy?.name || order.createdByName || order.specifications?.receivedBy || '—'))}
+                                                        {reportFocus === 'JEWELER'
+                                                            ? compensation.name
+                                                            : (order.specifications?.readyByName ||
+                                                                order.specifications?.readyBy?.name ||
+                                                                order.readyByName ||
+                                                                order.completedByName ||
+                                                                (order.type === 'REPAIR' || order.type === 'MANUFACTURE'
+                                                                    ? 'Joyero'
+                                                                    : (order.createdBy?.name || order.createdByName || order.specifications?.receivedBy || '—')))}
                                                     </span>
                                                 </div>
+                                                {reportFocus === 'JEWELER' && (
+                                                    <p className="mt-1 pl-5 text-[10px] font-bold text-cyan-600 dark:text-cyan-400">
+                                                        {compensation.percentage.toLocaleString('es-MX', { maximumFractionDigits: 2 })}% asignado
+                                                    </p>
+                                                )}
                                             </td>
 
                                             {/* Fecha Recepción */}
@@ -750,9 +845,16 @@ export const Reports: React.FC = () => {
                                                 {formatDateOnly(order.createdAt)}
                                             </td>
 
-                                            {/* Valor de la Orden */}
+                                            {/* Valor de la orden o pago calculado del joyero */}
                                             <td className="py-4 px-6 text-right font-mono font-bold text-sm text-foreground">
-                                                {formatMoney(totalAmount)}
+                                                {reportFocus === 'JEWELER' ? (
+                                                    <div>
+                                                        <p className="font-black text-cyan-600 dark:text-cyan-400">{formatMoney(compensation.payout)}</p>
+                                                        <p className="mt-1 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+                                                            {formatMoney(compensation.baseLabor)} × {compensation.percentage.toLocaleString('es-MX', { maximumFractionDigits: 2 })}%
+                                                        </p>
+                                                    </div>
+                                                ) : formatMoney(totalAmount)}
                                             </td>
 
                                             {/* Acción Ver Detalle */}
@@ -772,10 +874,10 @@ export const Reports: React.FC = () => {
                             <tfoot>
                                 <tr className="border-t-2 border-border bg-muted/40 font-bold text-foreground">
                                     <td colSpan={7} className="py-4 px-6 text-right text-xs uppercase tracking-wider">
-                                        Total Facturado en Entregas:
+                                        {reportFocus === 'JEWELER' ? 'Total a Pagar a Joyeros:' : 'Total Facturado en Entregas:'}
                                     </td>
                                     <td className="py-4 px-6 text-right font-mono text-base text-emerald-500 font-black">
-                                        {formatMoney(kpis.totalSum)}
+                                        {formatMoney(reportFocus === 'JEWELER' ? kpis.jewelerPayoutSum : kpis.totalSum)}
                                     </td>
                                     <td className="no-print"></td>
                                 </tr>

@@ -202,6 +202,7 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
         name: user?.name || '',
         password: '',
         role: user?.role || 'TENANT_USER',
+        jewelerPercentage: user?.jewelerPercentage ?? 100,
     });
     // En el alta, el nombre sigue al usuario mientras no se edite a mano
     const [nameEdited, setNameEdited] = useState(false);
@@ -243,7 +244,13 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
                     </button>
                 </div>
 
-                <form className="p-10 space-y-8" onSubmit={(e) => { e.preventDefault(); onSave(formData); }}>
+                <form className="p-10 space-y-8" onSubmit={(e) => {
+                    e.preventDefault();
+                    // Do not send a jeweler-only field for any other role.
+                    const payload = { ...formData };
+                    if (payload.role !== 'JOYERO') delete payload.jewelerPercentage;
+                    onSave(payload);
+                }}>
                     <div className="grid grid-cols-2 gap-8">
                         <div className="space-y-3">
                             <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest px-1">Usuario</label>
@@ -317,6 +324,34 @@ const UserModal: React.FC<{ user: User | null, onClose: () => void, onSave: (dat
                             <option value="TENANT_ADMIN">Administrador (Control total)</option>
                         </select>
                     </div>
+
+                    {formData.role === 'JOYERO' && (
+                        <div className="space-y-3 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5">
+                            <div className="flex items-start gap-3">
+                                <span className="material-symbols-outlined text-cyan-500 text-[22px]">percent</span>
+                                <div>
+                                    <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest">Porcentaje del Joyero</label>
+                                    <p className="mt-1 text-xs text-muted-foreground">Se aplica a la mano de obra del joyero en el reporte; no modifica ventas, totales ni mensajes.</p>
+                                </div>
+                            </div>
+                            <div className="relative max-w-xs">
+                                <input
+                                    name="jewelerPercentage"
+                                    value={formData.jewelerPercentage}
+                                    onChange={handleChange}
+                                    type="number"
+                                    inputMode="decimal"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    required
+                                    className="w-full bg-background border border-border rounded-xl px-5 py-3 pr-12 text-foreground focus:border-cyan-500 focus:outline-none transition-all text-sm"
+                                    placeholder="100"
+                                />
+                                <span className="absolute inset-y-0 right-4 flex items-center text-sm font-black text-muted-foreground">%</span>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="pt-6 flex justify-end gap-6">
                         <button type="button" onClick={onClose} className="px-8 py-4 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-[10px] font-black uppercase tracking-[0.2em]">Cancelar</button>

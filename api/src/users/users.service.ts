@@ -15,6 +15,7 @@ const USER_SELECT = {
   username: true,
   name: true,
   role: true,
+  jewelerPercentage: true,
   createdAt: true,
 } as const;
 
@@ -49,6 +50,17 @@ export class UsersService {
       throw new ConflictException('Ese nombre de usuario ya está en uso');
   }
 
+  private normalizeJewelerPercentage(raw: any): number | undefined {
+    if (raw === undefined || raw === null || raw === '') return undefined;
+    const percentage = Number(raw);
+    if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+      throw new BadRequestException(
+        'El porcentaje del Joyero debe estar entre 0 y 100.',
+      );
+    }
+    return Math.round(percentage * 100) / 100;
+  }
+
   async findAll(tenantId: string) {
     return this.prisma.user.findMany({
       where: { tenantId },
@@ -76,6 +88,14 @@ export class UsersService {
 
     const username = this.normalizeUsername(data.username);
     if (username) await this.assertUsernameFree(username);
+    const jewelerPercentage = this.normalizeJewelerPercentage(
+      data.jewelerPercentage,
+    );
+    if (jewelerPercentage !== undefined && role !== Role.JOYERO) {
+      throw new BadRequestException(
+        'El porcentaje solo puede configurarse para usuarios con rol Joyero.',
+      );
+    }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -87,6 +107,7 @@ export class UsersService {
         name: name || username || undefined,
         passwordHash,
         role: role || Role.TENANT_USER,
+        ...(jewelerPercentage !== undefined ? { jewelerPercentage } : {}),
         tenantId,
       },
       select: USER_SELECT,
@@ -121,6 +142,18 @@ export class UsersService {
     }
 
     const updateData: any = { email, name };
+    const targetRole = role || target.role;
+    const jewelerPercentage = this.normalizeJewelerPercentage(
+      data.jewelerPercentage,
+    );
+    if (jewelerPercentage !== undefined && targetRole !== Role.JOYERO) {
+      throw new BadRequestException(
+        'El porcentaje solo puede configurarse para usuarios con rol Joyero.',
+      );
+    }
+    if (jewelerPercentage !== undefined) {
+      updateData.jewelerPercentage = jewelerPercentage;
+    }
 
     const username = this.normalizeUsername(data.username);
     if (username !== undefined) {

@@ -1,0 +1,2 @@
+ALTER TABLE `User`
+  ADD COLUMN `jewelerPercentage` DECIMAL(5, 2) NOT NULL DEFAULT 100.00;

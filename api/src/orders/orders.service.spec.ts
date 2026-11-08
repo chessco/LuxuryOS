@@ -9,6 +9,9 @@ describe('OrdersService Unit Tests', () => {
   let service: OrdersService;
 
   const mockPrisma = {
+    user: {
+      findFirst: jest.fn(),
+    },
     order: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -57,6 +60,7 @@ describe('OrdersService Unit Tests', () => {
     service = module.get<OrdersService>(OrdersService);
     jest.clearAllMocks();
     mockPrisma.setting.findMany.mockResolvedValue([]);
+    mockPrisma.user.findFirst.mockResolvedValue(null);
     mockNotificationService.sendCustomMessage.mockResolvedValue({
       success: true,
     });

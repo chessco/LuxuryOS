@@ -62,6 +62,45 @@ export class OrdersService {
     private settingsService: SettingsService,
   ) {}
 
+  /**
+   * The payment percentage is copied into the order when a jeweler is
+   * assigned. Reports use that snapshot so historical payouts do not change
+   * when an administrator later updates a jeweler's profile.
+   */
+  private async getJewelerPercentageSnapshot(
+    tenantId: string,
+    jewelerName?: string,
+    jewelerId?: string,
+  ) {
+    const normalizedName = String(jewelerName || '').trim();
+    if (!normalizedName && !jewelerId) return {};
+
+    const jeweler = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        role: 'JOYERO',
+        ...(jewelerId
+          ? { id: jewelerId }
+          : {
+              OR: [
+                { name: normalizedName },
+                { username: normalizedName.toLowerCase() },
+                { email: normalizedName.toLowerCase() },
+              ],
+            }),
+      },
+      select: { id: true, name: true, jewelerPercentage: true },
+    });
+
+    if (!jeweler) return {};
+    return {
+      jewelerId: jeweler.id,
+      assignedJeweler: jeweler.name || normalizedName,
+      jewelerPercentage: Number(jeweler.jewelerPercentage),
+      jewelerPercentageCapturedAt: new Date(),
+    };
+  }
+
   async getBoard(tenantId: string, type?: string) {
     if (type === 'QUOTE') throw new BadRequestException('Las cotizaciones no pertenecen al Kanban');
     const query: any = { tenantId };
@@ -584,11 +623,15 @@ export class OrdersService {
         }))
       : undefined;
 
+    const jewelerPercentageSnapshot = requiresJewelerAssignment
+      ? await this.getJewelerPercentageSnapshot(tenantId, assignedJeweler)
+      : {};
     const specifications = {
       ...(typeof data.specifications === 'object' ? data.specifications : {}),
       orderCode,
       envelopeImages: existingEnvelopeImages,
       ...(updatedItems ? { items: updatedItems } : {}),
+      ...jewelerPercentageSnapshot,
     };
 
     const {
@@ -1221,6 +1264,19 @@ export class OrdersService {
     ) {
       finalSpecifications.readyByName = specs.readyByName;
       finalSpecifications.readyBy = specs.readyBy;
+    }
+
+    const updatedAssignedJeweler =
+      finalSpecifications?.assignedJeweler || finalSpecifications?.assignedTo;
+    if (updatedAssignedJeweler) {
+      const snapshot = await this.getJewelerPercentageSnapshot(
+        tenantId,
+        updatedAssignedJeweler,
+        finalSpecifications?.jewelerId,
+      );
+      if (Object.keys(snapshot).length > 0) {
+        finalSpecifications = { ...finalSpecifications, ...snapshot };
+      }
     }
 
     const updated = await this.prisma.order.update({
@@ -2012,11 +2068,17 @@ Su pieza está lista para entrega en sucursal. Gracias por su preferencia.`;
     const userName = user?.name || user?.email || 'Diseñador';
     const now = new Date();
 
+    const jewelerPercentageSnapshot = await this.getJewelerPercentageSnapshot(
+      tenantId,
+      jewelerName,
+      jewelerId,
+    );
     const updatedSpecs = {
       ...specs,
       assignedTo: jewelerName.trim(),
       assignedJeweler: jewelerName.trim(),
       jewelerId: jewelerId || specs.jewelerId,
+      ...jewelerPercentageSnapshot,
       jewelerAssignedAt: now,
       jewelerAssignedByName: userName,
       jewelerAssignedBy: {
