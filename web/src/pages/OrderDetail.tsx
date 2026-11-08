@@ -1325,12 +1325,12 @@ const OrderDetail: React.FC = () => {
                                         alt={`Sobre / Foto ${idx + 1}`}
                                         onClick={() => setSelectedPhoto(img)}
                                     />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 group-focus-within/img:opacity-100 [@media(hover:none)]:opacity-100 [@media(hover:none)]:bg-transparent transition-opacity flex items-center justify-center [@media(hover:none)]:items-start [@media(hover:none)]:justify-end [@media(hover:none)]:p-2">
+                                    <div className="pointer-events-none absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 group-focus-within/img:opacity-100 [@media(hover:none)]:opacity-100 [@media(hover:none)]:bg-transparent transition-opacity flex items-center justify-center [@media(hover:none)]:items-start [@media(hover:none)]:justify-end [@media(hover:none)]:p-2">
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveEnvelopeImage(idx)}
                                             aria-label={`Eliminar foto ${idx + 1}`}
-                                            className="size-11 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100 group-focus-within/img:scale-100 [@media(hover:none)]:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
+                                            className="pointer-events-auto size-11 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-all scale-75 group-hover/img:scale-100 group-focus-within/img:scale-100 [@media(hover:none)]:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
                                         >
                                             <span className="material-symbols-outlined" aria-hidden="true">delete</span>
                                         </button>
