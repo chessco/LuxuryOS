@@ -975,6 +975,7 @@ const Orders: React.FC = () => {
                         ticketCode={prefillTicketCode}
                         orderType={orderType}
                         isJoyero={isJoyero}
+                        onOpenCamera={(pieceIndex) => setCameraPieceIndex(pieceIndex)}
                     />
                 )}
             </AnimatePresence>
@@ -1058,7 +1059,8 @@ const NewOrderDrawer: React.FC<{
     ticketCode?: string;
     orderType?: string | null;
     isJoyero?: boolean;
-}> = ({ onClose, onSave, clients, clientOptions, onClientCreated, initialClientName, initialClientPhone, ticketCode, orderType, isJoyero }) => {
+    onOpenCamera: (pieceIndex: number) => void;
+}> = ({ onClose, onSave, clients, clientOptions, onClientCreated, initialClientName, initialClientPhone, ticketCode, orderType, isJoyero, onOpenCamera }) => {
     const [showQuickAddClient, setShowQuickAddClient] = useState(false);
     const [newClientData, setNewClientData] = useState({ name: '', phone: '', email: '' });
     const [searchMode, setSearchMode] = useState<'name' | 'phone'>('name');
@@ -2027,7 +2029,7 @@ const NewOrderDrawer: React.FC<{
                                                 <div className="flex items-center gap-1.5 shrink-0">
                                                     <button
                                                         type="button"
-                                                        onClick={() => setCameraPieceIndex(index)}
+                                                        onClick={() => onOpenCamera(index)}
                                                         title="Tomar otra foto con cámara web"
                                                         className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all"
                                                     >
@@ -2047,7 +2049,7 @@ const NewOrderDrawer: React.FC<{
                                             <div className="grid grid-cols-2 gap-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => isAppleMobileDevice() ? document.getElementById(`piece-camera-${index}`)?.click() : setCameraPieceIndex(index)}
+                                                    onClick={() => isAppleMobileDevice() ? document.getElementById(`piece-camera-${index}`)?.click() : onOpenCamera(index)}
                                                     className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-border hover:border-red-500/50 bg-muted/30 hover:bg-muted/60 text-xs font-bold text-muted-foreground hover:text-foreground transition-all active:scale-95"
                                                 >
                                                     <span className="material-symbols-outlined text-base text-red-500">photo_camera</span>

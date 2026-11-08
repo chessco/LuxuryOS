@@ -432,17 +432,9 @@ export const PublicOrderTrack: React.FC = () => {
             </main>
 
             {/* Public Page Footer */}
-            <footer className={isPublicGate ? 'cared-track-footer' : 'w-full max-w-lg mt-auto pt-6 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-cared-line/80'}>
-                {isPublicGate ? (
-                    <>
-                        <img src="/tracking/wolves-outline.png" alt="" draggable={false} />
-                        <p>Joyería · Fabricación · Reparación</p>
-                    </>
-                ) : (
-                    <p className="text-[10px] font-bold text-cared-mute uppercase tracking-widest">
-                        CARED &copy; {new Date().getFullYear()} &bull; Todos los derechos reservados
-                    </p>
-                )}
+            <footer className="cared-track-footer">
+                <img src="/tracking/wolves-outline.png" alt="" draggable={false} />
+                <p>Joyería · Fabricación · Reparación</p>
             </footer>
         </div>
     );
