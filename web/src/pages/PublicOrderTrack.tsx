@@ -291,7 +291,7 @@ export const PublicOrderTrack: React.FC = () => {
                                     order.statusLabel === 'ENTREGADO'
                                         ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                                         : order.statusLabel === 'TERMINADO'
-                                        ? 'bg-black/30 text-cared-gold border-cared-red shadow-[0_0_0_1px_rgba(217,38,38,0.18)]'
+                                        ? 'bg-black/30 text-white border-cared-red shadow-[0_0_0_1px_rgba(217,38,38,0.18)]'
                                         : order.statusLabel === 'LISTO'
                                         ? 'bg-cared-gold/10 text-cared-gold border-cared-gold/30'
                                         : order.statusLabel === 'EN TALLER'
@@ -318,13 +318,13 @@ export const PublicOrderTrack: React.FC = () => {
                                         <div key={idx} className="relative flex items-start gap-4">
                                             {/* Bullet icon indicator */}
                                             <div className={`absolute -left-6 top-0.5 size-6 rounded-full flex items-center justify-center text-xs transition-all ${
-                                                isCurrent
+                                                isDone
+                                                    ? 'bg-cared-red text-white shadow-[0_0_15px_rgba(224,21,32,0.32)] ring-4 ring-cared-red/15 font-black'
+                                                    : isCurrent
                                                     ? 'bg-cared-gold text-black shadow-[0_0_15px_rgba(201,162,75,0.6)] ring-4 ring-cared-gold/20 font-black'
-                                                    : isDone
-                                                    ? 'bg-emerald-500 text-black font-black'
                                                     : 'bg-cared-line text-cared-mute border border-cared-line'
                                             }`}>
-                                                {isDone && !isCurrent ? (
+                                                {isDone ? (
                                                     <span className="material-symbols-outlined text-[14px]">check</span>
                                                 ) : (
                                                     <span className="material-symbols-outlined text-[14px]">{step.icon}</span>
