@@ -895,9 +895,9 @@ export const Reports: React.FC = () => {
 
             {/* Quick Order Detail Modal */}
             {selectedOrder && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-background border border-border rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between border-b border-border pb-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-2 backdrop-blur-sm sm:p-4">
+                    <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl animate-in fade-in zoom-in-95 duration-200 sm:max-h-[calc(100dvh-2rem)]">
+                        <div className="flex shrink-0 items-center justify-between border-b border-border p-5 sm:p-6">
                             <div className="flex items-center gap-3">
                                 <div className="size-10 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
                                     <span className="material-symbols-outlined">receipt</span>
@@ -919,7 +919,7 @@ export const Reports: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="space-y-4 text-xs">
+                        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5 text-xs sm:p-6">
                             {/* Cliente */}
                             <div className="p-3.5 rounded-2xl bg-muted/50 border border-border space-y-1">
                                 <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Cliente</span>
@@ -997,7 +997,7 @@ export const Reports: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="flex justify-end pt-2">
+                        <div className="flex shrink-0 justify-end border-t border-border bg-background/95 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur sm:px-6">
                             <button
                                 onClick={() => setSelectedOrder(null)}
                                 className="px-5 py-2.5 rounded-xl bg-muted text-foreground font-bold text-xs uppercase tracking-wider hover:bg-muted/80 transition-all"
