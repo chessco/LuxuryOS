@@ -1,7 +1,7 @@
 import api from './api';
 
 export type QuoteStatus = 'DRAFT' | 'SENT' | 'AUTHORIZED' | 'CONVERTED' | 'CANCELLED';
-export interface Quote { id: string; quoteCode: string; status: QuoteStatus; clientId: string; client: { name: string; phone?: string }; pieceType: string; notes?: string; totalAmount: number; validUntil?: string; createdAt: string; convertedOrderId?: string; specifications?: Record<string, any>; }
+export interface Quote { id: string; quoteCode: string; status: QuoteStatus; clientId: string; client: { name: string; phone?: string }; pieceType: string; notes?: string; laborCost?: number; materialCost?: number; totalAmount: number; validUntil?: string; createdAt: string; convertedOrderId?: string; specifications?: Record<string, any>; }
 export interface QuotePayload { clientId: string; pieceType: string; notes?: string; laborCost?: number; materialCost?: number; totalAmount: number; validUntil?: string; specifications?: Record<string, unknown>; }
 
 export const QuotesService = {
