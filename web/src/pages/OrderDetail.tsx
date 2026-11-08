@@ -1527,11 +1527,13 @@ const OrderDetail: React.FC = () => {
                 title={`Fotografía de Orden #${formatOrderCode(order)}`}
             />
 
-            <QRScannerModal
-                isOpen={isQRScannerOpen}
-                onClose={() => setIsQRScannerOpen(false)}
-                onOrderUpdated={fetchOrder}
-            />
+            {isQRScannerOpen && (
+                <QRScannerModal
+                    isOpen
+                    onClose={() => setIsQRScannerOpen(false)}
+                    onOrderUpdated={fetchOrder}
+                />
+            )}
 
             {/* Photo Lightbox Modal */}
             {selectedPhoto && (

@@ -20,6 +20,10 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    // Each camera attempt gets its own token. This prevents an in-flight
+    // getUserMedia request from attaching a stale stream after the reader has
+    // been closed or restarted.
+    const cameraRequestRef = useRef(0);
     const isProcessingRef = useRef(false);
     const lastScannedCodeRef = useRef<string>('');
     const lastScannedTimeRef = useRef<number>(0);
@@ -155,6 +159,9 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
 
     // Start iPad/Device Camera
     const startCamera = async () => {
+        // A scanner session must own exactly one camera stream and scan loop.
+        stopCamera();
+        const requestId = cameraRequestRef.current;
         setCameraError(null);
         setIsScanning(true);
         try {
@@ -165,6 +172,12 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                     height: { ideal: 720 }
                 }
             });
+
+            if (requestId !== cameraRequestRef.current) {
+                stream.getTracks().forEach(track => track.stop());
+                return;
+            }
+
             streamRef.current = stream;
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
@@ -180,6 +193,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
     };
 
     const stopCamera = () => {
+        cameraRequestRef.current += 1;
         if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current);
             animationFrameRef.current = null;
@@ -189,6 +203,31 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
             streamRef.current = null;
         }
         setIsScanning(false);
+    };
+
+    const resetScannerSession = () => {
+        setFoundOrder(null);
+        setCameraError(null);
+        setScanError(null);
+        setManualCode('');
+        setIsLoadingOrder(false);
+        setActionMessage(null);
+        setIsPaymentOpen(false);
+        setIsReturnModalOpen(false);
+        setReturnReason('');
+        setIsClientHistoryOpen(false);
+        setIsDelivering(false);
+        setIsReturning(false);
+        setIsSettleModalOpen(false);
+        setSettleMethod('CASH');
+        setSettleNotes('');
+        setIsSettling(false);
+        setIsPaymentsHistoryOpen(false);
+        setPaymentsHistory([]);
+        setIsLoadingPayments(false);
+        isProcessingRef.current = false;
+        lastScannedCodeRef.current = '';
+        lastScannedTimeRef.current = 0;
     };
 
     // Continuous scanning loop
@@ -265,25 +304,24 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
     }, [isOpen, onClose]);
 
     useEffect(() => {
-        if (isOpen && !foundOrder) {
-            startCamera();
-        } else {
+        if (!isOpen) {
             stopCamera();
+            return;
         }
+
+        // Opening the reader is always a new capture session. Do not retain a
+        // prior order, manual entry, errors, modal state, or camera stream.
+        resetScannerSession();
+        void startCamera();
+
         return () => {
             stopCamera();
         };
-    }, [isOpen, foundOrder]);
+    }, [isOpen]);
 
     const handleResetScan = () => {
-        setFoundOrder(null);
-        setActionMessage(null);
-        setScanError(null);
-        setManualCode('');
-        isProcessingRef.current = false;
-        lastScannedCodeRef.current = '';
-        lastScannedTimeRef.current = 0;
-        startCamera();
+        resetScannerSession();
+        void startCamera();
     };
 
     // Quick Status Update Actions

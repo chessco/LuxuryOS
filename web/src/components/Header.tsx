@@ -640,10 +640,12 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                 </div>
             </div>
 
-            <QRScannerModal
-                isOpen={isQRScannerOpen}
-                onClose={() => setIsQRScannerOpen(false)}
-            />
+            {isQRScannerOpen && (
+                <QRScannerModal
+                    isOpen
+                    onClose={() => setIsQRScannerOpen(false)}
+                />
+            )}
         </header>
     );
 };
