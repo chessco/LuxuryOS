@@ -25,11 +25,14 @@ try {
         rm deploy_api_only.tar.gz
 
         
-        echo 'Reconstruyendo contenedor luxury-api-prod...'
-        docker compose -f docker-compose.prod.yml up -d --build api
+        echo 'Construyendo imagen de luxury-api-prod...'
+        docker compose --env-file .env.prod -f docker-compose.prod.yml build api
         
-        echo 'Actualizando base de datos...'
-        docker exec -u root luxury-api-prod npx prisma db push
+        echo 'Aplicando migraciones versionadas...'
+        docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm --no-deps api npx prisma migrate deploy
+
+        echo 'Iniciando luxury-api-prod...'
+        docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-deps api
         
         echo 'Esperando inicialización (5s)...'
         sleep 5

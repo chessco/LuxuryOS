@@ -40,13 +40,16 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            echo "[2/4] Reconstruyendo contenedor luxury-api-prod..."
-            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build --no-deps api
+            echo "[2/5] Construyendo la imagen de API..."
+            docker compose --env-file .env.prod -f docker-compose.prod.yml build api
 
-            echo "[3/4] Sincronizando esquema de base de datos..."
-            docker exec -u root luxury-api-prod npx prisma db push
+            echo "[3/5] Aplicando únicamente migraciones versionadas..."
+            docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm --no-deps api npx prisma migrate deploy
 
-            echo "[4/4] Verificando estado..."
+            echo "[4/5] Reiniciando luxury-api-prod con la imagen validada..."
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-deps api
+
+            echo "[5/5] Verificando estado..."
             sleep 5
             docker ps --filter name=luxury-api-prod
             docker logs --tail 20 luxury-api-prod

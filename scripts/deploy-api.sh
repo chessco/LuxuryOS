@@ -18,10 +18,15 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
-# Build and restart API service (Isolated)
-echo "📦 Building and restarting API service..."
-docker compose -f docker-compose.prod.yml build api
-docker compose -f docker-compose.prod.yml up -d api
+# Build, migrate, and restart API service without schema pushes.
+echo "📦 Building API image..."
+docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml build api
+
+echo "🗃️ Applying versioned Prisma migrations..."
+docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml run --rm --no-deps api npx prisma migrate deploy
+
+echo "🔄 Restarting API service..."
+docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml up -d --no-deps api
 
 # Clean up unused images
 echo "🧹 Cleaning up old images..."

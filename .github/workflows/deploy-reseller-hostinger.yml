@@ -1,0 +1,48 @@
+name: Deploy Revendedores to Hostinger
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'reseller-web/**'
+      - '.github/workflows/deploy-reseller-hostinger.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-revendedores-hostinger
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and upload Revendedores
+    runs-on: ubuntu-latest
+    if: vars.RESELLER_DEPLOY_ENABLED == 'true'
+    defaults:
+      run:
+        working-directory: reseller-web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: reseller-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: https://luxury-api.pitayacode.io
+
+      - name: Upload to Hostinger (SFTP)
+        run: npm run deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.RESELLER_DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.RESELLER_DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.RESELLER_DEPLOY_USER }}
+          DEPLOY_PASSWORD: ${{ secrets.RESELLER_DEPLOY_PASSWORD }}
+          DEPLOY_REMOTE_PATH: ${{ secrets.RESELLER_DEPLOY_REMOTE_PATH }}
