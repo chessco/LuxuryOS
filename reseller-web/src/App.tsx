@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   errorMessage,
   getResellerCatalog,
@@ -75,8 +75,22 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: (profile: ResellerPro
   );
 }
 
-function CatalogCard({ item }: { item: ResellerCatalogItem }) {
-  const isAvailable = item.availableQuantity > 0;
+type CartLine = {
+  item: ResellerCatalogItem;
+  quantity: number;
+};
+
+function CatalogCard({
+  item,
+  quantityInCart,
+  onAdd,
+}: {
+  item: ResellerCatalogItem;
+  quantityInCart: number;
+  onAdd: (item: ResellerCatalogItem) => void;
+}) {
+  const availableForCart = Math.max(0, item.availableQuantity - quantityInCart);
+  const isAvailable = availableForCart > 0;
   return (
     <article className="catalog-card">
       <div className="product-art" aria-hidden="true">
@@ -89,9 +103,17 @@ function CatalogCard({ item }: { item: ResellerCatalogItem }) {
         <div className="catalog-meta">
           <strong>{currency(item.unitPrice, item.currency)}</strong>
           <span className={isAvailable ? 'stock available' : 'stock'}>
-            {isAvailable ? `${item.availableQuantity} disponible${item.availableQuantity === 1 ? '' : 's'}` : 'Sin disponibilidad'}
+            {isAvailable ? `${availableForCart} disponible${availableForCart === 1 ? '' : 's'}` : 'Sin disponibilidad'}
           </span>
         </div>
+        <button
+          type="button"
+          className="add-to-cart"
+          onClick={() => onAdd(item)}
+          disabled={!isAvailable}
+        >
+          {isAvailable ? 'Agregar a la venta' : 'No disponible'}
+        </button>
       </div>
     </article>
   );
@@ -101,6 +123,9 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
   const [items, setItems] = useState<ResellerCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
 
   const loadCatalog = useCallback(async () => {
     setLoading(true);
@@ -119,6 +144,51 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
     void loadCatalog();
   }, [loadCatalog]);
 
+  const cartQuantity = useCallback(
+    (productId: string) => cart.find((line) => line.item.id === productId)?.quantity || 0,
+    [cart],
+  );
+
+  const addToCart = useCallback((item: ResellerCatalogItem) => {
+    setCheckoutNotice(null);
+    setCart((current) => {
+      const existing = current.find((line) => line.item.id === item.id);
+      if (!existing) return [...current, { item, quantity: 1 }];
+      if (existing.quantity >= item.availableQuantity) return current;
+      return current.map((line) =>
+        line.item.id === item.id ? { ...line, quantity: line.quantity + 1 } : line,
+      );
+    });
+  }, []);
+
+  const updateQuantity = useCallback((productId: string, nextQuantity: number) => {
+    setCheckoutNotice(null);
+    setCart((current) =>
+      current.flatMap((line) => {
+        if (line.item.id !== productId) return [line];
+        if (nextQuantity <= 0) return [];
+        return [{ ...line, quantity: Math.min(nextQuantity, line.item.availableQuantity) }];
+      }),
+    );
+  }, []);
+
+  const filteredItems = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase('es-MX');
+    if (!normalized) return items;
+    return items.filter((item) =>
+      [item.name, item.sku, item.category, item.description]
+        .filter(Boolean)
+        .some((value) => value!.toLocaleLowerCase('es-MX').includes(normalized)),
+    );
+  }, [items, query]);
+
+  const cartTotal = useMemo(
+    () => cart.reduce((total, line) => total + line.item.unitPrice * line.quantity, 0),
+    [cart],
+  );
+
+  const cartCurrency = cart[0]?.item.currency || 'MXN';
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -135,22 +205,99 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
         <div>
           <p className="eyebrow">CATÁLOGO</p>
           <h2>Piezas disponibles para vender</h2>
-          <p>Los precios y existencias provienen directamente de LuxuryOS.</p>
+          <p>Precios y existencias sincronizados directamente con LuxuryOS.</p>
         </div>
-        <button type="button" className="secondary" onClick={() => void loadCatalog()} disabled={loading}>
-          Actualizar catálogo
-        </button>
+        <div className="hero-actions">
+          <span className="channel-badge">Canal Revendedores</span>
+          <button type="button" className="secondary" onClick={() => void loadCatalog()} disabled={loading}>
+            Actualizar catálogo
+          </button>
+        </div>
       </section>
       {error && <p className="form-error catalog-error" role="alert">{error}</p>}
-      {loading ? (
-        <p className="empty-state">Cargando catálogo…</p>
-      ) : items.length === 0 ? (
-        <p className="empty-state">No hay piezas habilitadas para Revendedores todavía.</p>
-      ) : (
-        <section className="catalog-grid" aria-label="Catálogo disponible">
-          {items.map((item) => <CatalogCard key={item.id} item={item} />)}
+      <div className="sales-workspace">
+        <section className="catalog-workspace" aria-label="Catálogo disponible">
+          <div className="catalog-toolbar">
+            <label className="search-field">
+              <span>Buscar por pieza, SKU o categoría</span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Ej. anillo, RNG-001"
+              />
+            </label>
+            <p>{filteredItems.length} {filteredItems.length === 1 ? 'pieza disponible' : 'piezas disponibles'}</p>
+          </div>
+          {loading ? (
+            <p className="empty-state">Cargando catálogo…</p>
+          ) : items.length === 0 ? (
+            <p className="empty-state">No hay piezas habilitadas para Revendedores todavía.</p>
+          ) : filteredItems.length === 0 ? (
+            <p className="empty-state">No encontramos piezas que coincidan con tu búsqueda.</p>
+          ) : (
+            <section className="catalog-grid">
+              {filteredItems.map((item) => (
+                <CatalogCard
+                  key={item.id}
+                  item={item}
+                  quantityInCart={cartQuantity(item.id)}
+                  onAdd={addToCart}
+                />
+              ))}
+            </section>
+          )}
         </section>
-      )}
+
+        <aside className="cart-panel" aria-label="Venta en preparación">
+          <div className="cart-heading">
+            <div>
+              <p className="eyebrow">VENTA EN PREPARACIÓN</p>
+              <h2>Carrito</h2>
+            </div>
+            <span>{cart.reduce((count, line) => count + line.quantity, 0)} piezas</span>
+          </div>
+          {cart.length === 0 ? (
+            <p className="cart-empty">Agrega las piezas que desea comprar tu cliente. La disponibilidad se valida antes del cobro.</p>
+          ) : (
+            <div className="cart-lines">
+              {cart.map((line) => (
+                <article className="cart-line" key={line.item.id}>
+                  <div>
+                    <p className="sku">{line.item.sku}</p>
+                    <h3>{line.item.name}</h3>
+                    <strong>{currency(line.item.unitPrice * line.quantity, line.item.currency)}</strong>
+                  </div>
+                  <div className="quantity-stepper" aria-label={`Cantidad de ${line.item.name}`}>
+                    <button type="button" onClick={() => updateQuantity(line.item.id, line.quantity - 1)} aria-label={`Quitar una ${line.item.name}`}>−</button>
+                    <span>{line.quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(line.item.id, line.quantity + 1)}
+                      disabled={line.quantity >= line.item.availableQuantity}
+                      aria-label={`Agregar una ${line.item.name}`}
+                    >+
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+          <div className="cart-total">
+            <span>Total estimado</span>
+            <strong>{currency(cartTotal, cartCurrency)}</strong>
+          </div>
+          {checkoutNotice && <p className="checkout-notice" role="status">{checkoutNotice}</p>}
+          <button
+            type="button"
+            className="checkout-button"
+            disabled={cart.length === 0}
+            onClick={() => setCheckoutNotice('El cobro será procesado por Cared. El checkout transaccional se habilitará en el siguiente bloque.')}
+          >
+            Preparar cobro con Cared
+          </button>
+          <p className="cart-disclaimer">El total es informativo hasta que Cared confirme el pago y LuxuryOS reserve el inventario.</p>
+        </aside>
+      </div>
     </main>
   );
 }
