@@ -22,12 +22,12 @@ const themeOptions = [
   { id: 'notion', name: 'Notion', description: 'Minimalista' },
 ] as const;
 
-function ThemeSelector() {
+function ThemeSelector({ compact = false }: { compact?: boolean }) {
   const { variant, mode, setVariant, toggleMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="theme-selector">
+    <div className={compact ? 'theme-selector compact-theme-selector' : 'theme-selector'}>
       <button
         type="button"
         className="theme-trigger"
@@ -71,6 +71,118 @@ function ThemeSelector() {
         </div>
       )}
     </div>
+  );
+}
+
+function ResellerNavigation({
+  profile,
+  itemCount,
+  onSignOut,
+}: {
+  profile: ResellerProfile;
+  itemCount: number;
+  onSignOut: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const initials = (profile.name || profile.role || 'R')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+  const navigateTo = (targetId: string) => {
+    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setIsOpen(false);
+  };
+
+  return (
+    <aside className="reseller-navigation" aria-label="Navegación de Revendedores">
+      <div className="nav-rail">
+        <button
+          type="button"
+          className="nav-rail-button menu-toggle"
+          aria-label="Abrir menú"
+          aria-expanded={isOpen}
+          aria-controls="reseller-menu"
+          onClick={() => setIsOpen((open) => !open)}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">menu</span>
+        </button>
+        <button type="button" className="nav-rail-brand" onClick={() => navigateTo('reseller-catalog')} aria-label="Ir al catálogo">
+          C
+        </button>
+        <nav className="nav-rail-links" aria-label="Accesos rápidos">
+          <button type="button" className="nav-rail-button active" onClick={() => navigateTo('reseller-dashboard')} aria-label="Panel" title="Panel">
+            <span className="material-symbols-outlined" aria-hidden="true">dashboard</span>
+          </button>
+          <button type="button" className="nav-rail-button" onClick={() => navigateTo('reseller-catalog')} aria-label="Catálogo" title="Catálogo">
+            <span className="material-symbols-outlined" aria-hidden="true">grid_view</span>
+          </button>
+          <button type="button" className="nav-rail-button" onClick={() => navigateTo('reseller-cart')} aria-label="Venta en preparación" title="Venta en preparación">
+            <span className="material-symbols-outlined" aria-hidden="true">shopping_bag</span>
+            {itemCount > 0 && <span className="nav-count">{itemCount}</span>}
+          </button>
+        </nav>
+        <div className="nav-rail-bottom">
+          <ThemeSelector compact />
+          <button type="button" className="nav-rail-button" onClick={onSignOut} aria-label="Cerrar sesión" title="Salir">
+            <span className="material-symbols-outlined" aria-hidden="true">logout</span>
+          </button>
+        </div>
+      </div>
+
+      {isOpen && (
+        <>
+          <button type="button" className="nav-backdrop" aria-label="Cerrar menú" onClick={() => setIsOpen(false)} />
+          <section id="reseller-menu" className="nav-drawer" aria-label="Menú de Revendedores">
+            <header className="nav-drawer-header">
+              <div>
+                <p className="nav-logo">CARED</p>
+                <p className="nav-drawer-subtitle">REVENDEDORES</p>
+              </div>
+              <button type="button" className="drawer-close" onClick={() => setIsOpen(false)} aria-label="Cerrar menú">
+                <span className="material-symbols-outlined" aria-hidden="true">close</span>
+              </button>
+            </header>
+            <nav className="nav-drawer-content">
+              <p className="nav-section-label">Principal</p>
+              <button type="button" className="nav-menu-item active" onClick={() => navigateTo('reseller-dashboard')}>
+                <span className="material-symbols-outlined" aria-hidden="true">dashboard</span>
+                Panel
+              </button>
+              <button type="button" className="nav-menu-item" onClick={() => navigateTo('reseller-catalog')}>
+                <span className="material-symbols-outlined" aria-hidden="true">grid_view</span>
+                Catálogo
+              </button>
+              <button type="button" className="nav-menu-item" onClick={() => navigateTo('reseller-cart')}>
+                <span className="material-symbols-outlined" aria-hidden="true">shopping_bag</span>
+                Venta en preparación
+                {itemCount > 0 && <span className="drawer-count">{itemCount}</span>}
+              </button>
+              <p className="nav-section-label">Operación</p>
+              <button type="button" className="nav-menu-item pending" disabled>
+                <span className="material-symbols-outlined" aria-hidden="true">receipt_long</span>
+                Mis ventas
+                <small>Próximamente</small>
+              </button>
+            </nav>
+            <footer className="nav-drawer-footer">
+              <ThemeSelector />
+              <button type="button" className="reseller-profile" onClick={onSignOut}>
+                <span className="profile-initials">{initials}</span>
+                <span>
+                  <strong>{profile.name || 'Revendedor'}</strong>
+                  <small>Salir de la sesión</small>
+                </span>
+                <span className="material-symbols-outlined" aria-hidden="true">logout</span>
+              </button>
+            </footer>
+          </section>
+        </>
+      )}
+    </aside>
   );
 }
 
@@ -254,21 +366,42 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
   const cartCurrency = cart[0]?.item.currency || 'MXN';
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
+    <div className="reseller-layout">
+      <ResellerNavigation
+        profile={profile}
+        itemCount={cart.reduce((count, line) => count + line.quantity, 0)}
+        onSignOut={onSignOut}
+      />
+      <main className="app-shell">
+      <header id="reseller-dashboard" className="topbar">
         <div className="topbar-brand">
           <p className="eyebrow">CARED</p>
           <h1>Revendedores</h1>
         </div>
         <div className="account">
-          <ThemeSelector />
           <span className="account-name">{profile.name || profile.role}</span>
-          <button type="button" className="secondary sign-out" onClick={onSignOut}>
-            <span className="material-symbols-outlined" aria-hidden="true">logout</span>
-            Salir
-          </button>
         </div>
       </header>
+      <section className="dashboard-overview" aria-labelledby="dashboard-title">
+        <div>
+          <p className="eyebrow">PANEL</p>
+          <h2 id="dashboard-title">Resumen de hoy</h2>
+        </div>
+        <div className="dashboard-metrics">
+          <article>
+            <span className="material-symbols-outlined" aria-hidden="true">grid_view</span>
+            <div><strong>{items.length}</strong><p>Piezas en catálogo</p></div>
+          </article>
+          <article>
+            <span className="material-symbols-outlined" aria-hidden="true">shopping_bag</span>
+            <div><strong>{cart.reduce((count, line) => count + line.quantity, 0)}</strong><p>Piezas en preparación</p></div>
+          </article>
+          <article>
+            <span className="material-symbols-outlined" aria-hidden="true">payments</span>
+            <div><strong>{currency(cartTotal, cartCurrency)}</strong><p>Total estimado</p></div>
+          </article>
+        </div>
+      </section>
       <section className="hero">
         <div>
           <p className="eyebrow">CATÁLOGO</p>
@@ -285,7 +418,7 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
       </section>
       {error && <p className="form-error catalog-error" role="alert">{error}</p>}
       <div className="sales-workspace">
-        <section className="catalog-workspace" aria-label="Catálogo disponible">
+        <section id="reseller-catalog" className="catalog-workspace" aria-label="Catálogo disponible">
           <div className="catalog-toolbar">
             <label className="search-field">
               <span>Buscar por pieza, SKU o categoría</span>
@@ -317,7 +450,7 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
           )}
         </section>
 
-        <aside className="cart-panel" aria-label="Venta en preparación">
+        <aside id="reseller-cart" className="cart-panel" aria-label="Venta en preparación">
           <div className="cart-heading">
             <div>
               <p className="eyebrow">VENTA EN PREPARACIÓN</p>
@@ -368,7 +501,8 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
           <p className="cart-disclaimer">El total es informativo hasta que Cared confirme el pago y LuxuryOS reserve el inventario.</p>
         </aside>
       </div>
-    </main>
+      </main>
+    </div>
   );
 }
 
