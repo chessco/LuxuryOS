@@ -39,3 +39,37 @@
 - La validación debe existir en `NewOrderDrawer` y en `api/src/orders/orders.service.ts`; nunca depender sólo del frontend.
 - Al pulsar guardar sin Joyero, mostrar un mensaje visible y desplazar/enfocar el campo `assigned-jeweler`; no dejar el botón sin respuesta.
 - Diseño mantiene su flujo separado de asignación de diseñador y las ventas no requieren Joyero.
+
+## Impresión de etiquetas Brother QL-810W en iPad
+
+### Regla crítica de AirPrint
+- No alterar el flujo Apple/AirPrint de `web/src/components/orders/LabelPrintModal.tsx` sin autorización explícita del usuario.
+- En iPad/iPhone está prohibido imprimir la página de LuxuryOS mediante `window.print()`.
+- La etiqueta debe renderizarse con `html2canvas` y generarse como PDF con `jsPDF`.
+- El PDF debe medir exactamente 62 mm de ancho y conservar escala de impresión de 100%.
+- `window.open()` debe ejecutarse directamente desde el botón **Imprimir**, dentro del gesto del usuario.
+- La impresión automática del `useEffect` debe omitirse en dispositivos Apple móviles.
+- No sustituir este flujo por CSS `@page`, un portal HTML o `window.location.assign()`.
+- El flujo de Windows/Chrome mediante iframe debe conservarse.
+
+### Verificación obligatoria
+Antes de aceptar o publicar cambios relacionados con etiquetas, ejecutar desde `web`:
+
+```bash
+npm test
+npm run build
+```
+
+La prueba `web/tests/label-print-airprint.test.cjs` debe continuar pasando. Si una tarea exige cambiar cualquiera de estas garantías, el agente debe detenerse y solicitar autorización explícita.
+
+## Documento de inicio del POS de revendedores
+
+Para cualquier tarea relacionada con el POS de revendedores, leer también:
+
+`docs/RESELLER_POS_AGENT_START.md`
+
+Ese documento define la arquitectura, límites de datos, estructura objetivo, fases del MVP y criterios de aceptación del nuevo módulo.
+
+## Conservación del stack de LuxuryOS
+
+Todo desarrollo nuevo debe mantener el stack existente: NestJS + TypeScript + Prisma + MySQL 8 en backend, y Vite + React + TypeScript en frontend. Next.js pertenece al proyecto externo ProBuyer, no a LuxuryOS. No introducir Next.js, otro framework backend, PostgreSQL ni plataformas comerciales externas para módulos de LuxuryOS sin autorización explícita.

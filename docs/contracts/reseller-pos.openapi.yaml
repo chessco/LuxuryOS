@@ -1,0 +1,168 @@
+openapi: 3.1.0
+info:
+  title: LuxuryOS Reseller POS API
+  version: 0.1.0
+  description: >-
+    Canonical HTTP contract for the Revendedores frontend. The provider is the
+    LuxuryOS NestJS API and all data is scoped to the authenticated tenant.
+servers:
+  - url: /
+    description: API base URL configured per environment through VITE_API_URL.
+security:
+  - bearerAuth: []
+paths:
+  /reseller/profile:
+    get:
+      operationId: getResellerProfile
+      summary: Gets the authenticated reseller context.
+      responses:
+        '200':
+          description: Authenticated reseller context.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResellerProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /reseller/catalog:
+    get:
+      operationId: getResellerCatalog
+      summary: Lists active products available to the authenticated reseller tenant.
+      responses:
+        '200':
+          description: Products safe to offer through Revendedores.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResellerCatalog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createResellerCatalogProduct
+      summary: Adds a product to the tenant catalog.
+      description: Available only to tenant administrators; system administrators are allowed by the API role policy.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommerceProduct'
+      responses:
+        '201':
+          description: Product added to the catalog.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResellerCatalogItem'
+        '400':
+          description: The request failed validation.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: The tenant already owns the submitted SKU.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthorized:
+      description: A valid bearer token is required.
+    Forbidden:
+      description: The authenticated user is not a reseller or tenant administrator.
+  schemas:
+    ResellerProfile:
+      type: object
+      additionalProperties: false
+      required: [id, name, tenantId, role, salesChannel]
+      properties:
+        id:
+          type: string
+        name:
+          type: [string, 'null']
+        tenantId:
+          type: string
+        role:
+          type: string
+          enum: [REVENDEDOR, TENANT_ADMIN, SYSTEM_ADMIN]
+        salesChannel:
+          type: string
+          const: RESELLER_POS
+    ResellerCatalog:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResellerCatalogItem'
+    ResellerCatalogItem:
+      type: object
+      additionalProperties: false
+      required:
+        [id, sku, name, description, category, imageUrl, unitPrice, currency, availableQuantity]
+      properties:
+        id:
+          type: string
+        sku:
+          type: string
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        category:
+          type: [string, 'null']
+        imageUrl:
+          type: [string, 'null']
+          format: uri
+        unitPrice:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        availableQuantity:
+          type: integer
+          minimum: 0
+    CreateCommerceProduct:
+      type: object
+      additionalProperties: false
+      required: [sku, name, unitPrice, stockOnHand]
+      properties:
+        sku:
+          type: string
+          minLength: 1
+          maxLength: 80
+        name:
+          type: string
+          minLength: 1
+          maxLength: 191
+        description:
+          type: string
+          maxLength: 10000
+        category:
+          type: string
+          maxLength: 120
+        imageUrl:
+          type: string
+          maxLength: 10000
+        unitPrice:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          pattern: '^[A-Za-z]{3}$'
+        stockOnHand:
+          type: integer
+          minimum: 0
+        availableToResellers:
+          type: boolean

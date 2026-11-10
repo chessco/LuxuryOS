@@ -12,6 +12,7 @@ import { ChatModule } from './chat/chat.module';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
 import { AiModule } from './ai/ai.module';
+import { ResellerPosModule } from './reseller-pos/reseller-pos.module';
 import { QuotesModule } from './quotes/quotes.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { QuotesModule } from './quotes/quotes.module';
     SettingsModule,
     AiModule,
     QuotesModule,
+    ResellerPosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
