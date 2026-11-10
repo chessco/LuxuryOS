@@ -6,22 +6,19 @@ Los flujos de API aplican exclusivamente `prisma migrate deploy`. Está prohibid
 
 El orden del pipeline es: construir la imagen, aplicar migraciones versionadas con un contenedor temporal, iniciar la nueva API y revisar los logs. La migración inicial de Revendedores es aditiva y no toca órdenes ni pagos de joyería.
 
-## Hostinger
+## Hetzner y Nginx Proxy Manager
 
-El workflow reutiliza las credenciales existentes de Hostinger:
+El frontend se construye como el contenedor `luxury-reseller-web-prod` en Hetzner. No usa Hostinger ni credenciales SFTP. El workflow `deploy-reseller-hetzner.yml` reutiliza los secretos SSH ya existentes de Hetzner y publica una imagen Nginx estática dentro de la red Docker `pitaya_net`.
 
-- `DEPLOY_HOST`
-- `DEPLOY_PORT`
-- `DEPLOY_USER`
-- `DEPLOY_PASSWORD`
+En Nginx Proxy Manager crear un **Proxy Host**:
 
-Solo requiere agregar la variable de repositorio `RESELLER_DEPLOY_REMOTE_PATH` con el document root del subdominio; no es una credencial.
+- Domain Names: `revendedor.pitayacode.io`
+- Scheme: `http`
+- Forward Hostname/IP: `luxury-reseller-web-prod`
+- Forward Port: `80`
+- SSL: solicitar certificado Let's Encrypt y activar **Force SSL**.
 
-Además, configurar la variable de repositorio `RESELLER_DEPLOY_ENABLED=true`. Hasta entonces el workflow se omite deliberadamente en cada push a `main`; puede ejecutarse manualmente después de configurar Hostinger.
-
-`RESELLER_DEPLOY_REMOTE_PATH` debe ser el document root específico del subdominio, nunca el de `luxuryos.pitayacode.io`.
-
-El workflow `deploy-reseller-hostinger.yml` usa `VITE_API_URL=https://luxury-api.pitayacode.io` y publica solo `reseller-web/dist`.
+El DNS de `revendedor.pitayacode.io` debe apuntar a Hetzner. El frontend usa `https://luxury-api.pitayacode.io` para el API; no necesita un proxy `/api` adicional.
 
 ## Verificación posterior
 

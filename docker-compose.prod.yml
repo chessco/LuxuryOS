@@ -44,6 +44,17 @@ services:
     networks:
       - pitaya_net
 
+  reseller-web:
+    build:
+      context: ./reseller-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://luxury-api.pitayacode.io
+    container_name: luxury-reseller-web-prod
+    restart: always
+    networks:
+      - pitaya_net
+
 networks:
   pitaya_net:
     external: true

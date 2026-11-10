@@ -1,0 +1,37 @@
+name: Deploy Revendedores to Hetzner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'reseller-web/**'
+      - 'docker-compose.prod.yml'
+      - '.github/workflows/deploy-reseller-hetzner.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-revendedores-hetzner
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy reseller web (luxury-reseller-web-prod)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          port: ${{ secrets.HETZNER_PORT || 22 }}
+          script_stop: true
+          script: |
+            cd /opt/pitaya/luxuryos
+            git fetch origin main
+            git reset --hard origin/main
+            docker compose --env-file .env.prod -f docker-compose.prod.yml build reseller-web
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-deps reseller-web
+            docker ps --filter name=luxury-reseller-web-prod
+            docker exec luxury-reseller-web-prod wget -q --spider http://127.0.0.1/
