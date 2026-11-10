@@ -15,7 +15,7 @@ El workflow reutiliza las credenciales existentes de Hostinger:
 - `DEPLOY_USER`
 - `DEPLOY_PASSWORD`
 
-Solo requiere agregar `RESELLER_DEPLOY_REMOTE_PATH` con el document root del subdominio.
+Solo requiere agregar la variable de repositorio `RESELLER_DEPLOY_REMOTE_PATH` con el document root del subdominio; no es una credencial.
 
 Además, configurar la variable de repositorio `RESELLER_DEPLOY_ENABLED=true`. Hasta entonces el workflow se omite deliberadamente en cada push a `main`; puede ejecutarse manualmente después de configurar Hostinger.
 

@@ -45,4 +45,4 @@ jobs:
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
-          DEPLOY_REMOTE_PATH: ${{ secrets.RESELLER_DEPLOY_REMOTE_PATH }}
+          DEPLOY_REMOTE_PATH: ${{ vars.RESELLER_DEPLOY_REMOTE_PATH }}
