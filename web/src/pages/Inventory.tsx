@@ -1,358 +1,162 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    CreateInventoryArticleInput,
+    InventoryArticle,
+    InventoryAvailabilityStatus,
+    InventoryResponse,
+    InventoryService,
+} from '../services/inventory.service';
 
-// Inline types and mock data to remove dependency on external file for now
-interface ItemMock {
-    id: string;
-    sku: string;
-    name: string;
-    detail: string;
-    type: string;
-    location: string;
-    quantity: number;
-    value: string;
-    cost: string;
-    icon: string;
-    color: string;
-    alert?: boolean;
-}
-
-const MOCK_INVENTORY_DATA: Record<string, ItemMock> = {
-    "101": { id: "101", sku: "RNG-DIA-001", name: "Anillo Diamante Solitario", detail: "Platino 950, 2.01ct", type: "Joyería", location: "Bóveda Principal", quantity: 3, value: "$150,000", cost: "$85,000", icon: "diamond", color: "text-zinc-400" },
-    "102": { id: "102", sku: "WCH-RLX-002", name: "Reloj Oyster Perpetual", detail: "Acero, 41mm, Azul", type: "Relojería", location: "Vitrina 1", quantity: 1, value: "$220,000", cost: "$180,000", icon: "watch", color: "text-zinc-400" },
-    "103": { id: "103", sku: "GEM-RUB-003", name: "Rubí Sangre de Pichón", detail: "3.5ct, Sin Tratamiento", type: "Gemas", location: "Caja Fuerte", quantity: 5, value: "$85,000", cost: "$40,000", icon: "diamond", color: "text-red-400" },
-    "104": { id: "104", sku: "BRA-GLD-004", name: "Brazalete Tennis", detail: "Oro Blanco 18k, 5ctw", type: "Joyería", location: "Vitrina 2", quantity: 2, value: "$95,000", cost: "$55,000", icon: "stars", color: "text-zinc-400", alert: true },
+const labels: Record<InventoryAvailabilityStatus, string> = {
+    AVAILABLE: 'Disponible', LOW_STOCK: 'Stock bajo', RESERVED: 'Reservado', OUT_OF_STOCK: 'Agotado',
 };
 
-const InventoryPage: React.FC = () => {
-    // --- CRUD State ---
-    const [items, setItems] = useState<Record<string, ItemMock>>(MOCK_INVENTORY_DATA);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState<ItemMock | null>(null);
+const emptyArticle: CreateInventoryArticleInput = {
+    sku: '', name: '', description: '', category: '', imageUrl: '', unitPrice: 0,
+    currency: 'MXN', stockOnHand: 1, availableToResellers: true,
+};
 
-    // --- Actions ---
-    const handleDelete = (id: string) => {
-        if (window.confirm('¿Estás seguro de eliminar este artículo del inventario?')) {
-            const newItems = { ...items };
-            delete newItems[id];
-            setItems(newItems);
+const money = (value: number, currency = 'MXN') => new Intl.NumberFormat('es-MX', {
+    style: 'currency', currency, maximumFractionDigits: 2,
+}).format(value);
+
+const errorText = (error: unknown) => {
+    const message = (error as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message;
+    return Array.isArray(message) ? message.join(', ') : message || 'No se pudo completar la operación.';
+};
+
+const statusClass = (status: InventoryAvailabilityStatus) => ({
+    AVAILABLE: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
+    LOW_STOCK: 'text-red-600 dark:text-red-400 border-red-500/30 bg-red-500/10',
+    RESERVED: 'text-blue-600 dark:text-blue-400 border-blue-500/30 bg-blue-500/10',
+    OUT_OF_STOCK: 'text-muted-foreground border-border bg-muted/50',
+}[status]);
+
+const InventoryPage = () => {
+    const [data, setData] = useState<InventoryResponse | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [query, setQuery] = useState('');
+    const [status, setStatus] = useState<'ALL' | InventoryAvailabilityStatus>('ALL');
+    const [category, setCategory] = useState('ALL');
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+    const reload = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            setData(await InventoryService.list());
+        } catch (requestError) {
+            setError(errorText(requestError));
+        } finally {
+            setLoading(false);
         }
-    };
+    }, []);
 
-    const handleSave = (itemData: Partial<ItemMock>) => {
-        if (editingItem) {
-            // Edit
-            setItems(prev => ({
-                ...prev,
-                [editingItem.id]: { ...editingItem, ...itemData } as ItemMock
-            }));
-        } else {
-            // Create
-            const id = Math.floor(Math.random() * 10000).toString();
-            const newItem: ItemMock = {
-                id,
-                sku: itemData.sku || `NEW-${id}`,
-                name: itemData.name || 'Nuevo Artículo',
-                detail: itemData.detail || '',
-                type: itemData.type || 'Joyería',
-                location: itemData.location || 'Bodega',
-                quantity: itemData.quantity || 0,
-                value: itemData.value || '0 MXN',
-                cost: itemData.cost || '0 MXN',
-                icon: itemData.icon || 'diamond',
-                color: 'text-zinc-400',
-                ...itemData
-            } as ItemMock;
-            setItems(prev => ({ ...prev, [id]: newItem }));
-        }
-        setIsModalOpen(false);
-        setEditingItem(null);
-    };
+    useEffect(() => { void reload(); }, [reload]);
 
-    const openModal = (item?: ItemMock) => {
-        setEditingItem(item || null);
-        setIsModalOpen(true);
-    };
+    const categories = useMemo(() => Array.from(new Set(
+        (data?.items || []).map((item) => item.category).filter((value): value is string => Boolean(value)),
+    )).sort((a, b) => a.localeCompare(b, 'es-MX')), [data]);
+
+    const rows = useMemo(() => {
+        const normalized = query.trim().toLocaleLowerCase('es-MX');
+        return (data?.items || []).filter((item) => {
+            if (status !== 'ALL' && item.availabilityStatus !== status) return false;
+            if (category !== 'ALL' && item.category !== category) return false;
+            return !normalized || [item.sku, item.name, item.category].filter(Boolean)
+                .some((value) => value!.toLocaleLowerCase('es-MX').includes(normalized));
+        });
+    }, [category, data, query, status]);
+
+    const commercialValue = useMemo(() => (data?.items || [])
+        .reduce((total, item) => total + item.unitPrice * item.stockOnHand, 0), [data]);
 
     return (
         <div className="flex-1 flex flex-col items-center max-w-[1400px] mx-auto w-full">
             <div className="w-full flex flex-col gap-8">
-                {/* Heading */}
-                <div className="flex flex-col lg:flex-row flex-wrap justify-between gap-6 items-start lg:items-end">
+                <header className="flex flex-col lg:flex-row flex-wrap justify-between gap-6 items-start lg:items-end">
                     <div className="flex flex-col gap-3 max-w-2xl">
-                        <h1 className="text-foreground text-4xl font-black tracking-tight font-display transition-colors">Inventario</h1>
-                        <p className="text-muted-foreground text-sm font-medium transition-colors">Control de existencias, ubicación y valoración de piezas de lujo.</p>
+                        <p className="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Operación Cared</p>
+                        <h1 className="text-foreground text-4xl font-black tracking-tight font-display">Inventario</h1>
+                        <p className="text-muted-foreground text-sm font-medium">Administra los artículos y existencias que Cared habilita para Revendedores.</p>
                     </div>
-                    <button
-                        onClick={() => openModal()}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-foreground text-background transition-all h-12 px-8 text-xs font-black uppercase tracking-[0.2em] shadow-xl active:scale-95"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">add</span>
-                        <span>Nuevo Artículo</span>
+                    <button type="button" onClick={() => setIsCreateOpen(true)} className="flex items-center justify-center gap-2 rounded-xl bg-foreground text-background h-12 px-8 text-xs font-black uppercase tracking-[0.2em] shadow-xl active:scale-95">
+                        <span className="material-symbols-outlined text-[20px]">add</span> Nuevo Artículo
                     </button>
-                </div>
+                </header>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <SummaryStat label="Valor Total" value="$845,200" />
-                    <SummaryStat label="Piezas" value={Object.keys(items).length.toString()} />
-                    <SummaryStat label="Stock Bajo" value="5" badge="Alerta" badgeColor="text-red-500 bg-red-500/10 border-red-500/20" />
-                    <SummaryStat label="En Consignación" value="12" />
-                </div>
+                <section className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Resumen de inventario">
+                    <Summary label="Valor comercial" value={money(commercialValue)} />
+                    <Summary label="Artículos" value={String(data?.summary.productCount || 0)} />
+                    <Summary label="Stock bajo" value={String(data?.summary.lowStockCount || 0)} alert={(data?.summary.lowStockCount || 0) > 0} />
+                    <Summary label="Piezas disponibles" value={String(data?.summary.availableQuantity || 0)} />
+                </section>
 
-                {/* Toolbar */}
-                <div className="bg-card rounded-2xl p-6 border border-border backdrop-blur-sm flex flex-col gap-6 shadow-sm transition-colors">
-                    <div className="flex flex-col lg:flex-row justify-between gap-4">
-                        <div className="flex-1 max-w-md">
-                            <div className="relative flex items-center w-full h-12 rounded-xl bg-muted/50 border border-border overflow-hidden focus-within:border-indigo-500 transition-all">
-                                <div className="grid place-items-center h-full w-12 text-muted-foreground">
-                                    <span className="material-symbols-outlined">search</span>
-                                </div>
-                                <input
-                                    className="peer h-full w-full outline-none text-sm text-foreground bg-transparent pr-2 placeholder-muted-foreground"
-                                    placeholder="Buscar por nombre, SKU o categoría..."
-                                    type="text"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
-                            {['Ubicación', 'Stock Bajo', 'Diamantes', 'Filtros'].map(f => (
-                                <button key={f} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-muted/50 border border-border px-6 hover:border-indigo-500 text-muted-foreground hover:text-foreground transition-all text-xs font-bold uppercase tracking-widest whitespace-nowrap">
-                                    {f === 'Stock Bajo' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]"></span>}
-                                    <span>{f}</span>
-                                    {['Ubicación', 'Filtros'].includes(f) && <span className="material-symbols-outlined text-[18px] text-muted-foreground/50">{f === 'Filtros' ? 'filter_list' : 'keyboard_arrow_down'}</span>}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Table */}
-                <div className="overflow-hidden rounded-2xl border border-border bg-card backdrop-blur-sm shadow-sm transition-colors">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-muted/50 border-b border-border text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em]">
-                                <th className="px-8 py-5 font-bold w-1/2">Artículo</th>
-                                <th className="px-8 py-5 font-bold">Ubicación</th>
-                                <th className="px-8 py-5 font-bold text-center">Cantidad</th>
-                                <th className="px-8 py-5 font-bold text-right">Valor</th>
-                                <th className="px-8 py-5 font-bold text-right"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {(Object.values(items) as ItemMock[]).map(item => (
-                                <tr key={item.id} className="group hover:bg-muted/30 transition-colors cursor-pointer">
-                                    <td className="px-8 py-6">
-                                        <div className="flex items-center gap-5">
-                                            <div className="h-14 w-14 rounded-2xl border border-border bg-muted flex items-center justify-center shadow-sm shrink-0 group-hover:border-indigo-500/50 transition-colors">
-                                                <span className="material-symbols-outlined text-[24px] text-muted-foreground group-hover:text-foreground transition-colors">{item.icon}</span>
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-foreground text-base leading-tight tracking-tight group-hover:underline decoration-border underline-offset-4 uppercase tracking-tighter transition-colors">{item.name}</h4>
-                                                <div className="flex items-center gap-3 mt-1.5">
-                                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">SKU: {item.sku}</span>
-                                                    <span className="w-1 h-1 rounded-full bg-border"></span>
-                                                    <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">{item.detail}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-6">
-                                        <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
-                                            <span className="material-symbols-outlined text-[18px] text-muted-foreground/40 transition-colors">location_on</span>
-                                            <span>{item.location}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-6 text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <span className="font-black text-foreground text-base transition-colors">{item.quantity}</span>
-                                            {item.alert && <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)] animate-pulse"></span>}
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-6 text-right">
-                                        <p className="font-bold text-foreground text-base transition-colors">{item.value}</p>
-                                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">COST: {item.cost}</p>
-                                    </td>
-                                    <td className="px-8 py-6 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); openModal(item); }}
-                                                className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                                                title="Editar"
-                                            >
-                                                <span className="material-symbols-outlined text-[20px]">edit</span>
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                                                className="p-2 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all"
-                                                title="Eliminar"
-                                            >
-                                                <span className="material-symbols-outlined text-[20px]">delete</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <div className="px-8 py-5 border-t border-border bg-muted/30 flex items-center justify-between">
-                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Mostrando {(Object.values(items) as ItemMock[]).length} artículos</p>
+                <section className="bg-card rounded-2xl p-5 lg:p-6 border border-border flex flex-col gap-5 shadow-sm" aria-label="Filtros de inventario">
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_200px_220px_auto] gap-3">
+                        <label className="relative flex items-center h-12 rounded-xl bg-muted/50 border border-border overflow-hidden focus-within:border-primary">
+                            <span className="grid place-items-center h-full w-12 text-muted-foreground material-symbols-outlined">search</span>
+                            <input className="h-full w-full outline-none text-sm text-foreground bg-transparent pr-3 placeholder-muted-foreground" placeholder="Buscar por nombre, SKU o categoría..." value={query} onChange={(event) => setQuery(event.target.value)} />
+                        </label>
+                        <label className="sr-only" htmlFor="status-filter">Estado</label>
+                        <select id="status-filter" value={status} onChange={(event) => setStatus(event.target.value as 'ALL' | InventoryAvailabilityStatus)} className="h-12 rounded-xl bg-muted/50 border border-border px-4 text-foreground text-sm outline-none focus:border-primary">
+                            <option value="ALL">Todos los estados</option>
+                            {Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        </select>
+                        <label className="sr-only" htmlFor="category-filter">Categoría</label>
+                        <select id="category-filter" value={category} onChange={(event) => setCategory(event.target.value)} className="h-12 rounded-xl bg-muted/50 border border-border px-4 text-foreground text-sm outline-none focus:border-primary">
+                            <option value="ALL">Todas las categorías</option>
+                            {categories.map((entry) => <option key={entry}>{entry}</option>)}
+                        </select>
                         <div className="flex gap-2">
-                            <button className="h-10 px-6 rounded-xl border border-border bg-card text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm active:scale-95">Anterior</button>
-                            <button className="h-10 px-6 rounded-xl border border-border bg-card text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground hover:border-indigo-500/50 transition-all shadow-sm active:scale-95">Siguiente</button>
+                            <button type="button" onClick={() => { setQuery(''); setStatus('ALL'); setCategory('ALL'); }} className="h-12 px-4 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 text-[10px] font-black uppercase tracking-widest">Limpiar</button>
+                            <button type="button" onClick={() => void reload()} disabled={loading} aria-label="Actualizar inventario" className="size-12 grid place-items-center rounded-xl border border-border text-muted-foreground hover:text-foreground hover:border-primary/50"><span className="material-symbols-outlined">refresh</span></button>
                         </div>
                     </div>
-                </div>
-            </div>
+                    <p className="text-muted-foreground text-[11px] font-medium">Las altas se registran en Cared; los movimientos y reservas siguen auditados por LuxuryOS.</p>
+                </section>
 
-            {isModalOpen && (
-                <InventoryModal
-                    item={editingItem}
-                    onClose={() => setIsModalOpen(false)}
-                    onSave={handleSave}
-                />
-            )}
+                {error && <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-500" role="alert">{error}</p>}
+                <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Listado de artículos">
+                    <div className="overflow-x-auto"><table className="w-full min-w-[860px] text-left border-collapse">
+                        <thead><tr className="bg-muted/50 border-b border-border text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em]">
+                            <th className="px-7 py-5">Artículo</th><th className="px-6 py-5">Categoría</th><th className="px-6 py-5 text-center">Físico</th><th className="px-6 py-5 text-center">Reservado</th><th className="px-6 py-5 text-center">Disponible</th><th className="px-6 py-5 text-right">Precio</th><th className="px-7 py-5 text-right">Estado</th>
+                        </tr></thead>
+                        <tbody className="divide-y divide-border">
+                            {loading ? <tr><td colSpan={7} className="px-7 py-14 text-center text-sm text-muted-foreground">Cargando inventario…</td></tr>
+                                : rows.length === 0 ? <tr><td colSpan={7} className="px-7 py-14 text-center text-sm text-muted-foreground">No hay artículos que coincidan con los filtros.</td></tr>
+                                    : rows.map((item) => <Row key={item.id} item={item} />)}
+                        </tbody>
+                    </table></div>
+                    <footer className="px-7 py-5 border-t border-border bg-muted/30 flex items-center justify-between gap-4"><p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Mostrando {rows.length} de {data?.summary.productCount || 0} artículos</p><p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Inventario compartido</p></footer>
+                </section>
+            </div>
+            {isCreateOpen && <CreateArticleModal onClose={() => setIsCreateOpen(false)} onCreated={async () => { setIsCreateOpen(false); await reload(); }} />}
         </div>
     );
 };
 
-const SummaryStat: React.FC<{ label: string, value: string, badge?: string, badgeColor?: string }> = ({ label, value, badge, badgeColor }) => (
-    <div className="p-6 rounded-2xl bg-card border border-border backdrop-blur-sm shadow-sm flex flex-col gap-2 transition-colors">
-        <p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em]">{label}</p>
-        <div className="flex items-center gap-3">
-            <p className="text-foreground text-2xl font-black tracking-tighter transition-colors">{value}</p>
-            {badge && <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border ${badgeColor}`}>{badge}</span>}
-        </div>
-    </div>
-);
+const Summary = ({ label, value, alert = false }: { label: string; value: string; alert?: boolean }) => <article className="p-6 rounded-2xl bg-card border border-border shadow-sm flex flex-col gap-2"><p className="text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em]">{label}</p><div className="flex items-center gap-3"><strong className="text-foreground text-2xl font-black tracking-tighter">{value}</strong>{alert && <span className="text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border text-red-500 bg-red-500/10 border-red-500/20">Atención</span>}</div></article>;
 
-const InventoryModal: React.FC<{ item: ItemMock | null, onClose: () => void, onSave: (data: Partial<ItemMock>) => void }> = ({ item, onClose, onSave }) => {
-    const [formData, setFormData] = useState<Partial<ItemMock>>(item || {
-        sku: '',
-        name: '',
-        type: 'Joyería',
-        location: '',
-        quantity: 1,
-        value: '',
-        cost: '',
-        icon: 'diamond'
-    });
+const Row = ({ item }: { item: InventoryArticle }) => <tr className="group hover:bg-muted/30 transition-colors"><td className="px-7 py-5"><div className="flex items-center gap-4"><div className="h-12 w-12 rounded-xl border border-border bg-muted flex items-center justify-center shrink-0 overflow-hidden">{item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-[22px] text-muted-foreground">diamond</span>}</div><div><strong className="block font-bold text-foreground text-sm leading-tight uppercase">{item.name}</strong><span className="block mt-1 text-muted-foreground text-[10px] font-black uppercase tracking-widest">SKU: {item.sku}</span></div></div></td><td className="px-6 py-5 text-xs font-medium text-muted-foreground">{item.category || 'Sin categoría'}</td><td className="px-6 py-5 text-center font-black text-foreground">{item.stockOnHand}</td><td className="px-6 py-5 text-center font-black text-muted-foreground">{item.reservedQuantity}</td><td className="px-6 py-5 text-center font-black text-foreground">{item.availableQuantity}</td><td className="px-6 py-5 text-right font-bold text-foreground">{money(item.unitPrice, item.currency)}</td><td className="px-7 py-5 text-right"><span className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${statusClass(item.availabilityStatus)}`}>{labels[item.availabilityStatus]}</span></td></tr>;
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+const CreateArticleModal = ({ onClose, onCreated }: { onClose: () => void; onCreated: () => Promise<void> }) => {
+    const [form, setForm] = useState(emptyArticle);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const set = <Key extends keyof CreateInventoryArticleInput>(key: Key, value: CreateInventoryArticleInput[Key]) => setForm((current) => ({ ...current, [key]: value }));
+    const submit = async (event: FormEvent) => {
+        event.preventDefault(); setSubmitting(true); setError(null);
+        try {
+            await InventoryService.create({ ...form, sku: form.sku.trim(), name: form.name.trim(), category: form.category?.trim(), description: form.description?.trim(), imageUrl: form.imageUrl?.trim() });
+            await onCreated();
+        } catch (requestError) { setError(errorText(requestError)); } finally { setSubmitting(false); }
     };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="w-full max-w-2xl bg-background border border-border rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-                <div className="px-8 py-6 border-b border-border flex items-center justify-between bg-muted/20">
-                    <h2 className="text-foreground text-lg font-black uppercase tracking-widest font-display">
-                        {item ? 'Editar Artículo' : 'Nuevo Artículo'}
-                    </h2>
-                    <button onClick={onClose} className="size-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
-                        <span className="material-symbols-outlined">close</span>
-                    </button>
-                </div>
-
-                <form className="p-8 space-y-6" onSubmit={(e) => { e.preventDefault(); onSave(formData); }}>
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">SKU</label>
-                            <input
-                                name="sku"
-                                value={formData.sku}
-                                onChange={handleChange}
-                                required
-                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
-                                placeholder="Ej. RNG-001"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Nombre</label>
-                            <input
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                required
-                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
-                                placeholder="Ej. Anillo Diamante"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Ubicación</label>
-                            <select
-                                name="location"
-                                value={formData.location}
-                                onChange={handleChange}
-                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all"
-                            >
-                                <option value="">Seleccionar...</option>
-                                <option value="Bóveda Principal">Bóveda Principal</option>
-                                <option value="Vitrina 1">Vitrina 1</option>
-                                <option value="Vitrina 2">Vitrina 2</option>
-                                <option value="Caja Fuerte">Caja Fuerte</option>
-                            </select>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Categoría</label>
-                            <select
-                                name="type"
-                                value={formData.type}
-                                onChange={handleChange}
-                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all"
-                            >
-                                <option value="Joyería">Joyería</option>
-                                <option value="Relojería">Relojería</option>
-                                <option value="Gemas">Gemas</option>
-                                <option value="Accesorios">Accesorios</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Cantidad</label>
-                            <input
-                                name="quantity"
-                                type="number"
-                                value={formData.quantity}
-                                onChange={handleChange}
-                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Valor Venta</label>
-                            <input
-                                name="value"
-                                value={formData.value}
-                                onChange={handleChange}
-                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
-                                placeholder="$0.00"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">Costo</label>
-                            <input
-                                name="cost"
-                                value={formData.cost}
-                                onChange={handleChange}
-                                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground focus:border-indigo-500 focus:outline-none transition-all placeholder-muted-foreground"
-                                placeholder="$0.00"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="pt-6 flex justify-end gap-4">
-                        <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-xs font-bold uppercase tracking-widest">Cancelar</button>
-                        <button type="submit" className="px-8 py-3 rounded-xl bg-foreground text-background hover:opacity-90 transition-all text-xs font-bold uppercase tracking-widest shadow-lg">Guardar Artículo</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
+    const inputClass = 'w-full bg-muted/50 border border-border rounded-xl px-4 py-3 text-foreground focus:border-primary focus:outline-none transition-all placeholder-muted-foreground';
+    return <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="article-modal-title"><div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-card border border-border rounded-3xl shadow-2xl"><header className="px-7 py-6 border-b border-border flex items-center justify-between bg-muted/20"><div><p className="text-primary text-[10px] font-black uppercase tracking-[0.2em]">Inventario Cared</p><h2 id="article-modal-title" className="mt-2 text-foreground text-xl font-black uppercase tracking-widest">Nuevo artículo</h2></div><button type="button" onClick={onClose} className="size-9 grid place-items-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground" aria-label="Cerrar"><span className="material-symbols-outlined">close</span></button></header><form className="p-7 space-y-6" onSubmit={submit}><p className="text-sm text-muted-foreground">El artículo se crea en Cared y queda habilitado para Revendedores. Precio y existencias son la fuente de verdad para el POS.</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-5"><Field label="SKU" required><input required value={form.sku} onChange={(e) => set('sku', e.target.value)} placeholder="Ej. RNG-DIA-001" className={inputClass} /></Field><Field label="Nombre" required><input required value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Ej. Anillo diamante solitario" className={inputClass} /></Field><Field label="Categoría"><input value={form.category} onChange={(e) => set('category', e.target.value)} list="inventory-categories" placeholder="Ej. Joyería" className={inputClass} /><datalist id="inventory-categories"><option value="Joyería" /><option value="Relojería" /><option value="Gemas" /><option value="Accesorios" /></datalist></Field><Field label="URL de imagen"><input type="url" value={form.imageUrl} onChange={(e) => set('imageUrl', e.target.value)} placeholder="https://…" className={inputClass} /></Field></div><Field label="Descripción"><textarea value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="Metal, piedra, medidas u otros detalles" className={`${inputClass} min-h-24 resize-y`} /></Field><div className="grid grid-cols-1 sm:grid-cols-3 gap-5"><Field label="Existencia física" required><input required min="0" step="1" type="number" value={form.stockOnHand} onChange={(e) => set('stockOnHand', Number(e.target.value))} className={inputClass} /></Field><Field label="Precio de venta" required><input required min="0" step="0.01" type="number" value={form.unitPrice} onChange={(e) => set('unitPrice', Number(e.target.value))} className={inputClass} /></Field><Field label="Moneda"><select value={form.currency} onChange={(e) => set('currency', e.target.value)} className={inputClass}><option value="MXN">MXN</option><option value="USD">USD</option></select></Field></div>{error && <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-500" role="alert">{error}</p>}<footer className="pt-3 flex flex-col-reverse sm:flex-row justify-end gap-3"><button type="button" onClick={onClose} disabled={submitting} className="px-6 py-3 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-widest">Cancelar</button><button type="submit" disabled={submitting} className="px-8 py-3 rounded-xl bg-foreground text-background hover:opacity-90 text-xs font-bold uppercase tracking-widest shadow-lg disabled:opacity-50">{submitting ? 'Guardando…' : 'Guardar artículo'}</button></footer></form></div></div>;
 };
+
+const Field = ({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) => <label className="block space-y-2"><span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">{label}{required && <span className="text-red-500"> *</span>}</span>{children}</label>;
 
 export default InventoryPage;
