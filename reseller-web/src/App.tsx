@@ -6,6 +6,7 @@ import {
   login,
   resellerSession,
 } from './services/api';
+import { useTheme } from './context/ThemeContext';
 import type { ResellerCatalogItem, ResellerProfile } from './types';
 
 const currency = (amount: number, code: string) =>
@@ -14,6 +15,64 @@ const currency = (amount: number, code: string) =>
     currency: code || 'MXN',
     maximumFractionDigits: 2,
   }).format(amount);
+
+const themeOptions = [
+  { id: 'cared', name: 'Cared', description: 'Corporativo oscuro' },
+  { id: 'pitaya', name: 'Pitaya', description: 'Premium' },
+  { id: 'notion', name: 'Notion', description: 'Minimalista' },
+] as const;
+
+function ThemeSelector() {
+  const { variant, mode, setVariant, toggleMode } = useTheme();
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="theme-selector">
+      <button
+        type="button"
+        className="theme-trigger"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">palette</span>
+        <span className="theme-trigger-label">Apariencia</span>
+        <span className="material-symbols-outlined theme-trigger-chevron" aria-hidden="true">expand_more</span>
+      </button>
+      {isOpen && (
+        <div className="theme-menu" role="menu" aria-label="Seleccionar apariencia">
+          <p>Personalización visual</p>
+          {themeOptions.map((option) => (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={variant === option.id}
+              className={variant === option.id ? 'theme-option selected' : 'theme-option'}
+              key={option.id}
+              onClick={() => {
+                setVariant(option.id);
+                setIsOpen(false);
+              }}
+            >
+              <span className={`theme-preview ${option.id}`} aria-hidden="true" />
+              <span>
+                <strong>{option.name}</strong>
+                <small>{option.description}</small>
+              </span>
+              {variant === option.id && <span className="material-symbols-outlined theme-check" aria-hidden="true">check_circle</span>}
+            </button>
+          ))}
+          {variant !== 'cared' && (
+            <button type="button" className="theme-mode-toggle" onClick={toggleMode}>
+              <span className="material-symbols-outlined" aria-hidden="true">{mode === 'light' ? 'dark_mode' : 'light_mode'}</span>
+              {mode === 'light' ? 'Modo oscuro' : 'Modo claro'}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function LoginForm({ onAuthenticated }: { onAuthenticated: (profile: ResellerProfile) => void }) {
   const [identifier, setIdentifier] = useState('');
@@ -41,8 +100,13 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: (profile: ResellerPro
 
   return (
     <main className="login-shell">
+      <div className="login-theme-control"><ThemeSelector /></div>
       <section className="login-card" aria-labelledby="login-title">
-        <p className="eyebrow">CARED</p>
+        <div className="brand-lockup">
+          <p className="eyebrow">CARED</p>
+          <span aria-hidden="true" />
+          <p className="brand-subtitle">ACCESO PROFESIONAL</p>
+        </div>
         <h1 id="login-title">Revendedores</h1>
         <p className="login-copy">Accede al catálogo y a las operaciones autorizadas para tu cuenta.</p>
         <form onSubmit={submit} className="login-form">
@@ -94,7 +158,7 @@ function CatalogCard({
   return (
     <article className="catalog-card">
       <div className="product-art" aria-hidden="true">
-        {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <span>✦</span>}
+        {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <span className="material-symbols-outlined">diamond</span>}
       </div>
       <div className="catalog-card-content">
         <p className="sku">{item.sku}</p>
@@ -192,13 +256,17 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div>
+        <div className="topbar-brand">
           <p className="eyebrow">CARED</p>
           <h1>Revendedores</h1>
         </div>
         <div className="account">
-          <span>{profile.name || profile.role}</span>
-          <button type="button" className="secondary" onClick={onSignOut}>Salir</button>
+          <ThemeSelector />
+          <span className="account-name">{profile.name || profile.role}</span>
+          <button type="button" className="secondary sign-out" onClick={onSignOut}>
+            <span className="material-symbols-outlined" aria-hidden="true">logout</span>
+            Salir
+          </button>
         </div>
       </header>
       <section className="hero">
@@ -209,7 +277,8 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
         </div>
         <div className="hero-actions">
           <span className="channel-badge">Canal Revendedores</span>
-          <button type="button" className="secondary" onClick={() => void loadCatalog()} disabled={loading}>
+          <button type="button" className="secondary refresh-catalog" onClick={() => void loadCatalog()} disabled={loading}>
+            <span className="material-symbols-outlined" aria-hidden="true">refresh</span>
             Actualizar catálogo
           </button>
         </div>
@@ -293,6 +362,7 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
             disabled={cart.length === 0}
             onClick={() => setCheckoutNotice('El cobro será procesado por Cared. El checkout transaccional se habilitará en el siguiente bloque.')}
           >
+            <span className="material-symbols-outlined" aria-hidden="true">payments</span>
             Preparar cobro con Cared
           </button>
           <p className="cart-disclaimer">El total es informativo hasta que Cared confirme el pago y LuxuryOS reserve el inventario.</p>
