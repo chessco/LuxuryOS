@@ -43,7 +43,7 @@ No introducir Next.js, otro framework backend, PostgreSQL, Medusa, Vendure u otr
 
 ### Diseño de producto: Cared es la referencia obligatoria
 
-- La experiencia de `reseller-web/` debe sentirse como un producto Cared: interfaz sobria de fondo oscuro, acentos dorados, jerarquía editorial clara y lenguaje dirigido a revendedores.
+- La experiencia de `reseller-web/` debe sentirse como un producto Cared: interfaz sobria de fondo negro, acentos rojos `#E21621`, texto blanco `#FFFFFF`, jerarquía editorial clara y lenguaje dirigido a revendedores. No usar amarillo ni dorado.
 - Los componentes, estados vacíos, mensajes y flujos deben priorizar claridad operativa y confianza en el cobro administrado por Cared.
 - ProBuyer solo puede utilizarse como referencia funcional (por ejemplo, carrito, búsqueda o validaciones de inventario). No copiar su identidad visual, componentes, código, dependencias ni convenciones de Next.js.
 - Ante conflicto entre una referencia de ProBuyer y el lenguaje de Cared, prevalece Cared.

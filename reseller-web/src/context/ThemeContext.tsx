@@ -36,7 +36,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('theme-mode', mode);
     document.querySelector('meta[name="theme-color"]')?.setAttribute(
       'content',
-      effectiveMode === 'dark' ? '#0b0b0c' : '#ffffff',
+      effectiveMode === 'dark' ? '#000000' : '#ffffff',
     );
   }, [mode, variant]);
 
