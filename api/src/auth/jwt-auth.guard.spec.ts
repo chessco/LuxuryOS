@@ -32,6 +32,23 @@ describe('JwtAuthGuard reseller isolation', () => {
     ).toThrow(ForbiddenException);
   });
 
+  it('no acepta prefijos parecidos a /reseller como si fueran parte del POS', () => {
+    expect(() =>
+      guard.handleRequest(
+        null,
+        { id: 'user-1', role: Role.REVENDEDOR },
+        null,
+        requestContext('/resellerish/private'),
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
+  it('no restringe las rutas de joyería a los roles internos existentes', () => {
+    const user = { id: 'admin-1', role: Role.TENANT_ADMIN };
+
+    expect(guard.handleRequest(null, user, null, requestContext('/orders'))).toBe(user);
+  });
+
   it('mantiene la respuesta no autorizada cuando Passport no resuelve usuario', () => {
     expect(() => guard.handleRequest(null, null, null, requestContext('/reseller/catalog'))).toThrow(
       UnauthorizedException,

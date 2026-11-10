@@ -22,7 +22,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     // Revendedores only operate through the isolated reseller API. This is
     // enforced at the authentication boundary so a UI route cannot become a
     // security boundary by accident.
-    if (user.role === Role.REVENDEDOR && !pathname.startsWith('/reseller')) {
+    const isResellerRoute =
+      pathname === '/reseller' || pathname.startsWith('/reseller/');
+
+    if (user.role === Role.REVENDEDOR && !isResellerRoute) {
       throw new ForbiddenException(
         'El rol Revendedor solo puede acceder al módulo de Revendedores',
       );

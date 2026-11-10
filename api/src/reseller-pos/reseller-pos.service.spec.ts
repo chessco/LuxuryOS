@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { ResellerPosService } from './reseller-pos.service';
 
 describe('ResellerPosService', () => {
@@ -79,6 +80,10 @@ describe('ResellerPosService', () => {
         },
       }),
     );
+
+    expect(prisma.commerceProduct.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: [{ name: 'asc' }, { sku: 'asc' }] }),
+    );
   });
 
   it('creates a reseller profile with the fixed sales channel', async () => {
@@ -140,5 +145,64 @@ describe('ResellerPosService', () => {
         }),
       }),
     );
+  });
+
+  it('keeps an explicitly disabled product hidden from resellers after creation', async () => {
+    prisma.commerceProduct.create.mockResolvedValue({
+      id: 'product-4',
+      sku: 'HID-001',
+      name: 'Producto interno',
+      description: null,
+      category: null,
+      imageUrl: null,
+      unitPrice: { toString: () => '1' },
+      currency: 'MXN',
+      stockOnHand: 0,
+      reservedQuantity: 0,
+    });
+
+    await service.createCatalogProduct('tenant-1', {
+      sku: 'hid-001',
+      name: 'Producto interno',
+      unitPrice: 1,
+      stockOnHand: 0,
+      availableToResellers: false,
+    });
+
+    expect(prisma.commerceProduct.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          tenantId: 'tenant-1',
+          availableToResellers: false,
+        }),
+      }),
+    );
+  });
+
+  it('maps a duplicate SKU inside the same tenant to a conflict without leaking Prisma details', async () => {
+    prisma.commerceProduct.create.mockRejectedValue({ code: 'P2002' });
+
+    await expect(
+      service.createCatalogProduct('tenant-1', {
+        sku: 'RNG-001',
+        name: 'Anillo',
+        unitPrice: 1,
+        stockOnHand: 0,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('rethrows unexpected persistence failures for the global error handler', async () => {
+    const databaseError = new Error('connection lost');
+    prisma.commerceProduct.create.mockRejectedValue(databaseError);
+
+    await expect(
+      service.createCatalogProduct('tenant-1', {
+        sku: 'RNG-002',
+        name: 'Anillo',
+        unitPrice: 1,
+        stockOnHand: 0,
+      }),
+    ).rejects.toBe(databaseError);
   });
 });
