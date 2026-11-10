@@ -38,19 +38,19 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  email        String   @unique
+  id                String   @id @default(uuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  email             String   @unique
   // Nombre de usuario para iniciar sesión, independiente del email (nullable: usuarios antiguos no lo tienen)
-  username     String?  @unique
-  name         String?
-  passwordHash String
-  role         Role     @default(TENANT_USER)
+  username          String?  @unique
+  name              String?
+  passwordHash      String
+  role              Role     @default(TENANT_USER)
   // Porcentaje aplicado sobre la Mano de Obra Joyero al calcular su pago.
   // Solo se usa para usuarios con rol JOYERO.
-  jewelerPercentage Decimal @default(100) @db.Decimal(5, 2)
-  createdAt    DateTime @default(now())
+  jewelerPercentage Decimal  @default(100) @db.Decimal(5, 2)
+  createdAt         DateTime @default(now())
 
   // Real-time Chat relations
   conversations         Conversation[]         @relation("UserConversations")
@@ -175,10 +175,10 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  imageUrl    String?      @db.LongText
-  payments    Payment[]
-  queueTicket QueueTicket?
-  sourceQuote Quote? @relation("QuoteConversion")
+  imageUrl     String?      @db.LongText
+  payments     Payment[]
+  queueTicket  QueueTicket?
+  sourceQuote  Quote?       @relation("QuoteConversion")
   notesHistory OrderNote[]
 }
 
@@ -187,9 +187,9 @@ model OrderNote {
   orderId   String
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   tenantId  String
-  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
   content   String   @db.Text
   createdAt DateTime @default(now())
 
