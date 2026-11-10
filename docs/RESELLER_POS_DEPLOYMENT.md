@@ -8,13 +8,14 @@ El orden del pipeline es: construir la imagen, aplicar migraciones versionadas c
 
 ## Hostinger
 
-Antes de publicar `revendedor.pitayacode.io`, configurar estos secretos de GitHub Actions:
+El workflow reutiliza las credenciales existentes de Hostinger:
 
-- `RESELLER_DEPLOY_HOST`
-- `RESELLER_DEPLOY_PORT`
-- `RESELLER_DEPLOY_USER`
-- `RESELLER_DEPLOY_PASSWORD`
-- `RESELLER_DEPLOY_REMOTE_PATH`
+- `DEPLOY_HOST`
+- `DEPLOY_PORT`
+- `DEPLOY_USER`
+- `DEPLOY_PASSWORD`
+
+Solo requiere agregar `RESELLER_DEPLOY_REMOTE_PATH` con el document root del subdominio.
 
 Además, configurar la variable de repositorio `RESELLER_DEPLOY_ENABLED=true`. Hasta entonces el workflow se omite deliberadamente en cada push a `main`; puede ejecutarse manualmente después de configurar Hostinger.
 
