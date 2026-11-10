@@ -2,12 +2,18 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   errorMessage,
   getResellerCatalog,
+  getResellerInventory,
   getResellerProfile,
   login,
   resellerSession,
 } from './services/api';
 import { useTheme } from './context/ThemeContext';
-import type { ResellerCatalogItem, ResellerProfile } from './types';
+import type {
+  ResellerCatalogItem,
+  ResellerInventoryAvailabilityStatus,
+  ResellerInventoryResponse,
+  ResellerProfile,
+} from './types';
 
 const currency = (amount: number, code: string) =>
   new Intl.NumberFormat('es-MX', {
@@ -15,6 +21,13 @@ const currency = (amount: number, code: string) =>
     currency: code || 'MXN',
     maximumFractionDigits: 2,
   }).format(amount);
+
+const inventoryStatusLabel: Record<ResellerInventoryAvailabilityStatus, string> = {
+  AVAILABLE: 'Disponible',
+  LOW_STOCK: 'Stock bajo',
+  RESERVED: 'Reservado',
+  OUT_OF_STOCK: 'Agotado',
+};
 
 const themeOptions = [
   { id: 'cared', name: 'Cared', description: 'Corporativo oscuro' },
@@ -117,6 +130,9 @@ function ResellerNavigation({
           <button type="button" className="nav-rail-button active" onClick={() => navigateTo('reseller-dashboard')} aria-label="Panel" title="Panel">
             <span className="material-symbols-outlined" aria-hidden="true">dashboard</span>
           </button>
+          <button type="button" className="nav-rail-button" onClick={() => navigateTo('reseller-inventory')} aria-label="Inventario" title="Inventario">
+            <span className="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+          </button>
           <button type="button" className="nav-rail-button" onClick={() => navigateTo('reseller-catalog')} aria-label="Catálogo" title="Catálogo">
             <span className="material-symbols-outlined" aria-hidden="true">grid_view</span>
           </button>
@@ -151,6 +167,10 @@ function ResellerNavigation({
               <button type="button" className="nav-menu-item active" onClick={() => navigateTo('reseller-dashboard')}>
                 <span className="material-symbols-outlined" aria-hidden="true">dashboard</span>
                 Panel
+              </button>
+              <button type="button" className="nav-menu-item" onClick={() => navigateTo('reseller-inventory')}>
+                <span className="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+                Inventario
               </button>
               <button type="button" className="nav-menu-item" onClick={() => navigateTo('reseller-catalog')}>
                 <span className="material-symbols-outlined" aria-hidden="true">grid_view</span>
@@ -297,9 +317,13 @@ function CatalogCard({
 
 function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSignOut: () => void }) {
   const [items, setItems] = useState<ResellerCatalogItem[]>([]);
+  const [inventory, setInventory] = useState<ResellerInventoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [inventoryQuery, setInventoryQuery] = useState('');
+  const [inventoryStatus, setInventoryStatus] = useState<'ALL' | ResellerInventoryAvailabilityStatus>('ALL');
+  const [inventoryCategory, setInventoryCategory] = useState('ALL');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null);
 
@@ -307,8 +331,12 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
     setLoading(true);
     setError(null);
     try {
-      const catalog = await getResellerCatalog();
+      const [catalog, inventoryResponse] = await Promise.all([
+        getResellerCatalog(),
+        getResellerInventory(),
+      ]);
       setItems(catalog.items);
+      setInventory(inventoryResponse);
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
@@ -358,6 +386,23 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
     );
   }, [items, query]);
 
+  const inventoryCategories = useMemo(
+    () => ['ALL', ...Array.from(new Set((inventory?.items || []).map((item) => item.category).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b, 'es-MX'))],
+    [inventory],
+  );
+
+  const filteredInventory = useMemo(() => {
+    const normalized = inventoryQuery.trim().toLocaleLowerCase('es-MX');
+    return (inventory?.items || []).filter((item) => {
+      if (inventoryStatus !== 'ALL' && item.availabilityStatus !== inventoryStatus) return false;
+      if (inventoryCategory !== 'ALL' && item.category !== inventoryCategory) return false;
+      if (!normalized) return true;
+      return [item.sku, item.name, item.category]
+        .filter(Boolean)
+        .some((value) => value!.toLocaleLowerCase('es-MX').includes(normalized));
+    });
+  }, [inventory, inventoryCategory, inventoryQuery, inventoryStatus]);
+
   const cartTotal = useMemo(
     () => cart.reduce((total, line) => total + line.item.unitPrice * line.quantity, 0),
     [cart],
@@ -390,16 +435,67 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
         <div className="dashboard-metrics">
           <article>
             <span className="material-symbols-outlined" aria-hidden="true">grid_view</span>
-            <div><strong>{items.length}</strong><p>Piezas en catálogo</p></div>
+            <div><strong>{inventory?.summary.productCount ?? items.length}</strong><p>Piezas en catálogo</p></div>
+          </article>
+          <article>
+            <span className="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+            <div><strong>{inventory?.summary.availableQuantity ?? 0}</strong><p>Piezas disponibles</p></div>
           </article>
           <article>
             <span className="material-symbols-outlined" aria-hidden="true">shopping_bag</span>
             <div><strong>{cart.reduce((count, line) => count + line.quantity, 0)}</strong><p>Piezas en preparación</p></div>
           </article>
-          <article>
-            <span className="material-symbols-outlined" aria-hidden="true">payments</span>
-            <div><strong>{currency(cartTotal, cartCurrency)}</strong><p>Total estimado</p></div>
-          </article>
+        </div>
+      </section>
+      <section id="reseller-inventory" className="inventory-workspace" aria-labelledby="inventory-title">
+        <div className="inventory-heading">
+          <div>
+            <p className="eyebrow">INVENTARIO</p>
+            <h2 id="inventory-title">Disponibilidad para Revendedores</h2>
+            <p>Consulta existencias compartidas. Cared administra las altas, ajustes y reservas.</p>
+          </div>
+          <span className="read-only-badge"><span className="material-symbols-outlined" aria-hidden="true">visibility</span> Solo lectura</span>
+        </div>
+        <div className="inventory-summary" aria-label="Resumen de inventario">
+          <article><span>Existencia física</span><strong>{inventory?.summary.stockOnHandQuantity ?? 0}</strong></article>
+          <article><span>Reservadas</span><strong>{inventory?.summary.reservedQuantity ?? 0}</strong></article>
+          <article><span>Disponibles</span><strong>{inventory?.summary.availableQuantity ?? 0}</strong></article>
+          <article className={(inventory?.summary.lowStockCount || 0) > 0 ? 'attention' : ''}><span>Stock bajo</span><strong>{inventory?.summary.lowStockCount ?? 0}</strong></article>
+        </div>
+        <div className="inventory-toolbar" aria-label="Filtros de inventario">
+          <label className="search-field">
+            <span>Buscar inventario</span>
+            <input value={inventoryQuery} onChange={(event) => setInventoryQuery(event.target.value)} placeholder="Pieza, SKU o categoría" />
+          </label>
+          <label className="inventory-select">
+            <span>Estado</span>
+            <select value={inventoryStatus} onChange={(event) => setInventoryStatus(event.target.value as 'ALL' | ResellerInventoryAvailabilityStatus)}>
+              <option value="ALL">Todos los estados</option>
+              {Object.entries(inventoryStatusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="inventory-select">
+            <span>Categoría</span>
+            <select value={inventoryCategory} onChange={(event) => setInventoryCategory(event.target.value)}>
+              <option value="ALL">Todas las categorías</option>
+              {inventoryCategories.filter((category) => category !== 'ALL').map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="inventory-table-wrap">
+          {loading ? <p className="empty-state">Cargando inventario…</p> : filteredInventory.length === 0 ? <p className="empty-state">No hay piezas que coincidan con los filtros.</p> : (
+            <table className="inventory-table">
+              <thead><tr><th>Pieza</th><th>Categoría</th><th>Física</th><th>Reservada</th><th>Disponible</th><th>Estado</th></tr></thead>
+              <tbody>{filteredInventory.map((item) => (
+                <tr key={item.id}>
+                  <td><strong>{item.name}</strong><small>{item.sku}</small></td>
+                  <td>{item.category || 'Sin categoría'}</td>
+                  <td>{item.stockOnHand}</td><td>{item.reservedQuantity}</td><td>{item.availableQuantity}</td>
+                  <td><span className={`inventory-status ${item.availabilityStatus.toLocaleLowerCase()}`}>{inventoryStatusLabel[item.availabilityStatus]}</span></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
         </div>
       </section>
       <section className="hero">

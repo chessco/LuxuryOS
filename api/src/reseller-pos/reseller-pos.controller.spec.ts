@@ -4,6 +4,7 @@ describe('ResellerPosController', () => {
   const service = {
     getProfile: jest.fn(),
     getCatalog: jest.fn(),
+    getInventory: jest.fn(),
     createCatalogProduct: jest.fn(),
   };
   const controller = new ResellerPosController(service as any);
@@ -27,6 +28,12 @@ describe('ResellerPosController', () => {
     controller.getCatalog({ user: { tenantId: 'tenant-1' } });
 
     expect(service.getCatalog).toHaveBeenCalledWith('tenant-1');
+  });
+
+  it('uses only the authenticated tenant when loading inventory', () => {
+    controller.getInventory({ user: { tenantId: 'tenant-1' } });
+
+    expect(service.getInventory).toHaveBeenCalledWith('tenant-1');
   });
 
   it('uses the authenticated tenant when an administrator creates a product', () => {

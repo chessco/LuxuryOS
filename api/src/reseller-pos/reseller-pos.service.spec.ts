@@ -86,6 +86,51 @@ describe('ResellerPosService', () => {
     );
   });
 
+  it('returns tenant-scoped inventory with availability states and aggregate quantities', async () => {
+    prisma.commerceProduct.findMany.mockResolvedValue([
+      {
+        id: 'product-1', sku: 'RNG-001', name: 'Anillo', category: 'Joyería', imageUrl: null,
+        unitPrice: { toString: () => '1250.50' }, currency: 'MXN', stockOnHand: 10, reservedQuantity: 2,
+      },
+      {
+        id: 'product-2', sku: 'RNG-002', name: 'Aretes', category: 'Joyería', imageUrl: null,
+        unitPrice: { toString: () => '500' }, currency: 'MXN', stockOnHand: 2, reservedQuantity: 1,
+      },
+      {
+        id: 'product-3', sku: 'RNG-003', name: 'Dije', category: null, imageUrl: null,
+        unitPrice: { toString: () => '750' }, currency: 'MXN', stockOnHand: 4, reservedQuantity: 4,
+      },
+      {
+        id: 'product-4', sku: 'RNG-004', name: 'Pulsera', category: null, imageUrl: null,
+        unitPrice: { toString: () => '900' }, currency: 'MXN', stockOnHand: 0, reservedQuantity: 0,
+      },
+    ]);
+
+    await expect(service.getInventory('tenant-1')).resolves.toEqual({
+      items: [
+        expect.objectContaining({ sku: 'RNG-001', stockOnHand: 10, reservedQuantity: 2, availableQuantity: 8, availabilityStatus: 'AVAILABLE' }),
+        expect.objectContaining({ sku: 'RNG-002', stockOnHand: 2, reservedQuantity: 1, availableQuantity: 1, availabilityStatus: 'LOW_STOCK' }),
+        expect.objectContaining({ sku: 'RNG-003', stockOnHand: 4, reservedQuantity: 4, availableQuantity: 0, availabilityStatus: 'RESERVED' }),
+        expect.objectContaining({ sku: 'RNG-004', stockOnHand: 0, reservedQuantity: 0, availableQuantity: 0, availabilityStatus: 'OUT_OF_STOCK' }),
+      ],
+      summary: {
+        productCount: 4,
+        stockOnHandQuantity: 16,
+        reservedQuantity: 7,
+        availableQuantity: 9,
+        lowStockCount: 1,
+        outOfStockCount: 1,
+      },
+    });
+
+    expect(prisma.commerceProduct.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tenantId: 'tenant-1', status: 'ACTIVE', availableToResellers: true },
+        orderBy: [{ category: 'asc' }, { name: 'asc' }, { sku: 'asc' }],
+      }),
+    );
+  });
+
   it('creates a reseller profile with the fixed sales channel', async () => {
     await expect(
       service.getProfile({

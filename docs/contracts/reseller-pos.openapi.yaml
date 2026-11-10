@@ -66,6 +66,24 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           description: The tenant already owns the submitted SKU.
+  /reseller/inventory:
+    get:
+      operationId: getResellerInventory
+      summary: Lists the reseller-visible inventory and availability summary.
+      description: >-
+        Read-only inventory scoped to the authenticated tenant. It includes only
+        active products explicitly enabled for Revendedores.
+      responses:
+        '200':
+          description: Tenant-scoped inventory quantities and availability states.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResellerInventory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 components:
   securitySchemes:
     bearerAuth:
@@ -131,6 +149,76 @@ components:
           minLength: 3
           maxLength: 3
         availableQuantity:
+          type: integer
+          minimum: 0
+    ResellerInventory:
+      type: object
+      additionalProperties: false
+      required: [items, summary]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResellerInventoryItem'
+        summary:
+          $ref: '#/components/schemas/ResellerInventorySummary'
+    ResellerInventoryItem:
+      type: object
+      additionalProperties: false
+      required:
+        [id, sku, name, category, imageUrl, unitPrice, currency, stockOnHand, reservedQuantity, availableQuantity, availabilityStatus]
+      properties:
+        id:
+          type: string
+        sku:
+          type: string
+        name:
+          type: string
+        category:
+          type: [string, 'null']
+        imageUrl:
+          type: [string, 'null']
+          format: uri
+        unitPrice:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        stockOnHand:
+          type: integer
+          minimum: 0
+        reservedQuantity:
+          type: integer
+          minimum: 0
+        availableQuantity:
+          type: integer
+          minimum: 0
+        availabilityStatus:
+          type: string
+          enum: [AVAILABLE, LOW_STOCK, RESERVED, OUT_OF_STOCK]
+    ResellerInventorySummary:
+      type: object
+      additionalProperties: false
+      required: [productCount, stockOnHandQuantity, reservedQuantity, availableQuantity, lowStockCount, outOfStockCount]
+      properties:
+        productCount:
+          type: integer
+          minimum: 0
+        stockOnHandQuantity:
+          type: integer
+          minimum: 0
+        reservedQuantity:
+          type: integer
+          minimum: 0
+        availableQuantity:
+          type: integer
+          minimum: 0
+        lowStockCount:
+          type: integer
+          minimum: 0
+        outOfStockCount:
           type: integer
           minimum: 0
     CreateCommerceProduct:

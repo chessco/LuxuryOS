@@ -39,3 +39,33 @@ export interface ResellerCatalogItem {
 export interface ResellerCatalogResponse {
   items: ResellerCatalogItem[];
 }
+
+export type ResellerInventoryAvailabilityStatus = 'AVAILABLE' | 'LOW_STOCK' | 'RESERVED' | 'OUT_OF_STOCK';
+
+export interface ResellerInventoryItem {
+  id: string;
+  sku: string;
+  name: string;
+  category: string | null;
+  imageUrl: string | null;
+  unitPrice: number;
+  currency: string;
+  stockOnHand: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  availabilityStatus: ResellerInventoryAvailabilityStatus;
+}
+
+export interface ResellerInventorySummary {
+  productCount: number;
+  stockOnHandQuantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+}
+
+export interface ResellerInventoryResponse {
+  items: ResellerInventoryItem[];
+  summary: ResellerInventorySummary;
+}

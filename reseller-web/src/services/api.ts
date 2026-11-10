@@ -2,6 +2,7 @@ import axios from 'axios';
 import type {
   LoginResponse,
   ResellerCatalogResponse,
+  ResellerInventoryResponse,
   ResellerProfile,
 } from '../types';
 
@@ -42,6 +43,11 @@ export async function getResellerProfile(): Promise<ResellerProfile> {
 
 export async function getResellerCatalog(): Promise<ResellerCatalogResponse> {
   const response = await api.get<ResellerCatalogResponse>('/reseller/catalog');
+  return response.data;
+}
+
+export async function getResellerInventory(): Promise<ResellerInventoryResponse> {
+  const response = await api.get<ResellerInventoryResponse>('/reseller/inventory');
   return response.data;
 }
 

@@ -32,6 +32,11 @@ export class ResellerPosController {
     return this.resellerPosService.getCatalog(req.user.tenantId);
   }
 
+  @Get('inventory')
+  getInventory(@Request() req: { user: { tenantId: string } }) {
+    return this.resellerPosService.getInventory(req.user.tenantId);
+  }
+
   @Post('catalog')
   @Roles(Role.TENANT_ADMIN)
   createCatalogProduct(
