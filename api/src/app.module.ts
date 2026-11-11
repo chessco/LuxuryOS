@@ -14,6 +14,8 @@ import { SettingsModule } from './settings/settings.module';
 import { AiModule } from './ai/ai.module';
 import { ResellerPosModule } from './reseller-pos/reseller-pos.module';
 import { QuotesModule } from './quotes/quotes.module';
+import { CommerceModule } from './commerce/commerce.module';
+import { InventoryOperationsModule } from './inventory-operations/inventory-operations.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { QuotesModule } from './quotes/quotes.module';
     SettingsModule,
     AiModule,
     QuotesModule,
+    CommerceModule,
+    InventoryOperationsModule,
     ResellerPosModule,
   ],
   controllers: [AppController],
