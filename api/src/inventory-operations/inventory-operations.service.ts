@@ -10,7 +10,7 @@ export class InventoryOperationsService {
   constructor(private readonly prisma: PrismaService) {}
   private actor(actor: Actor) {
     const id = actor.id || actor.sub;
-    if (!id || !actor.tenantId || ![Role.TENANT_ADMIN, Role.SYSTEM_ADMIN].includes(actor.role!)) throw new ForbiddenException('Sólo administradores pueden registrar entradas de inventario');
+    if (!id || !actor.tenantId || (actor.role !== Role.TENANT_ADMIN && actor.role !== Role.SYSTEM_ADMIN)) throw new ForbiddenException('Sólo administradores pueden registrar entradas de inventario');
     return { id, tenantId: actor.tenantId };
   }
   async suppliers(actor: Actor) {
