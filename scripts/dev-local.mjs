@@ -52,10 +52,15 @@ function tryRun(commandName, commandArgs, cwd) {
   return spawnSync(spec.bin, spec.args, { cwd, stdio: 'ignore' }).status === 0;
 }
 
-function dependencyDirectory(name) {
+function dependencyDirectory(name, dependencyProbe) {
   const directory = path.join(rootDir, name);
   if (!fs.existsSync(path.join(directory, 'node_modules'))) {
     run('npm', ['ci'], directory, `Instalando dependencias en ${name}/`);
+    return;
+  }
+  if (!fs.existsSync(path.join(directory, 'node_modules', dependencyProbe))) {
+    log(`→ Reparando instalación parcial en ${name}/`, color.yellow);
+    run('npm', ['ci'], directory, `Reinstalando dependencias en ${name}/`);
   }
 }
 
@@ -124,7 +129,9 @@ function pipe(child, label, tone) {
 async function main() {
   log('LuxuryOS local: API + Cared + Revendedores', color.cyan);
   await assertServicePortsAvailable();
-  for (const directory of ['api', 'web', 'reseller-web']) dependencyDirectory(directory);
+  dependencyDirectory('api', '@nestjs/cli/package.json');
+  dependencyDirectory('web', 'vite/package.json');
+  dependencyDirectory('reseller-web', 'vite/package.json');
 
   const databaseReady = await ensureDatabase();
   const apiDir = path.join(rootDir, 'api');
