@@ -43,12 +43,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 { name: 'Cotizaciones', icon: 'request_quote', path: '/quotes' },
                 { name: 'Apartados', icon: 'loyalty', path: '/orders?type=LAYAWAY' },
                 { name: 'Pedidos', icon: 'receipt_long', path: '/orders' },
-                { name: 'Inventario', icon: 'precision_manufacturing', path: '/inventory' },
                 { name: 'Clientes', icon: 'person_search', path: '/clients' },
                 { name: 'Reportes', icon: 'analytics', path: '/reports' },
                 { name: 'Finanzas', icon: 'account_balance_wallet', path: '/finance' },
             ]
         },
+        { title: 'Inventario', items: [
+            { name: 'Inventario', icon: 'precision_manufacturing', path: '/inventory' },
+            { name: 'Operaciones', icon: 'move_to_inbox', path: '/inventory/operations' },
+        ] },
         {
             title: 'Fila y Turnos',
             items: [
@@ -88,7 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
         }
 
         if (user.role !== 'SYSTEM_ADMIN') {
-            items = items.filter(item => item.path !== '/finance' && item.path !== '/inventory');
+            items = items.filter(item => item.path !== '/finance');
         }
 
         // Ocultar Clientes para el Joyero

@@ -6,8 +6,19 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('Starting seed...');
 
-    // 0. Clear existing data
+    // 0. Clear existing local demo data in dependency order.
+    // This seed is only for the isolated development database.
     console.log('Clearing existing data...');
+    await prisma.inventoryMovement.deleteMany();
+    await prisma.inventoryEntryItem.deleteMany();
+    await prisma.inventoryEntry.deleteMany();
+    await prisma.supplier.deleteMany();
+    await prisma.inventoryReservation.deleteMany();
+    await prisma.commercePayment.deleteMany();
+    await prisma.commerceSaleItem.deleteMany();
+    await prisma.commerceSale.deleteMany();
+    await prisma.commerceAuditLog.deleteMany();
+    await prisma.commerceProduct.deleteMany();
     await prisma.order.deleteMany();
     await prisma.client.deleteMany();
     await prisma.user.deleteMany();
@@ -18,6 +29,18 @@ async function main() {
         data: {
             name: 'Luxury OS Demo – LUXE Atelier',
         },
+    });
+
+    // Inventory catalog used by the local POS and receiving-order flows.
+    await prisma.commerceProduct.createMany({
+        data: [
+            { tenantId: tenant.id, sku: 'RNG-DIA-001', name: 'Anillo Diamante Solitario', category: 'Joyería', unitPrice: 150000, currency: 'MXN', stockOnHand: 0 },
+            { tenantId: tenant.id, sku: 'WCH-RLX-002', name: 'Reloj Oyster Perpetual', category: 'Relojería', unitPrice: 220000, currency: 'MXN', stockOnHand: 0 },
+            { tenantId: tenant.id, sku: 'GEM-RUB-003', name: 'Rubí Sangre de Pichón', category: 'Gemas', unitPrice: 85000, currency: 'MXN', stockOnHand: 0 },
+        ],
+    });
+    await prisma.supplier.create({
+        data: { tenantId: tenant.id, name: 'Proveedor demo Cared', phone: '6440000000', email: 'proveedor@example.com' },
     });
 
     // 2. Create Users with Roles

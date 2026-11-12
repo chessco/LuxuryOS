@@ -27,6 +27,7 @@ import RBACSettings from './pages/RBACSettings';
 import { ThemeProvider } from './context/ThemeContext';
 import Quotes from './pages/Quotes';
 import PublicQuote from './pages/PublicQuote';
+import InventoryOperations from './pages/InventoryOperations';
 
 const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.ReactNode, allowedRoles: string[], redirectTo: string }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -88,10 +89,11 @@ function App() {
                         } />
                         <Route path="/reports" element={<Reports />} />
                         <Route path="/inventory" element={
-                            <RoleRedirect allowedRoles={['SYSTEM_ADMIN']} redirectTo="/orders">
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
                                 <Inventory />
                             </RoleRedirect>
                         } />
+                        <Route path="/inventory/operations" element={<RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders"><InventoryOperations /></RoleRedirect>} />
                         <Route path="/finance" element={
                             <RoleRedirect allowedRoles={['SYSTEM_ADMIN']} redirectTo="/orders">
                                 <Finance />
