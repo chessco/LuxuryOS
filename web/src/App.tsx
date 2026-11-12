@@ -28,6 +28,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import Quotes from './pages/Quotes';
 import PublicQuote from './pages/PublicQuote';
 import InventoryOperations from './pages/InventoryOperations';
+import PosSales from './pages/PosSales';
 
 const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.ReactNode, allowedRoles: string[], redirectTo: string }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -94,6 +95,11 @@ function App() {
                             </RoleRedirect>
                         } />
                         <Route path="/inventory/operations" element={<RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders"><InventoryOperations /></RoleRedirect>} />
+                        <Route path="/pos" element={
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN', 'VENDEDOR']} redirectTo="/orders">
+                                <PosSales />
+                            </RoleRedirect>
+                        } />
                         <Route path="/finance" element={
                             <RoleRedirect allowedRoles={['SYSTEM_ADMIN']} redirectTo="/orders">
                                 <Finance />

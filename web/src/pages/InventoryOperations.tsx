@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 
 type Supplier = { id: string; name: string };
-type Product = { id: string; sku: string; name: string; unitPrice: number };
+type Product = { id: string; sku: string; name: string; unitCost?: number | null; unitPrice: number };
 type Line = { productId: string; quantity: number; unitCost: number };
 
 export default function InventoryOperations() {
@@ -16,12 +16,23 @@ export default function InventoryOperations() {
   const [lines, setLines] = useState<Line[]>([{ productId: '', quantity: 1, unitCost: 0 }]);
   const [message, setMessage] = useState('');
   const load = async () => {
-    const [supplierResponse, productResponse] = await Promise.all([api.get<Supplier[]>('/inventory-operations/suppliers'), api.get<Product[]>('/commerce/catalog')]);
+    const [supplierResponse, productResponse] = await Promise.all([api.get<Supplier[]>('/inventory-operations/suppliers'), api.get<Product[]>('/commerce/products?status=ACTIVE')]);
     setSuppliers(supplierResponse.data); setProducts(productResponse.data);
   };
   useEffect(() => { load().catch(() => setMessage('No fue posible cargar proveedores o artículos.')); }, []);
   const total = useMemo(() => lines.reduce((sum, line) => sum + Number(line.quantity || 0) * Number(line.unitCost || 0), 0), [lines]);
-  const update = (index: number, field: keyof Line, value: string) => setLines(current => current.map((line, i) => i === index ? { ...line, [field]: field === 'productId' ? value : Number(value) } : line));
+  const update = (index: number, field: keyof Line, value: string) => setLines(current => current.map((line, i) => {
+    if (i !== index) return line;
+    if (field === 'productId') {
+      const selected = products.find((product) => product.id === value);
+      return {
+        ...line,
+        productId: value,
+        unitCost: line.unitCost === 0 && selected?.unitCost != null ? Number(selected.unitCost) : line.unitCost,
+      };
+    }
+    return { ...line, [field]: Number(value) };
+  }));
   const addSupplier = async () => { const response = await api.post<Supplier>('/inventory-operations/suppliers', { name: supplierName }); setSuppliers(current => [...current, response.data]); setSupplierId(response.data.id); setSupplierName(''); };
   const submit = async (event: React.FormEvent) => { event.preventDefault(); setMessage(''); try { await api.post('/inventory-operations/entries', { supplierId, type, currency, comments, items: lines }); setMessage('Entrada registrada. Las existencias fueron actualizadas.'); setLines([{ productId: '', quantity: 1, unitCost: 0 }]); setComments(''); } catch (error: any) { setMessage(error?.response?.data?.message || 'No fue posible registrar la entrada.'); } };
   return <div className="mx-auto w-full max-w-6xl space-y-6 p-6">

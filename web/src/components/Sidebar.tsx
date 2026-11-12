@@ -49,6 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
             ]
         },
         { title: 'Inventario', items: [
+            { name: 'Caja POS', icon: 'point_of_sale', path: '/pos' },
             { name: 'Inventario', icon: 'precision_manufacturing', path: '/inventory' },
             { name: 'Operaciones', icon: 'move_to_inbox', path: '/inventory/operations' },
         ] },
@@ -102,6 +103,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
         // Ocultar Pedidos para usuarios que no sean Admin o System
         if (!isAdminOrSystem) {
             items = items.filter(item => item.path !== '/orders');
+            items = items.filter(item => item.path !== '/inventory' && item.path !== '/inventory/operations');
+        }
+
+        // Caja POS solo para Admin, System y Vendedor (no Taller/Joyero)
+        if (!isAdminOrSystem && user.role !== 'VENDEDOR') {
+            items = items.filter(item => item.path !== '/pos');
         }
 
         return {
