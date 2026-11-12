@@ -1,9 +1,12 @@
 import axios from 'axios';
 import type {
+  CreateResellerSaleInput,
   LoginResponse,
   ResellerCatalogResponse,
   ResellerInventoryResponse,
   ResellerProfile,
+  ResellerSale,
+  ResellerSaleStatus,
 } from '../types';
 
 const TOKEN_KEY = 'cared_revendedores_token';
@@ -48,6 +51,33 @@ export async function getResellerCatalog(): Promise<ResellerCatalogResponse> {
 
 export async function getResellerInventory(): Promise<ResellerInventoryResponse> {
   const response = await api.get<ResellerInventoryResponse>('/reseller/inventory');
+  return response.data;
+}
+
+export async function createResellerSale(
+  payload: CreateResellerSaleInput,
+  idempotencyKey: string,
+): Promise<ResellerSale> {
+  const response = await api.post<ResellerSale>('/reseller/sales', payload, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+  return response.data;
+}
+
+export async function getResellerSales(status?: ResellerSaleStatus, q?: string): Promise<ResellerSale[]> {
+  const response = await api.get<ResellerSale[]>('/reseller/sales', {
+    params: {
+      ...(status ? { status } : {}),
+      ...(q?.trim() ? { q: q.trim() } : {}),
+    },
+  });
+  return response.data;
+}
+
+export async function cancelResellerSale(saleId: string, reason?: string): Promise<ResellerSale> {
+  const response = await api.post<ResellerSale>(`/reseller/sales/${saleId}/cancel`, {
+    ...(reason?.trim() ? { reason: reason.trim() } : {}),
+  });
   return response.data;
 }
 

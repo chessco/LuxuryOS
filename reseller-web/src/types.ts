@@ -69,3 +69,71 @@ export interface ResellerInventoryResponse {
   items: ResellerInventoryItem[];
   summary: ResellerInventorySummary;
 }
+
+export type ResellerSaleStatus = 'DRAFT' | 'PENDING_PAYMENT' | 'PAID' | 'CANCELLED' | 'EXPIRED';
+export type ResellerPaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'FAILED' | 'REFUNDED';
+
+export interface ResellerSaleItem {
+  id: string;
+  productId: string;
+  skuSnapshot: string;
+  nameSnapshot: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+  createdAt: string;
+}
+
+export interface ResellerSalePayment {
+  id: string;
+  amount: number;
+  method: string;
+  reference: string | null;
+  status: ResellerPaymentStatus;
+  recordedById: string | null;
+  recordedByName: string | null;
+  recordedAt: string;
+}
+
+export interface ResellerSaleReservation {
+  id: string;
+  productId: string;
+  quantity: number;
+  status: 'ACTIVE' | 'CONSUMED' | 'RELEASED' | 'EXPIRED';
+  expiresAt: string | null;
+}
+
+export interface ResellerSale {
+  id: string;
+  handoffCode: string;
+  resellerId: string;
+  resellerName: string | null;
+  salesChannel: 'RESELLER_POS' | 'JEWELRY_INTERNAL';
+  status: ResellerSaleStatus;
+  paymentStatus: ResellerPaymentStatus;
+  currency: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  subtotalAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceDue: number;
+  notes: string | null;
+  cancellationReason: string | null;
+  expiresAt: string | null;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: ResellerSaleItem[];
+  payments: ResellerSalePayment[];
+  reservations: ResellerSaleReservation[];
+}
+
+export interface CreateResellerSaleInput {
+  items: Array<{ productId: string; quantity: number }>;
+  customerName?: string;
+  customerPhone?: string;
+  notes?: string;
+}
