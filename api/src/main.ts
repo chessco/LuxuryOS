@@ -7,7 +7,7 @@ import * as fs from 'fs';
 
 import { ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { isOriginAllowed } from './common/cors';
+import { ALLOWED_CORS_HEADERS, isOriginAllowed } from './common/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -64,7 +64,7 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
+    allowedHeaders: ALLOWED_CORS_HEADERS,
   });
 
   const port = Number(process.env.PORT) || 3002;

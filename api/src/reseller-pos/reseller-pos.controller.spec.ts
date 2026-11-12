@@ -1,3 +1,4 @@
+import { CommerceSaleStatus, Role, SalesChannel } from '@prisma/client';
 import { ResellerPosController } from './reseller-pos.controller';
 
 describe('ResellerPosController', () => {
@@ -7,7 +8,13 @@ describe('ResellerPosController', () => {
     getInventory: jest.fn(),
     createCatalogProduct: jest.fn(),
   };
-  const controller = new ResellerPosController(service as any);
+  const commerceService = {
+    listSales: jest.fn(),
+    getSale: jest.fn(),
+    checkout: jest.fn(),
+    cancelSale: jest.fn(),
+  };
+  const controller = new ResellerPosController(service as any, commerceService as any);
 
   beforeEach(() => jest.resetAllMocks());
 
@@ -42,5 +49,33 @@ describe('ResellerPosController', () => {
     controller.createCatalogProduct(dto, { user: { tenantId: 'tenant-1' } });
 
     expect(service.createCatalogProduct).toHaveBeenCalledWith('tenant-1', dto);
+  });
+
+  it('delegates reseller sales list, detail, checkout and cancel to CommerceService with scope', () => {
+    const req = { user: { id: 'reseller-1', tenantId: 'tenant-1', role: Role.REVENDEDOR } };
+
+    controller.listSales(req, CommerceSaleStatus.PENDING_PAYMENT, 'ORD-');
+    expect(commerceService.listSales).toHaveBeenCalledWith(req.user, {
+      channel: SalesChannel.RESELLER_POS,
+      status: CommerceSaleStatus.PENDING_PAYMENT,
+      q: 'ORD-',
+      scopeToReseller: true,
+    });
+
+    controller.getSale('sale-1', req);
+    expect(commerceService.getSale).toHaveBeenCalledWith(req.user, 'sale-1', true);
+
+    const dto = { items: [{ productId: 'p1', quantity: 1 }] } as any;
+    controller.checkout(dto, 'idem-1', req);
+    expect(commerceService.checkout).toHaveBeenCalledWith(
+      req.user,
+      SalesChannel.RESELLER_POS,
+      dto,
+      'idem-1',
+    );
+
+    const cancelDto = { reason: 'Sin existencias físicas' };
+    controller.cancelSale('sale-1', cancelDto, req);
+    expect(commerceService.cancelSale).toHaveBeenCalledWith(req.user, 'sale-1', cancelDto, true);
   });
 });

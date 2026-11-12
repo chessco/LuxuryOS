@@ -44,6 +44,7 @@ export class ResellerPosService {
         category: true,
         imageUrl: true,
         unitPrice: true,
+        resellerPrice: true,
         currency: true,
         stockOnHand: true,
         reservedQuantity: true,
@@ -68,6 +69,7 @@ export class ResellerPosService {
         category: true,
         imageUrl: true,
         unitPrice: true,
+        resellerPrice: true,
         currency: true,
         stockOnHand: true,
         reservedQuantity: true,
@@ -149,6 +151,7 @@ export class ResellerPosService {
     category: string | null;
     imageUrl: string | null;
     unitPrice: { toString(): string } | number;
+    resellerPrice?: { toString(): string } | number | null;
     currency: string;
     stockOnHand: number;
     reservedQuantity: number;
@@ -160,7 +163,7 @@ export class ResellerPosService {
       description: product.description,
       category: product.category,
       imageUrl: product.imageUrl,
-      unitPrice: Number(product.unitPrice),
+      unitPrice: Number(product.resellerPrice ?? product.unitPrice),
       currency: product.currency,
       availableQuantity: Math.max(0, product.stockOnHand - product.reservedQuantity),
     };
@@ -173,6 +176,7 @@ export class ResellerPosService {
     category: string | null;
     imageUrl: string | null;
     unitPrice: { toString(): string } | number;
+    resellerPrice?: { toString(): string } | number | null;
     currency: string;
     stockOnHand: number;
     reservedQuantity: number;
@@ -188,7 +192,7 @@ export class ResellerPosService {
       name: product.name,
       category: product.category,
       imageUrl: product.imageUrl,
-      unitPrice: Number(product.unitPrice),
+      unitPrice: Number(product.resellerPrice ?? product.unitPrice),
       currency: product.currency,
       stockOnHand: product.stockOnHand,
       reservedQuantity: product.reservedQuantity,

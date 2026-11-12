@@ -30,6 +30,9 @@ describe('OrdersService Unit Tests', () => {
       create: jest.fn(),
       findMany: jest.fn(),
     },
+    notificationLog: {
+      create: jest.fn(),
+    },
     $transaction: jest.fn((callback) => callback(mockPrisma)),
   };
 
@@ -61,6 +64,7 @@ describe('OrdersService Unit Tests', () => {
     jest.clearAllMocks();
     mockPrisma.setting.findMany.mockResolvedValue([]);
     mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.notificationLog.create.mockResolvedValue({ id: 'notification-1' });
     mockNotificationService.sendCustomMessage.mockResolvedValue({
       success: true,
     });
@@ -112,7 +116,7 @@ describe('OrdersService Unit Tests', () => {
           totalAmount: 0,
           cost: 0,
           specifications: {
-            items: [{ item: 'Cadena', notes: 'Soldar broche', imageUrl: 'https://example.com/piece.jpg' }],
+            items: [{ item: 'Cadena', notes: 'Soldar broche', imageUrl: 'https://example.com/piece.jpg', jewelerLaborCost: 0 }],
           },
         } as any,
         'user-1',
@@ -339,6 +343,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         size: '7',
         thickness: '2mm',
         imageUrl: 'https://example.com/piece.jpg',
+        assignedTo: 'jeweler-1',
       };
 
       const result: any = await service.createOrder('tenant-1', dto, 'user-1');
@@ -378,6 +383,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         size: '50cm',
         thickness: '3mm',
         imageUrl: 'https://example.com/piece.jpg',
+        assignedTo: 'jeweler-1',
         advanceAmount: 400,
         advanceMethod: 'Tarjeta',
         advanceReference: 'AUTH-1234',
@@ -409,6 +415,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         value: 500,
         clientId: 'client-123',
         promisedAt: '2026-12-01T00:00:00.000Z',
+        assignedTo: 'jeweler-1',
         thickness: '2mm',
         // size missing
       };
@@ -427,6 +434,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         value: 500,
         clientId: 'client-123',
         promisedAt: '2026-12-01T00:00:00.000Z',
+        assignedTo: 'jeweler-1',
         size: '   ',
         thickness: '2mm',
       };
@@ -445,6 +453,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         value: 500,
         clientId: 'client-123',
         promisedAt: '2026-12-01T00:00:00.000Z',
+        assignedTo: 'jeweler-1',
         size: '18cm',
         // thickness missing
       };
@@ -463,6 +472,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         value: 500,
         clientId: 'client-123',
         promisedAt: '2026-12-01T00:00:00.000Z',
+        assignedTo: 'jeweler-1',
         size: '18cm',
         thickness: '   ',
       };
@@ -509,6 +519,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
         size: '7',
         thickness: '2mm',
         imageUrl: 'https://example.com/photo.jpg',
+        assignedTo: 'jeweler-1',
       };
 
       const result: any = await service.createOrder('tenant-1', dto, 'user-1');

@@ -34,9 +34,9 @@ async function main() {
     // Inventory catalog used by the local POS and receiving-order flows.
     await prisma.commerceProduct.createMany({
         data: [
-            { tenantId: tenant.id, sku: 'RNG-DIA-001', name: 'Anillo Diamante Solitario', category: 'Joyería', unitPrice: 150000, currency: 'MXN', stockOnHand: 0 },
-            { tenantId: tenant.id, sku: 'WCH-RLX-002', name: 'Reloj Oyster Perpetual', category: 'Relojería', unitPrice: 220000, currency: 'MXN', stockOnHand: 0 },
-            { tenantId: tenant.id, sku: 'GEM-RUB-003', name: 'Rubí Sangre de Pichón', category: 'Gemas', unitPrice: 85000, currency: 'MXN', stockOnHand: 0 },
+            { tenantId: tenant.id, sku: 'RNG-DIA-001', name: 'Anillo Diamante Solitario', category: 'Joyería', unitCost: 85000, unitPrice: 150000, resellerPrice: 135000, wholesalePrice: 120000, currency: 'MXN', stockOnHand: 0 },
+            { tenantId: tenant.id, sku: 'WCH-RLX-002', name: 'Reloj Oyster Perpetual', category: 'Relojería', unitCost: 180000, unitPrice: 220000, resellerPrice: 198000, wholesalePrice: 185000, currency: 'MXN', stockOnHand: 0 },
+            { tenantId: tenant.id, sku: 'GEM-RUB-003', name: 'Rubí Sangre de Pichón', category: 'Gemas', unitCost: 40000, unitPrice: 85000, resellerPrice: 76500, wholesalePrice: 68000, currency: 'MXN', stockOnHand: 0 },
         ],
     });
     await prisma.supplier.create({

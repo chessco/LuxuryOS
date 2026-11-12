@@ -339,7 +339,10 @@ model CommerceProduct {
   description          String?               @db.Text
   category             String?
   imageUrl             String?               @db.Text
+  unitCost             Decimal?              @db.Decimal(10, 2)
   unitPrice            Decimal               @db.Decimal(10, 2)
+  resellerPrice        Decimal?              @db.Decimal(10, 2)
+  wholesalePrice       Decimal?              @db.Decimal(10, 2)
   currency             String                @default("MXN") @db.VarChar(3)
   stockOnHand          Int                   @default(0)
   reservedQuantity     Int                   @default(0)
@@ -388,11 +391,12 @@ model CommerceSale {
   items        CommerceSaleItem[]
   payments     CommercePayment[]
   reservations InventoryReservation[]
+  inventoryMovements InventoryMovement[]
 
   @@index([tenantId, salesChannel, status])
   @@index([resellerId, createdAt])
   @@index([clientId])
-  @@unique([tenantId, idempotencyKey])
+  @@unique([tenantId, salesChannel, resellerId, idempotencyKey], map: "CommerceSale_idempotency_scope_key")
 }
 
 model CommerceAuditLog {
@@ -437,12 +441,14 @@ model CommercePayment {
   method       String
   reference    String?
   status       CommercePaymentStatus @default(PENDING)
+  idempotencyKey String?
   recordedById String?
   recordedBy   User?                 @relation("CommercePaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
   recordedAt   DateTime              @default(now())
 
   @@index([saleId])
   @@index([recordedById])
+  @@unique([saleId, idempotencyKey], map: "CommercePayment_sale_idempotency_key")
 }
 
 model InventoryReservation {
@@ -457,7 +463,7 @@ model InventoryReservation {
   sale       CommerceSale?              @relation(fields: [saleId], references: [id], onDelete: SetNull)
   quantity   Int
   status     InventoryReservationStatus @default(ACTIVE)
-  expiresAt  DateTime
+  expiresAt  DateTime?
   createdAt  DateTime                   @default(now())
   updatedAt  DateTime                   @updatedAt
 
@@ -475,6 +481,8 @@ enum InventoryEntryType {
 enum InventoryMovementType {
   INITIAL_STOCK
   ENTRY
+  EXIT
+  ADJUSTMENT
 }
 
 model Supplier {
@@ -539,8 +547,11 @@ model InventoryMovement {
   product       CommerceProduct       @relation(fields: [productId], references: [id])
   entryId       String?
   entry         InventoryEntry?       @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  saleId        String?
+  sale          CommerceSale?         @relation(fields: [saleId], references: [id], onDelete: SetNull)
   type          InventoryMovementType
   quantityDelta Int
+  balanceAfter  Int?
   unitCost      Decimal?              @db.Decimal(10, 2)
   currency      String                @default("MXN") @db.VarChar(3)
   comments      String?               @db.Text
@@ -550,6 +561,7 @@ model InventoryMovement {
 
   @@index([tenantId, productId, createdAt])
   @@index([entryId])
+  @@index([saleId])
 }
 
 enum QueueTicketKind {
