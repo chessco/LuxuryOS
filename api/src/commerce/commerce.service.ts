@@ -1,19 +1,28 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { CommercePaymentStatus, CommerceProductStatus, CommerceSaleStatus, InventoryMovementType, InventoryReservationStatus, Prisma, Role, SalesChannel } from '@prisma/client';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { CommercePaymentStatus, CommerceProductStatus, CommerceSaleStatus, CreditSubjectType, InventoryMovementType, InventoryReservationStatus, Prisma, Role, SalesChannel } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreditService } from './credit.service';
+import { CreditDrawdownDto } from './dto/commerce-credit.dto';
 import { CreateProductDto, RecordProductMovementDto, UpdateProductDto } from './dto/commerce-product.dto';
 import { CancelSaleDto, CreateSaleDto, SettleSaleDto } from './dto/commerce-sale.dto';
 
 type Actor = { id?: string; sub?: string; tenantId?: string; role?: Role };
 type CartItem = { productId: string; quantity: number };
 type PaymentInput = { amount: number; method: string; reference?: string };
-type CheckoutInput = CreateSaleDto | { items: CartItem[]; clientId?: string; customerName?: string; customerPhone?: string; payments?: PaymentInput[]; notes?: string };
+type CheckoutInput = CreateSaleDto | { items: CartItem[]; clientId?: string; customerName?: string; customerPhone?: string; payments?: PaymentInput[]; creditDrawdowns?: CreditDrawdownDto[]; allowOverdueOverride?: boolean; notes?: string };
 
 @Injectable()
 export class CommerceService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly credit: CreditService;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() creditService?: CreditService,
+  ) {
+    this.credit = creditService ?? new CreditService(prisma);
+  }
 
   private actor(actor: Actor, channel: SalesChannel) {
     const id = actor?.id || actor?.sub;
@@ -648,6 +657,7 @@ export class CommerceService {
       include: { recordedBy: { select: { name: true, email: true } } },
     },
     reservations: { orderBy: { expiresAt: 'asc' as const } },
+    creditObligations: { orderBy: { issuedAt: 'asc' as const } },
   };
 
   private formatHandoffCode(saleId: string) {
@@ -659,6 +669,7 @@ export class CommerceService {
     const discountAmount = Number(sale.discountAmount ?? 0);
     const totalAmount = Number(sale.totalAmount ?? 0);
     const paidAmount = Number(sale.paidAmount ?? 0);
+    const creditedAmount = Number(sale.creditedAmount ?? 0);
     const activeReservations = Array.isArray(sale.reservations)
       ? sale.reservations.filter((r: any) => r.status === InventoryReservationStatus.ACTIVE)
       : [];
@@ -672,6 +683,7 @@ export class CommerceService {
       resellerId: sale.resellerId,
       resellerName: sale.reseller?.name || sale.reseller?.email || null,
       resellerEmail: sale.reseller?.email || null,
+      clientId: sale.clientId ?? null,
       salesChannel: sale.salesChannel,
       status: sale.status,
       paymentStatus: sale.paymentStatus,
@@ -682,7 +694,8 @@ export class CommerceService {
       discountAmount,
       totalAmount,
       paidAmount,
-      balanceDue: Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100),
+      creditedAmount,
+      balanceDue: Math.max(0, Math.round((totalAmount - paidAmount - creditedAmount) * 100) / 100),
       notes: sale.notes ?? null,
       cancellationReason: sale.cancellationReason ?? null,
       expiresAt,
@@ -721,6 +734,19 @@ export class CommerceService {
             quantity: reservation.quantity,
             status: reservation.status,
             expiresAt: reservation.expiresAt,
+          }))
+        : [],
+      creditObligations: Array.isArray(sale.creditObligations)
+        ? sale.creditObligations.map((obligation: any) => ({
+            id: obligation.id,
+            code: this.credit.formatObligationCode(obligation.id),
+            facilityType: obligation.facilityType,
+            title: obligation.title,
+            principalAmount: Number(obligation.principalAmount),
+            paidAmount: Number(obligation.paidAmount),
+            balanceDue: Number(obligation.balanceDue),
+            dueAt: obligation.dueAt,
+            status: obligation.status,
           }))
         : [],
     };
@@ -864,9 +890,22 @@ export class CommerceService {
     const items = this.cart(input.items);
     const clientId = String(input.clientId || '').trim() || null;
     const payments = Array.isArray(input.payments) ? input.payments : [];
-    if (channel === SalesChannel.RESELLER_POS && payments.length) throw new ForbiddenException('Cared es responsable de procesar los pagos de revendedores');
+    const creditDrawdowns = Array.isArray((input as CreateSaleDto).creditDrawdowns)
+      ? (input as CreateSaleDto).creditDrawdowns!
+      : [];
+    if (channel === SalesChannel.RESELLER_POS && (payments.length || creditDrawdowns.length)) {
+      throw new ForbiddenException('Cared es responsable de procesar los pagos y créditos de revendedores');
+    }
     for (const payment of payments) {
       if (!Number.isFinite(Number(payment.amount)) || Number(payment.amount) <= 0 || !String(payment.method || '').trim()) throw new BadRequestException('Pago inválido');
+    }
+    for (const drawdown of creditDrawdowns) {
+      if (!Number.isFinite(Number(drawdown.amount)) || Number(drawdown.amount) <= 0) {
+        throw new BadRequestException('Monto de crédito inválido');
+      }
+    }
+    if (creditDrawdowns.length > 0 && !clientId) {
+      throw new BadRequestException('Selecciona un cliente registrado para otorgar crédito a 30 días');
     }
 
     try {
@@ -909,14 +948,19 @@ export class CommerceService {
         });
         subtotal = Math.round(subtotal * 100) / 100;
         const paid = Math.round(payments.reduce((sum, payment) => sum + Number(payment.amount), 0) * 100) / 100;
-        if (paid > subtotal) throw new BadRequestException('El pago no puede exceder el total');
-        const fullyPaid = paid === subtotal;
+        const credited = Math.round(creditDrawdowns.reduce((sum, drawdown) => sum + Number(drawdown.amount), 0) * 100) / 100;
+        const totalCovered = Math.round((paid + credited) * 100) / 100;
+        if (totalCovered > subtotal) throw new BadRequestException('El pago y crédito no pueden exceder el total');
+        if (credited > 0 && totalCovered !== subtotal) {
+          throw new BadRequestException('Al aplicar crédito, el enganche más el crédito deben cubrir el 100% de la orden');
+        }
+        const fullyPaid = totalCovered === subtotal;
         const sale = await tx.commerceSale.create({ data: {
           tenantId: session.tenantId, resellerId: session.id, salesChannel: channel,
           status: fullyPaid ? CommerceSaleStatus.PAID : CommerceSaleStatus.PENDING_PAYMENT,
           paymentStatus: fullyPaid ? CommercePaymentStatus.PAID : paid > 0 ? CommercePaymentStatus.PARTIAL : CommercePaymentStatus.PENDING,
           currency: lines[0]?.product.currency || 'MXN', clientId, customerName: input.customerName?.trim() || null, customerPhone: input.customerPhone?.trim() || null,
-          subtotalAmount: new Prisma.Decimal(subtotal), totalAmount: new Prisma.Decimal(subtotal), paidAmount: new Prisma.Decimal(paid), notes: input.notes?.trim() || null, idempotencyKey: key, paidAt: fullyPaid ? new Date() : null,
+          subtotalAmount: new Prisma.Decimal(subtotal), totalAmount: new Prisma.Decimal(subtotal), paidAmount: new Prisma.Decimal(paid), ...(credited > 0 ? { creditedAmount: new Prisma.Decimal(credited) } : {}), notes: input.notes?.trim() || null, idempotencyKey: key, paidAt: fullyPaid ? new Date() : null,
           items: { create: lines.map(line => ({ productId: line.product.id, skuSnapshot: line.product.sku, nameSnapshot: line.product.name, unitPrice: new Prisma.Decimal(line.unitPrice), quantity: line.quantity, lineTotal: new Prisma.Decimal(line.unitPrice * line.quantity) })) },
         }});
         for (const line of lines) {
@@ -943,7 +987,25 @@ export class CommerceService {
           await tx.inventoryReservation.create({ data: { tenantId: session.tenantId, productId: product.id, resellerId: session.id, saleId: sale.id, quantity: line.quantity, status: fullyPaid ? InventoryReservationStatus.CONSUMED : InventoryReservationStatus.ACTIVE, expiresAt: fullyPaid || paid > 0 ? null : new Date(Date.now() + 30 * 60_000) } });
         }
         for (const payment of payments) await tx.commercePayment.create({ data: { saleId: sale.id, amount: new Prisma.Decimal(payment.amount), method: payment.method.trim(), reference: payment.reference?.trim(), status: CommercePaymentStatus.PAID, recordedById: session.id } });
-        await tx.commerceAuditLog.create({ data: { tenantId: session.tenantId, actorId: session.id, entityType: 'SALE', entityId: sale.id, action: fullyPaid ? 'SALE_PAID' : 'SALE_RESERVED', payload: { channel, subtotal, paid } } });
+        if (creditDrawdowns.length > 0) {
+          const itemLabel = lines.map((line) => `${line.quantity}x ${line.product.name}`).join(', ').slice(0, 140);
+          await this.credit.applySaleCreditDrawdownsInTx(tx, {
+            tenantId: session.tenantId,
+            actorId: session.id,
+            actorRole: session.role,
+            saleId: sale.id,
+            saleHandoffCode: this.formatHandoffCode(sale.id),
+            currency: sale.currency,
+            subjectType: CreditSubjectType.CLIENT,
+            clientId,
+            drawdowns: creditDrawdowns.map((drawdown) => ({
+              ...drawdown,
+              title: drawdown.title?.trim() || `${itemLabel} · ${this.formatHandoffCode(sale.id)}`,
+            })),
+            allowOverdueOverride: Boolean((input as CreateSaleDto).allowOverdueOverride),
+          });
+        }
+        await tx.commerceAuditLog.create({ data: { tenantId: session.tenantId, actorId: session.id, entityType: 'SALE', entityId: sale.id, action: fullyPaid ? 'SALE_PAID' : 'SALE_RESERVED', payload: { channel, subtotal, paid, credited } } });
         const created = await tx.commerceSale.findUniqueOrThrow({ where: { id: sale.id }, include: this.saleInclude });
         return this.toSaleResponse(created);
       });
@@ -1075,8 +1137,9 @@ export class CommerceService {
     const key = String(idempotencyKey || '').trim();
     if (!key) throw new BadRequestException('Idempotency-Key es obligatorio para registrar cobros');
     const payments = Array.isArray(input.payments) ? input.payments : [];
-    if (!payments.length) {
-      throw new BadRequestException('Debes registrar al menos un método de pago para cobrar la orden');
+    const creditDrawdowns = Array.isArray(input.creditDrawdowns) ? input.creditDrawdowns : [];
+    if (!payments.length && !creditDrawdowns.length) {
+      throw new BadRequestException('Debes registrar al menos un método de pago o crédito para cobrar la orden');
     }
     for (const payment of payments) {
       if (
@@ -1085,6 +1148,11 @@ export class CommerceService {
         !String(payment.method || '').trim()
       ) {
         throw new BadRequestException('Pago inválido: verifica monto y método de pago');
+      }
+    }
+    for (const drawdown of creditDrawdowns) {
+      if (!Number.isFinite(Number(drawdown.amount)) || Number(drawdown.amount) <= 0) {
+        throw new BadRequestException('Monto de disposición de crédito inválido');
       }
     }
 
@@ -1100,7 +1168,17 @@ export class CommerceService {
           where: paymentReplayWhere,
           select: { id: true },
         });
-        if (replayPayment) {
+        const replayCredit = !replayPayment && tx.creditObligation?.findFirst
+          ? await tx.creditObligation.findFirst({
+              where: {
+                tenantId: session.tenantId,
+                saleId,
+                idempotencyKey: `${saleId}:0`,
+              },
+              select: { id: true },
+            })
+          : null;
+        if (replayPayment || replayCredit) {
           const replaySale = await tx.commerceSale.findFirst({
             where: { id: saleId, tenantId: session.tenantId },
             include: this.saleInclude,
@@ -1125,19 +1203,31 @@ export class CommerceService {
 
         const totalAmount = Math.round(Number(sale.totalAmount) * 100) / 100;
         const existingPaid = Math.round(Number(sale.paidAmount) * 100) / 100;
+        const existingCredited = Math.round(Number((sale as any).creditedAmount ?? 0) * 100) / 100;
         const incomingPaid = Math.round(
           payments.reduce((sum, payment) => sum + Number(payment.amount), 0) * 100,
         ) / 100;
+        const incomingCredited = Math.round(
+          creditDrawdowns.reduce((sum, drawdown) => sum + Number(drawdown.amount), 0) * 100,
+        ) / 100;
         const nextPaid = Math.round((existingPaid + incomingPaid) * 100) / 100;
+        const nextCredited = Math.round((existingCredited + incomingCredited) * 100) / 100;
+        const totalCovered = Math.round((nextPaid + nextCredited) * 100) / 100;
 
-        if (nextPaid > totalAmount) {
+        if (totalCovered > totalAmount) {
           throw new BadRequestException(
-            `El monto excede el saldo pendiente (${(totalAmount - existingPaid).toFixed(2)})`,
+            `El monto excede el saldo pendiente (${(totalAmount - existingPaid - existingCredited).toFixed(2)})`,
+          );
+        }
+        if (incomingCredited > 0 && totalCovered !== totalAmount) {
+          throw new BadRequestException(
+            'Al aplicar crédito en caja, el pago y las líneas de crédito deben liquidar el 100% del saldo pendiente.',
           );
         }
 
-        const fullyPaid = nextPaid === totalAmount;
+        const fullyPaid = totalCovered === totalAmount;
         const notes = input.notes?.trim() || sale.notes || null;
+        const overrideClientId = String(input.clientId || '').trim() || null;
 
         for (const [index, payment] of payments.entries()) {
           await tx.commercePayment.create({
@@ -1165,6 +1255,8 @@ export class CommerceService {
                 status: CommerceSaleStatus.PAID,
                 paymentStatus: CommercePaymentStatus.PAID,
                 paidAmount: new Prisma.Decimal(nextPaid),
+                ...(nextCredited > 0 ? { creditedAmount: new Prisma.Decimal(nextCredited) } : {}),
+                ...(overrideClientId && !sale.clientId ? { clientId: overrideClientId } : {}),
                 paidAt: new Date(),
                 notes,
               }
@@ -1254,6 +1346,39 @@ export class CommerceService {
               },
             });
           }
+
+          if (creditDrawdowns.length > 0) {
+            const effectiveClientId = overrideClientId || sale.clientId || null;
+            const creditSubjectType =
+              sale.salesChannel === SalesChannel.RESELLER_POS && !overrideClientId
+                ? CreditSubjectType.RESELLER
+                : CreditSubjectType.CLIENT;
+            if (creditSubjectType === CreditSubjectType.CLIENT && !effectiveClientId) {
+              throw new BadRequestException('Selecciona un cliente registrado para otorgar crédito a 30 días');
+            }
+            const itemLabel = sale.items
+              .map((item: any) => `${item.quantity}x ${item.nameSnapshot}`)
+              .join(', ')
+              .slice(0, 140);
+            await this.credit.applySaleCreditDrawdownsInTx(tx, {
+              tenantId: session.tenantId,
+              actorId: session.id,
+              actorRole: session.role,
+              saleId: sale.id,
+              saleHandoffCode: this.formatHandoffCode(sale.id),
+              currency: sale.currency,
+              subjectType: creditSubjectType,
+              resellerId: creditSubjectType === CreditSubjectType.RESELLER ? sale.resellerId : null,
+              clientId: creditSubjectType === CreditSubjectType.CLIENT ? effectiveClientId : null,
+              drawdowns: creditDrawdowns.map((drawdown) => ({
+                ...drawdown,
+                title:
+                  drawdown.title?.trim() ||
+                  `${itemLabel || 'Orden POS'} · ${this.formatHandoffCode(sale.id)}`,
+              })),
+              allowOverdueOverride: Boolean(input.allowOverdueOverride),
+            });
+          }
         } else {
           const activeReservations = sale.reservations.filter(
             (reservation) => reservation.status === InventoryReservationStatus.ACTIVE,
@@ -1281,7 +1406,9 @@ export class CommerceService {
               handoffCode: this.formatHandoffCode(sale.id),
               idempotencyKey: key,
               incomingPaid,
+              incomingCredited,
               nextPaid,
+              nextCredited,
               totalAmount,
             },
           },
@@ -1309,6 +1436,10 @@ export class CommerceService {
       }
       throw error;
     }
+  }
+
+  getResellerCredit(actor: Actor) {
+    return this.credit.getResellerCredit(actor);
   }
 
   async cancelSale(actor: Actor, saleId: string, input?: CancelSaleDto, scopeToReseller = false) {

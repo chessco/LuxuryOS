@@ -118,6 +118,7 @@ export interface ResellerSale {
   discountAmount: number;
   totalAmount: number;
   paidAmount: number;
+  creditedAmount?: number;
   balanceDue: number;
   notes: string | null;
   cancellationReason: string | null;
@@ -136,4 +137,65 @@ export interface CreateResellerSaleInput {
   customerName?: string;
   customerPhone?: string;
   notes?: string;
+}
+
+export type ResellerCreditFacilityType = 'REVOLVING' | 'NON_REVOLVING';
+export type ResellerCreditObligationStatus = 'OPEN' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+
+export interface ResellerCreditPayment {
+  id: string;
+  obligationId: string;
+  amount: number;
+  method: string;
+  reference: string | null;
+  notes: string | null;
+  recordedById: string | null;
+  recordedByName: string | null;
+  recordedAt: string;
+}
+
+export interface ResellerCreditObligation {
+  id: string;
+  code: string;
+  facilityType: ResellerCreditFacilityType;
+  title: string;
+  currency: string;
+  principalAmount: number;
+  paidAmount: number;
+  balanceDue: number;
+  termDays: number;
+  issuedAt: string;
+  dueAt: string;
+  paidAt: string | null;
+  status: ResellerCreditObligationStatus;
+  daysRemaining: number;
+  isOverdue: boolean;
+  saleHandoffCode: string | null;
+  notes: string | null;
+  payments: ResellerCreditPayment[];
+}
+
+export interface ResellerCreditAccountSummary {
+  id: string | null;
+  subjectType: 'RESELLER' | 'CLIENT';
+  subjectName: string | null;
+  revolvingLimit: number;
+  revolvingUsed: number;
+  revolvingAvailable: number;
+  activeNonRevolvingCount: number;
+  activeNonRevolvingTotal: number;
+  overdueCount: number;
+  overdueAmount: number;
+  currency: string;
+  defaultTermDays: number;
+  status: 'ACTIVE' | 'SUSPENDED';
+  canDrawCredit: boolean;
+  canDrawRevolving: boolean;
+  blockReason: string | null;
+}
+
+export interface ResellerCreditResponse {
+  account: ResellerCreditAccountSummary;
+  revolvingObligations: ResellerCreditObligation[];
+  nonRevolvingObligations: ResellerCreditObligation[];
 }

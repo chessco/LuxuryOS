@@ -4,6 +4,7 @@ import {
   createResellerSale,
   errorMessage,
   getResellerCatalog,
+  getResellerCredit,
   getResellerInventory,
   getResellerProfile,
   getResellerSales,
@@ -13,6 +14,8 @@ import {
 import { useTheme } from './context/ThemeContext';
 import type {
   ResellerCatalogItem,
+  ResellerCreditObligationStatus,
+  ResellerCreditResponse,
   ResellerInventoryAvailabilityStatus,
   ResellerInventoryResponse,
   ResellerProfile,
@@ -46,6 +49,14 @@ const saleStatusMeta: Record<ResellerSaleStatus, { label: string; tone: string }
   PAID: { label: 'Pagada', tone: 'paid' },
   CANCELLED: { label: 'Cancelada', tone: 'cancelled' },
   EXPIRED: { label: 'Expirada', tone: 'expired' },
+};
+
+const obligationStatusMeta: Record<ResellerCreditObligationStatus, { label: string; tone: string }> = {
+  OPEN: { label: 'Vigente', tone: 'pending' },
+  PARTIAL: { label: 'Con abonos', tone: 'pending' },
+  PAID: { label: 'Liquidada', tone: 'paid' },
+  OVERDUE: { label: 'Vencida (>30d)', tone: 'attention' },
+  CANCELLED: { label: 'Cancelada', tone: 'cancelled' },
 };
 
 const createIdempotencyKey = () =>
@@ -123,7 +134,7 @@ function ThemeSelector({ compact = false }: { compact?: boolean }) {
   );
 }
 
-type ResellerSection = 'dashboard' | 'inventory' | 'catalog' | 'cart' | 'sales';
+type ResellerSection = 'dashboard' | 'inventory' | 'catalog' | 'cart' | 'sales' | 'credit';
 
 const NAV_SECTIONS: ReadonlyArray<{
   id: ResellerSection;
@@ -136,6 +147,7 @@ const NAV_SECTIONS: ReadonlyArray<{
   { id: 'catalog', label: 'Catálogo', icon: 'grid_view', hash: '#catalogo' },
   { id: 'cart', label: 'Venta en preparación', icon: 'shopping_bag', hash: '#venta' },
   { id: 'sales', label: 'Mis ventas', icon: 'receipt_long', hash: '#mis-ventas' },
+  { id: 'credit', label: 'Mi crédito', icon: 'credit_score', hash: '#credito' },
 ];
 
 function sectionFromHash(hash: string): ResellerSection {
@@ -418,6 +430,8 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesFilter, setSalesFilter] = useState<'ALL' | ResellerSaleStatus>('ALL');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [creditData, setCreditData] = useState<ResellerCreditResponse | null>(null);
+  const [creditLoading, setCreditLoading] = useState(false);
 
   const selectSection = useCallback((section: ResellerSection) => {
     setActiveSection(section);
@@ -443,6 +457,18 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
       setError(errorMessage(requestError));
     } finally {
       setSalesLoading(false);
+    }
+  }, []);
+
+  const loadCredit = useCallback(async () => {
+    setCreditLoading(true);
+    try {
+      const data = await getResellerCredit();
+      setCreditData(data);
+    } catch {
+      // Keep non-blocking on dashboard startup if credit endpoint is unreachable
+    } finally {
+      setCreditLoading(false);
     }
   }, []);
 
@@ -482,8 +508,8 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
   }, [profile.id, cart, customerName, customerPhone, orderNotes]);
 
   useEffect(() => {
-    void Promise.all([loadCatalog(), loadSales()]);
-  }, [loadCatalog, loadSales]);
+    void Promise.all([loadCatalog(), loadSales(), loadCredit()]);
+  }, [loadCatalog, loadSales, loadCredit]);
 
   const cartQuantity = useCallback(
     (productId: string) => cart.find((line) => line.item.id === productId)?.quantity || 0,
@@ -693,6 +719,19 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                   <p className="eyebrow">VENTA EN PREPARACIÓN</p>
                   <h3>Ver carrito</h3>
                   <small>{cartItemCount > 0 ? `${cartItemCount} piezas · ${currency(cartTotal, cartCurrency)}` : 'Sin piezas agregadas todavía'}</small>
+                </div>
+                <span className="material-symbols-outlined shortcut-arrow" aria-hidden="true">arrow_forward</span>
+              </button>
+              <button type="button" className="shortcut-card" onClick={() => selectSection('credit')}>
+                <span className="material-symbols-outlined" aria-hidden="true">credit_score</span>
+                <div>
+                  <p className="eyebrow">CRÉDITO 30 DÍAS</p>
+                  <h3>Revolvente y líneas por pieza</h3>
+                  <small>
+                    {creditData
+                      ? `Disp. revolvente: ${currency(creditData.account.revolvingAvailable, creditData.account.currency)} · ${creditData.account.activeNonRevolvingCount} líneas no revolventes`
+                      : 'Consulta tu cupo revolvente y líneas a 30 días'}
+                  </small>
                 </div>
                 <span className="material-symbols-outlined shortcut-arrow" aria-hidden="true">arrow_forward</span>
               </button>
@@ -1100,6 +1139,9 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                               {sale.paidAmount > 0 && (
                                 <span>Pagado: <strong>{currency(sale.paidAmount, sale.currency)}</strong></span>
                               )}
+                              {(sale.creditedAmount || 0) > 0 && (
+                                <span>A crédito (30d): <strong>{currency(sale.creditedAmount || 0, sale.currency)}</strong></span>
+                              )}
                               {sale.status === 'PENDING_PAYMENT' && sale.expiresAt && (
                                 <span className="sale-expiry">Vence: {formatDateTime(sale.expiresAt)}</span>
                               )}
@@ -1132,6 +1174,154 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                   </div>
                 );
               })()
+            )}
+          </section>
+        )}
+
+        {activeSection === 'credit' && (
+          <section id="reseller-credit" className="inventory-workspace section-view" aria-labelledby="credit-title">
+            <div className="inventory-heading">
+              <div>
+                <p className="eyebrow">CRÉDITO COMERCIAL · 30 DÍAS</p>
+                <h2 id="credit-title">Línea Revolvente y Líneas por Pieza</h2>
+                <p>Coexistencia de cupo revolvente reutilizable y créditos no revolventes específicos a 30 días autorizados en Caja Cared.</p>
+              </div>
+              <div className="hero-actions">
+                <span className="channel-badge">
+                  {creditData?.account?.canDrawCredit ? 'Cuenta al corriente' : 'Con restricción de crédito'}
+                </span>
+                <button type="button" className="secondary" onClick={() => void loadCredit()} disabled={creditLoading}>
+                  <span className="material-symbols-outlined" aria-hidden="true">refresh</span>
+                  Actualizar
+                </button>
+              </div>
+            </div>
+
+            {creditData?.account?.blockReason && (
+              <p className="form-error catalog-error" role="alert">
+                {creditData.account.blockReason} Liquidar en Caja Cared para reactivar nuevas disposiciones.
+              </p>
+            )}
+
+            <div className="inventory-summary" aria-label="Resumen de crédito dual">
+              <article>
+                <span>Límite revolvente</span>
+                <strong>{currency(creditData?.account?.revolvingLimit ?? 0, creditData?.account?.currency ?? 'MXN')}</strong>
+              </article>
+              <article>
+                <span>Revolvente utilizado</span>
+                <strong>{currency(creditData?.account?.revolvingUsed ?? 0, creditData?.account?.currency ?? 'MXN')}</strong>
+              </article>
+              <article>
+                <span>Revolvente disponible</span>
+                <strong>{currency(creditData?.account?.revolvingAvailable ?? 0, creditData?.account?.currency ?? 'MXN')}</strong>
+              </article>
+              <article className={(creditData?.account?.overdueCount || 0) > 0 ? 'attention' : ''}>
+                <span>No revolvente activo ({creditData?.account?.activeNonRevolvingCount ?? 0})</span>
+                <strong>{currency(creditData?.account?.activeNonRevolvingTotal ?? 0, creditData?.account?.currency ?? 'MXN')}</strong>
+              </article>
+            </div>
+
+            {creditLoading && !creditData ? (
+              <p className="empty-state">Cargando estado crediticio…</p>
+            ) : (
+              <div className="credit-sections-grid">
+                <section className="credit-block">
+                  <div className="credit-block-head">
+                    <div>
+                      <p className="eyebrow">MODALIDAD 1 · CUPOS REUSABLES</p>
+                      <h3>Disposiciones Revolventes (30 días)</h3>
+                    </div>
+                    <span className="read-only-badge">Se libera al abonar</span>
+                  </div>
+                  {(creditData?.revolvingObligations || []).length === 0 ? (
+                    <p className="cart-picker-empty">No tienes disposiciones registradas en tu línea revolvente.</p>
+                  ) : (
+                    <div className="sales-list">
+                      {(creditData?.revolvingObligations || []).map((obligation) => {
+                        const meta = obligationStatusMeta[obligation.status];
+                        return (
+                          <article key={obligation.id} className="sale-card">
+                            <div className="sale-card-head">
+                              <div>
+                                <p className="sku">
+                                  {obligation.code}
+                                  {obligation.saleHandoffCode ? ` · ${obligation.saleHandoffCode}` : ''}
+                                </p>
+                                <h3>{obligation.title}</h3>
+                                <small className="sale-sub">
+                                  Emitida: {formatDateTime(obligation.issuedAt)} · Vence: {formatDateTime(obligation.dueAt)}
+                                </small>
+                              </div>
+                              <span className={`sale-status ${meta.tone}`}>{meta.label}</span>
+                            </div>
+                            <div className="sale-card-foot">
+                              <div className="sale-amounts">
+                                <span>Principal: <strong>{currency(obligation.principalAmount, obligation.currency)}</strong></span>
+                                <span>Abonado: <strong>{currency(obligation.paidAmount, obligation.currency)}</strong></span>
+                                <span>Saldo: <strong>{currency(obligation.balanceDue, obligation.currency)}</strong></span>
+                              </div>
+                              {obligation.balanceDue > 0 && (
+                                <span className={obligation.isOverdue ? 'credit-due overdue' : 'credit-due'}>
+                                  {obligation.isOverdue ? 'Vencida' : `${obligation.daysRemaining} días restantes`}
+                                </span>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                <section className="credit-block">
+                  <div className="credit-block-head">
+                    <div>
+                      <p className="eyebrow">MODALIDAD 2 · LÍNEAS ESPECÍFICAS</p>
+                      <h3>Líneas No Revolventes por Pieza (30 días)</h3>
+                    </div>
+                    <span className="read-only-badge">No consume tu cupo revolvente</span>
+                  </div>
+                  {(creditData?.nonRevolvingObligations || []).length === 0 ? (
+                    <p className="cart-picker-empty">No tienes líneas no revolventes activas o históricas.</p>
+                  ) : (
+                    <div className="sales-list">
+                      {(creditData?.nonRevolvingObligations || []).map((obligation) => {
+                        const meta = obligationStatusMeta[obligation.status];
+                        return (
+                          <article key={obligation.id} className="sale-card">
+                            <div className="sale-card-head">
+                              <div>
+                                <p className="sku">
+                                  {obligation.code}
+                                  {obligation.saleHandoffCode ? ` · ${obligation.saleHandoffCode}` : ''}
+                                </p>
+                                <h3>{obligation.title}</h3>
+                                <small className="sale-sub">
+                                  Emitida: {formatDateTime(obligation.issuedAt)} · Vence: {formatDateTime(obligation.dueAt)}
+                                </small>
+                              </div>
+                              <span className={`sale-status ${meta.tone}`}>{meta.label}</span>
+                            </div>
+                            <div className="sale-card-foot">
+                              <div className="sale-amounts">
+                                <span>Monto línea: <strong>{currency(obligation.principalAmount, obligation.currency)}</strong></span>
+                                <span>Abonado: <strong>{currency(obligation.paidAmount, obligation.currency)}</strong></span>
+                                <span>Saldo: <strong>{currency(obligation.balanceDue, obligation.currency)}</strong></span>
+                              </div>
+                              {obligation.balanceDue > 0 && (
+                                <span className={obligation.isOverdue ? 'credit-due overdue' : 'credit-due'}>
+                                  {obligation.isOverdue ? 'Vencida' : `${obligation.daysRemaining} días restantes`}
+                                </span>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              </div>
             )}
           </section>
         )}

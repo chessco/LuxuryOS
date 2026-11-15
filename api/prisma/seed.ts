@@ -9,6 +9,10 @@ async function main() {
     // 0. Clear existing local demo data in dependency order.
     // This seed is only for the isolated development database.
     console.log('Clearing existing data...');
+    await prisma.creditLedgerEntry.deleteMany();
+    await prisma.creditPayment.deleteMany();
+    await prisma.creditObligation.deleteMany();
+    await prisma.creditAccount.deleteMany();
     await prisma.inventoryMovement.deleteMany();
     await prisma.inventoryEntryItem.deleteMany();
     await prisma.inventoryEntry.deleteMany();

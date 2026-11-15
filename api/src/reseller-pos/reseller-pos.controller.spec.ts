@@ -13,6 +13,7 @@ describe('ResellerPosController', () => {
     checkout: jest.fn(),
     cancelSale: jest.fn(),
     createProduct: jest.fn(),
+    getResellerCredit: jest.fn(),
   };
   const controller = new ResellerPosController(service as any, commerceService as any);
 
@@ -78,5 +79,8 @@ describe('ResellerPosController', () => {
     const cancelDto = { reason: 'Sin existencias físicas' };
     controller.cancelSale('sale-1', cancelDto, req);
     expect(commerceService.cancelSale).toHaveBeenCalledWith(req.user, 'sale-1', cancelDto, true);
+
+    controller.getCredit(req);
+    expect(commerceService.getResellerCredit).toHaveBeenCalledWith(req.user);
   });
 });

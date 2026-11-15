@@ -42,6 +42,11 @@ export class ResellerPosController {
     return this.resellerPosService.getInventory(req.user.tenantId);
   }
 
+  @Get('credit')
+  getCredit(@Request() req: { user: { id: string; tenantId: string; role: Role } }) {
+    return this.commerceService.getResellerCredit(req.user);
+  }
+
   @Post('catalog')
   @Roles(Role.TENANT_ADMIN, Role.SYSTEM_ADMIN)
   createCatalogProduct(

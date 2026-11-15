@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -11,6 +12,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { CreditDrawdownDto } from './commerce-credit.dto';
 
 export class SaleCartItemDto {
   @IsString()
@@ -73,14 +75,40 @@ export class CreateSaleDto {
   @ValidateNested({ each: true })
   @Type(() => SalePaymentDto)
   payments?: SalePaymentDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreditDrawdownDto)
+  creditDrawdowns?: CreditDrawdownDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  allowOverdueOverride?: boolean;
 }
 
 export class SettleSaleDto {
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => SalePaymentDto)
-  payments!: SalePaymentDto[];
+  payments?: SalePaymentDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreditDrawdownDto)
+  creditDrawdowns?: CreditDrawdownDto[];
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(191)
+  clientId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  allowOverdueOverride?: boolean;
 
   @IsOptional()
   @IsString()

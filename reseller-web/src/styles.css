@@ -248,6 +248,13 @@ h1, h2, h3, p { margin-top: 0; }
 .sale-amounts { display: flex; flex-wrap: wrap; gap: 14px; font-size: .82rem; color: var(--muted-foreground); }
 .sale-amounts strong { color: var(--foreground); }
 .sale-expiry { color: #d8a748; font-weight: 700; }
+.credit-sections-grid { display: grid; gap: 22px; margin-top: 22px; }
+.credit-block { border: 1px solid var(--border); border-radius: 8px; padding: 18px; background: color-mix(in srgb, var(--surface-raised) 50%, var(--background)); display: grid; gap: 14px; }
+.credit-block-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.credit-block-head h3 { margin: 4px 0 0; font-size: 1rem; font-weight: 820; }
+.sale-status.attention { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); }
+.credit-due { font-size: .74rem; font-weight: 800; color: var(--muted-foreground); }
+.credit-due.overdue { color: var(--primary); }
 .cart-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 20px; border-bottom: 1px solid var(--border); }
 .cart-heading h2 { margin: 6px 0 0; font-size: 1.35rem; font-weight: 800; letter-spacing: -.04em; text-transform: uppercase; }
 .cart-heading > span { border-radius: 999px; padding: 6px 9px; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); font-size: .67rem; font-weight: 850; }

@@ -4,6 +4,8 @@ import {
   CommercePaymentStatus,
   CommerceProductStatus,
   CommerceSaleStatus,
+  CreditFacilityType,
+  CreditSubjectType,
   InventoryMovementType,
   InventoryReservationStatus,
   Role,
@@ -1365,5 +1367,118 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
       data: { reservedQuantity: 1 },
     });
     expect(cancelled.status).toBe(CommerceSaleStatus.CANCELLED);
+  });
+
+  it('settles a reseller sale using cash + 30-day NON_REVOLVING credit drawdown, exits inventory and creates obligation', async () => {
+    const creditMock = {
+      formatObligationCode: jest.fn((id: string) => `CRD-${id.slice(0, 8).toUpperCase()}`),
+      applySaleCreditDrawdownsInTx: jest.fn().mockResolvedValue([]),
+      getResellerCredit: jest.fn(),
+    };
+    const creditAwareService = new CommerceService(prisma, creditMock as any);
+
+    const sale = {
+      id: 'cred1234-0000-0000-0000-000000000000',
+      resellerId: 'reseller-1',
+      reseller: { name: 'Ana Revendedora', email: 'ana@cared.mx' },
+      salesChannel: SalesChannel.RESELLER_POS,
+      status: CommerceSaleStatus.PENDING_PAYMENT,
+      paymentStatus: CommercePaymentStatus.PENDING,
+      currency: 'MXN',
+      subtotalAmount: 3000,
+      discountAmount: 0,
+      totalAmount: 3000,
+      paidAmount: 0,
+      creditedAmount: 0,
+      notes: null,
+      createdAt: new Date(),
+      items: [
+        {
+          id: 'item-c1',
+          productId: 'prod-1',
+          skuSnapshot: 'RNG-3K',
+          nameSnapshot: 'Anillo Plata $3,000',
+          quantity: 1,
+          unitPrice: 3000,
+          lineTotal: 3000,
+        },
+      ],
+      payments: [],
+      reservations: [
+        {
+          id: 'res-c1',
+          productId: 'prod-1',
+          quantity: 1,
+          status: InventoryReservationStatus.ACTIVE,
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+      ],
+      creditObligations: [],
+    };
+    tx.commerceSale.findFirst.mockResolvedValue(sale);
+    tx.commerceSale.updateMany.mockResolvedValue({ count: 1 });
+    tx.inventoryReservation.updateMany.mockResolvedValue({ count: 1 });
+    tx.commerceProduct.findFirst.mockResolvedValue({
+      id: 'prod-1',
+      sku: 'RNG-3K',
+      stockOnHand: 3,
+      reservedQuantity: 1,
+    });
+    tx.commerceProduct.updateMany.mockResolvedValue({ count: 1 });
+    tx.commerceSale.findUniqueOrThrow.mockResolvedValue({
+      ...sale,
+      status: CommerceSaleStatus.PAID,
+      paymentStatus: CommercePaymentStatus.PAID,
+      paidAmount: 500,
+      creditedAmount: 2500,
+      paidAt: new Date(),
+      creditObligations: [
+        {
+          id: 'obli9999-0000',
+          facilityType: CreditFacilityType.NON_REVOLVING,
+          title: '1x Anillo Plata $3,000 · ORD-CRED1234',
+          principalAmount: 2500,
+          paidAmount: 0,
+          balanceDue: 2500,
+          dueAt: new Date(),
+          status: 'OPEN',
+        },
+      ],
+    });
+
+    const settled = await creditAwareService.settleSale(
+      cashierActor,
+      sale.id,
+      {
+        payments: [{ amount: 500, method: 'Efectivo' }],
+        creditDrawdowns: [{ facilityType: CreditFacilityType.NON_REVOLVING, amount: 2500 }],
+      },
+      'settle-credit-1',
+    );
+
+    expect(tx.inventoryMovement.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: InventoryMovementType.EXIT,
+        quantityDelta: -1,
+        balanceAfter: 2,
+      }),
+    });
+    expect(creditMock.applySaleCreditDrawdownsInTx).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        saleId: sale.id,
+        subjectType: CreditSubjectType.RESELLER,
+        resellerId: 'reseller-1',
+        drawdowns: [
+          expect.objectContaining({
+            facilityType: CreditFacilityType.NON_REVOLVING,
+            amount: 2500,
+          }),
+        ],
+      }),
+    );
+    expect(settled.creditedAmount).toBe(2500);
+    expect(settled.balanceDue).toBe(0);
+    expect(settled.creditObligations).toHaveLength(1);
   });
 });

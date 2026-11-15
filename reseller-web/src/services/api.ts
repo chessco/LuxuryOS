@@ -3,6 +3,7 @@ import type {
   CreateResellerSaleInput,
   LoginResponse,
   ResellerCatalogResponse,
+  ResellerCreditResponse,
   ResellerInventoryResponse,
   ResellerProfile,
   ResellerSale,
@@ -78,6 +79,11 @@ export async function cancelResellerSale(saleId: string, reason?: string): Promi
   const response = await api.post<ResellerSale>(`/reseller/sales/${saleId}/cancel`, {
     ...(reason?.trim() ? { reason: reason.trim() } : {}),
   });
+  return response.data;
+}
+
+export async function getResellerCredit(): Promise<ResellerCreditResponse> {
+  const response = await api.get<ResellerCreditResponse>('/reseller/credit');
   return response.data;
 }
 
