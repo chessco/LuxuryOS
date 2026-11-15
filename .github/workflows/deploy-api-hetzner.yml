@@ -2,6 +2,15 @@ name: Deploy API to Hetzner
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Comprobar primero; desplegar solo tras revisar el preflight'
+        required: true
+        type: choice
+        default: preflight
+        options:
+          - preflight
+          - deploy
 
 concurrency:
   group: deploy-api-hetzner
@@ -54,6 +63,7 @@ jobs:
             echo "[4/7] Comparando el esquema real con Prisma..."
             diff_file="$(mktemp)"
             docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm --no-deps api sh -c 'npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script' > "$diff_file"
+            cat "$diff_file"
             if grep -Eqi 'DROP[[:space:]]+(TABLE|COLUMN)|TRUNCATE[[:space:]]+TABLE|DELETE[[:space:]]+FROM' "$diff_file"; then
               echo "El esquema propuesto elimina datos. No se aplican migraciones."
               exit 1
@@ -69,6 +79,11 @@ jobs:
             gzip "$backup_file"
             gzip -t "$backup_file.gz"
             sha256sum "$backup_file.gz"
+
+            if [ "${{ inputs.mode }}" = preflight ]; then
+              echo "Preflight completo. No se aplicaron migraciones ni se reinicio la API."
+              exit 0
+            fi
 
             echo "[6/7] Aplicando únicamente migraciones versionadas..."
             docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm --no-deps api npx prisma migrate deploy
