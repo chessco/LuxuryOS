@@ -7,13 +7,27 @@ import { Roles } from '../auth/roles.decorator';
 import { isAdminRole } from '../common/roles.util';
 import { redactSecretSettings, validateSettingsPayload } from './settings.policy';
 
+interface AuthenticatedRequest {
+  user: {
+    id: string;
+    tenantId: string;
+    role: Role;
+    email?: string;
+  };
+}
+
 @Controller('settings')
 @UseGuards(JwtAuthGuard)
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
+  @Get('gold-quote')
+  async getPublicGoldQuote(@Req() req: AuthenticatedRequest) {
+    return this.settingsService.getPublicGoldQuote(req.user.tenantId);
+  }
+
   @Get()
-  async getSettings(@Req() req: any) {
+  async getSettings(@Req() req: AuthenticatedRequest) {
     const settings = await this.settingsService.getSettings(req.user.tenantId);
     return isAdminRole(req.user?.role, req.user?.email) ? settings : redactSecretSettings(settings);
   }
@@ -21,7 +35,7 @@ export class SettingsController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles(Role.TENANT_ADMIN)
-  async updateSettings(@Req() req: any, @Body() body: Record<string, string>) {
+  async updateSettings(@Req() req: AuthenticatedRequest, @Body() body: Record<string, string>) {
     const tenantId = req.user.tenantId;
     const settings = validateSettingsPayload(body);
     await Promise.all(
@@ -33,7 +47,7 @@ export class SettingsController {
   }
 
   @Post('clear-demo-data')
-  async clearDemoData(@Req() req: any) {
+  async clearDemoData(@Req() req: AuthenticatedRequest) {
     if (!isAdminRole(req.user?.role, req.user?.email)) {
       throw new ForbiddenException('Solo el administrador del sistema puede realizar esta acción');
     }

@@ -29,6 +29,7 @@ import Quotes from './pages/Quotes';
 import PublicQuote from './pages/PublicQuote';
 import InventoryOperations from './pages/InventoryOperations';
 import PosSales from './pages/PosSales';
+import WidgetsSettings from './pages/WidgetsSettings';
 
 const RoleRedirect = ({ children, allowedRoles, redirectTo }: { children: React.ReactNode, allowedRoles: string[], redirectTo: string }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -118,6 +119,11 @@ function App() {
                         <Route path="/settings/atelier" element={
                             <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
                                 <AtelierSettings />
+                            </RoleRedirect>
+                        } />
+                        <Route path="/settings/widgets" element={
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
+                                <WidgetsSettings />
                             </RoleRedirect>
                         } />
                         <Route path="/settings/users" element={

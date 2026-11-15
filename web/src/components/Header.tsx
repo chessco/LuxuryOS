@@ -276,32 +276,32 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
     };
 
     return (
-        <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-2.5 sm:px-8 gap-1 sm:gap-4 transition-colors">
-            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-2 sm:px-8 gap-1 sm:gap-4 transition-colors">
+            <div className="flex items-center gap-1 sm:gap-3 shrink-0">
                 <button
                     onClick={onToggleMenu}
                     title="Alternar Menú Lateral"
-                    className="flex size-9 sm:size-10 items-center justify-center rounded-xl bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-sm active:scale-95 border border-border/50 cursor-pointer"
+                    className="flex size-8 sm:size-10 items-center justify-center rounded-xl bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all shadow-sm active:scale-95 border border-border/50 cursor-pointer"
                 >
                     <span className="material-symbols-outlined text-[20px] sm:text-[22px]">menu</span>
                 </button>
-                <Link to="/orders?type=REPAIR" className="flex items-center self-center pl-1 sm:pl-2 pr-1.5 sm:pr-3 cursor-pointer" aria-label={atelierName}>
+                <Link to="/orders?type=REPAIR" className="flex items-center self-center pl-0.5 sm:pl-2 pr-1 sm:pr-3 cursor-pointer" aria-label={atelierName}>
                     {/* Logo corporativo (blanco): en temas claros se invierte a negro */}
                     <img
                         src="/cared-logo.png"
                         alt={atelierName}
                         width={655}
                         height={310}
-                        className="h-8 sm:h-11 w-auto select-none invert dark:invert-0"
+                        className="h-7 sm:h-11 w-auto select-none invert dark:invert-0"
                         draggable={false}
                     />
                 </Link>
             </div>
 
             {/* Global Search (Accesible en iPad, iPhone, Laptop y Desktop) */}
-            <div className="relative flex-1 min-w-[100px] max-w-md mx-1 sm:mx-4 lg:mx-8" ref={searchRef}>
+            <div className="relative flex-1 min-w-0 max-w-md mx-0.5 sm:mx-4 lg:mx-8" ref={searchRef}>
                 <div className="relative group">
-                    <span className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors pointer-events-none">
+                    <span className="absolute left-2.5 sm:left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors pointer-events-none">
                         <span className="material-symbols-outlined text-[18px] sm:text-[20px]">search</span>
                     </span>
                     <input
@@ -319,7 +319,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                             if (headerSearch.trim()) setIsSearchOpen(true);
                         }}
                         onKeyDown={handleSearchKeyDown}
-                        className="w-full rounded-2xl border border-border/60 bg-muted/40 py-2 sm:py-2.5 pl-9 sm:pl-11 pr-8 sm:pr-9 text-xs font-bold text-foreground placeholder-muted-foreground/70 focus:border-indigo-500 focus:bg-background focus:outline-none transition-all shadow-inner"
+                        className="w-full rounded-2xl border border-border/60 bg-muted/40 py-2 sm:py-2.5 pl-8 sm:pl-11 pr-6 sm:pr-9 text-xs font-bold text-foreground placeholder-muted-foreground/70 focus:border-indigo-500 focus:bg-background focus:outline-none transition-all shadow-inner"
                         placeholder="Buscar por orden, cliente o joya..."
                         type="text"
                     />
@@ -427,17 +427,17 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-3 ml-auto">
+            <div className="flex items-center gap-1 sm:gap-3 ml-auto shrink-0">
                 <button
                     onClick={() => setIsQRScannerOpen(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-red-600/20 shrink-0 cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-red-600/20 shrink-0 cursor-pointer"
                     title="Lector QR / Código de Barras para iPad"
                 >
                     <span className="material-symbols-outlined text-[18px]">qr_code_scanner</span>
                     <span className="hidden sm:inline">Lector QR</span>
                 </button>
 
-                <div className="flex items-center gap-2 mr-2">
+                <div className="flex items-center gap-0.5 sm:gap-2 sm:mr-2">
                     {/* Notifications Button & Dropdown */}
                     <div className="relative" ref={notifRef}>
                         <button
@@ -445,7 +445,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                                 setIsNotificationsOpen(prev => !prev);
                                 setIsUserMenuOpen(false);
                             }}
-                            className={`relative flex size-10 items-center justify-center rounded-xl transition-all cursor-pointer ${
+                            className={`relative flex size-8 sm:size-10 items-center justify-center rounded-xl transition-all cursor-pointer ${
                                 isNotificationsOpen 
                                     ? 'bg-indigo-500/20 text-indigo-500' 
                                     : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -539,15 +539,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                         )}
                     </div>
 
-                    <Link to="/messages" className="flex size-10 items-center justify-center rounded-xl hover:bg-muted/60 text-yellow-500 hover:text-yellow-400 transition-all shadow-sm">
-                        <span className="material-symbols-outlined text-[22px] icon-fill">mail</span>
+                    <Link to="/messages" className="flex size-8 sm:size-10 items-center justify-center rounded-xl hover:bg-muted/60 text-yellow-500 hover:text-yellow-400 transition-all shadow-sm">
+                        <span className="material-symbols-outlined text-[20px] sm:text-[22px] icon-fill">mail</span>
                     </Link>
                 </div>
 
                 <div className="h-8 w-px bg-border/60 mx-1 hidden md:block"></div>
 
                 {/* User Profile Avatar & Dropdown */}
-                <div className="relative pl-1" ref={userMenuRef}>
+                <div className="relative pl-0.5 sm:pl-1 shrink-0" ref={userMenuRef}>
                     <button
                         onClick={() => {
                             setIsUserMenuOpen(prev => !prev);
@@ -560,10 +560,10 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
                             <span className="text-muted-foreground text-[9px] font-bold uppercase tracking-wider mt-0.5">{formatRoleName(userRole)}</span>
                         </div>
                         <div className="relative">
-                            <div className="size-10 rounded-full border-2 border-border group-hover:border-indigo-500 transition-all overflow-hidden p-0.5 bg-muted shadow-inner flex items-center justify-center font-black text-xs text-indigo-500 uppercase">
+                            <div className="size-8 sm:size-10 rounded-full border-2 border-border group-hover:border-indigo-500 transition-all overflow-hidden p-0.5 bg-muted shadow-inner flex items-center justify-center font-black text-xs text-indigo-500 uppercase">
                                 {userName.substring(0, 2)}
                             </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 size-3 bg-emerald-500 border-2 border-background rounded-full shadow-lg"></div>
+                            <div className="absolute -bottom-0.5 -right-0.5 size-2.5 sm:size-3 bg-emerald-500 border-2 border-background rounded-full shadow-lg"></div>
                         </div>
                     </button>
 

@@ -18,18 +18,21 @@ export class AuthService {
     if (normalizedEmail.includes('@')) {
       // Full email provided — exact match
       user = await this.prisma.user.findFirst({
-        where: { email: normalizedEmail },
+        where: { email: normalizedEmail, isActive: true },
       });
     } else {
       // Nombre de usuario propio (independiente del email): tiene prioridad
       user = await this.prisma.user.findFirst({
-        where: { username: normalizedEmail },
+        where: { username: normalizedEmail, isActive: true },
       });
 
       if (!user) {
         // Compatibilidad: usuario sin dominio, solo válido si identifica exactamente una cuenta
         const matches = await this.prisma.user.findMany({
-          where: { email: { startsWith: `${normalizedEmail}@` } },
+          where: {
+            email: { startsWith: `${normalizedEmail}@` },
+            isActive: true,
+          },
           take: 2,
         });
         user = matches.length === 1 ? matches[0] : null;

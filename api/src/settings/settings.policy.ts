@@ -6,7 +6,7 @@ const MAX_KEYS = 200;
 const MAX_VALUE_LENGTH = 5_000_000;
 
 export function isSecretSettingKey(key: string): boolean {
-    return SECRET_KEY_PATTERN.test(key);
+    return key === 'gold_quote_config' || SECRET_KEY_PATTERN.test(key);
 }
 
 export function redactSecretSettings(settings: Record<string, string>): Record<string, string> {

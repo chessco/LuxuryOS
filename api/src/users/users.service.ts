@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
+import { ClientType, Role } from '@prisma/client';
 
 const USER_SELECT = {
   id: true,
@@ -15,6 +15,7 @@ const USER_SELECT = {
   username: true,
   name: true,
   role: true,
+  isActive: true,
   jewelerPercentage: true,
   createdAt: true,
 } as const;
@@ -99,18 +100,62 @@ export class UsersService {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    return this.prisma.user.create({
-      data: {
-        email,
-        username: username ?? undefined,
-        // En el alta el nombre se replica del usuario si no se capturó
-        name: name || username || undefined,
-        passwordHash,
-        role: role || Role.TENANT_USER,
-        ...(jewelerPercentage !== undefined ? { jewelerPercentage } : {}),
-        tenantId,
-      },
-      select: USER_SELECT,
+    return this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email,
+          username: username ?? undefined,
+          // En el alta el nombre se replica del usuario si no se capturó
+          name: name || username || undefined,
+          passwordHash,
+          role: role || Role.TENANT_USER,
+          isActive: true,
+          ...(jewelerPercentage !== undefined ? { jewelerPercentage } : {}),
+          tenantId,
+        },
+        select: USER_SELECT,
+      });
+
+      if (createdUser.role === Role.REVENDEDOR) {
+        const displayName = (
+          createdUser.name ||
+          createdUser.username ||
+          createdUser.email
+        )
+          .toUpperCase()
+          .trim();
+        const existingClient = await tx.client.findFirst({
+          where: {
+            tenantId,
+            OR: [
+              { resellerUserId: createdUser.id },
+              { email: createdUser.email, resellerUserId: null },
+            ],
+          },
+          select: { id: true },
+        });
+        if (existingClient) {
+          await tx.client.update({
+            where: { id: existingClient.id },
+            data: {
+              type: ClientType.RESELLER,
+              resellerUserId: createdUser.id,
+            },
+          });
+        } else {
+          await tx.client.create({
+            data: {
+              tenantId,
+              name: displayName,
+              email: createdUser.email,
+              type: ClientType.RESELLER,
+              resellerUserId: createdUser.id,
+            },
+          });
+        }
+      }
+
+      return createdUser;
     });
   }
 

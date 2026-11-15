@@ -1,11 +1,21 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
+
+interface JwtPayload {
+    sub: string;
+    tenantId: string;
+    role?: string;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-    constructor(configService: ConfigService) {
+    constructor(
+        configService: ConfigService,
+        private readonly prisma: PrismaService,
+    ) {
         const secret = configService.get<string>('JWT_SECRET');
         const isProd = configService.get<string>('NODE_ENV') === 'production';
 
@@ -23,7 +33,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
     }
 
-    async validate(payload: any) {
-        return { id: payload.sub, email: payload.email, tenantId: payload.tenantId, role: payload.role };
+    async validate(payload: JwtPayload) {
+        const user = await this.prisma.user.findFirst({
+            where: {
+                id: payload.sub,
+                tenantId: payload.tenantId,
+                isActive: true,
+            },
+            select: {
+                id: true,
+                email: true,
+                tenantId: true,
+                role: true,
+            },
+        });
+        if (!user) {
+            throw new UnauthorizedException('La cuenta está inactiva o ya no existe');
+        }
+        return user;
     }
 }

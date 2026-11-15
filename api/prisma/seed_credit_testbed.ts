@@ -3,6 +3,7 @@
  * Run with: npx --prefix api ts-node prisma/seed_credit_testbed.ts
  */
 import {
+  ClientType,
   CommercePaymentStatus,
   CommerceSaleStatus,
   CreditAccountStatus,
@@ -23,20 +24,63 @@ const MS_PER_DAY = 86_400_000;
 async function ensureReseller(
   tenantId: string,
   email: string,
+  username: string,
   name: string,
+  phone: string,
   passwordHash: string,
 ) {
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return existing;
-  return prisma.user.create({
-    data: {
+  const user = existing
+    ? await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          username: existing.username || username,
+          name,
+          ...(process.env.TESTBED_RESELLER_PASSWORD ? { passwordHash } : {}),
+        },
+      })
+    : await prisma.user.create({
+        data: {
+          tenantId,
+          email,
+          username,
+          name,
+          role: Role.REVENDEDOR,
+          passwordHash,
+        },
+      });
+
+  const existingClient = await prisma.client.findFirst({
+    where: {
       tenantId,
-      email,
-      name,
-      role: Role.REVENDEDOR,
-      passwordHash,
+      OR: [{ resellerUserId: user.id }, { email }],
     },
   });
+  if (existingClient) {
+    await prisma.client.update({
+      where: { id: existingClient.id },
+      data: {
+        type: ClientType.RESELLER,
+        resellerUserId: user.id,
+        phone: existingClient.phone || phone,
+        location: existingClient.location || 'Cd Obregon, Sonora',
+      },
+    });
+  } else {
+    await prisma.client.create({
+      data: {
+        tenantId,
+        name: name.toUpperCase(),
+        email,
+        phone,
+        location: 'Cd Obregon, Sonora',
+        type: ClientType.RESELLER,
+        resellerUserId: user.id,
+      },
+    });
+  }
+
+  return user;
 }
 
 async function main() {
@@ -56,13 +100,17 @@ async function main() {
   const resellerCurrent = await ensureReseller(
     tenant.id,
     'revendedor.alcorriente@cared.mx',
+    'revendedor',
     'Carlos Revendedor (Al Corriente)',
+    '6441800001',
     passwordHash,
   );
   const resellerOverdue = await ensureReseller(
     tenant.id,
     'revendedor.mora@cared.mx',
+    'revendedor.mora',
     'Lucía Revendedora (Mora >30d)',
+    '6441800002',
     passwordHash,
   );
 

@@ -25,7 +25,7 @@ describe('AuthService.validateUser', () => {
     const result = await service.validateUser('  JuanCarlos ', 'secreto123');
 
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
-      where: { username: 'juancarlos' },
+      where: { username: 'juancarlos', isActive: true },
     });
     expect(result).toMatchObject({ id: 'u1', username: 'juancarlos' });
     expect(result.passwordHash).toBeUndefined();
@@ -41,7 +41,7 @@ describe('AuthService.validateUser', () => {
     await service.validateUser('joyero@cared.mx', 'secreto123');
 
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
-      where: { email: 'joyero@cared.mx' },
+      where: { email: 'joyero@cared.mx', isActive: true },
     });
   });
 
@@ -64,5 +64,22 @@ describe('AuthService.validateUser', () => {
     });
 
     expect(await service.validateUser('juancarlos', 'otra')).toBeNull();
+  });
+
+  it('excluye cuentas inactivas desde la consulta de autenticación', async () => {
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.user.findMany.mockResolvedValue([]);
+
+    expect(await service.validateUser('revendedor', 'secreto123')).toBeNull();
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: { username: 'revendedor', isActive: true },
+    });
+    expect(prisma.user.findMany).toHaveBeenCalledWith({
+      where: {
+        email: { startsWith: 'revendedor@' },
+        isActive: true,
+      },
+      take: 2,
+    });
   });
 });

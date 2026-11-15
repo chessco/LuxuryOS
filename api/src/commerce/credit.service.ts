@@ -85,7 +85,14 @@ export class CreditService {
   private readonly obligationInclude = {
     account: {
       include: {
-        reseller: { select: { id: true, name: true, email: true } },
+        reseller: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            clientProfile: { select: { id: true, phone: true, location: true } },
+          },
+        },
         client: { select: { id: true, name: true, phone: true, email: true } },
       },
     },
@@ -297,7 +304,13 @@ export class CreditService {
       if (!targetId) throw new BadRequestException('resellerId es obligatorio para crédito de revendedor');
       const user = await tx.user.findFirst({
         where: { id: targetId, tenantId },
-        select: { id: true, name: true, email: true, role: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          clientProfile: { select: { id: true, phone: true, location: true } },
+        },
       });
       if (!user) throw new NotFoundException('Revendedor no encontrado en esta organización');
       return {
@@ -305,7 +318,7 @@ export class CreditService {
         resellerId: user.id,
         clientId: null as string | null,
         subjectName: user.name || user.email,
-        subjectPhone: null as string | null,
+        subjectPhone: user.clientProfile?.phone ?? null,
         subjectEmail: user.email,
       };
     }
@@ -414,7 +427,14 @@ export class CreditService {
             ...(filters?.subjectType ? { subjectType: filters.subjectType } : {}),
           },
           include: {
-            reseller: { select: { id: true, name: true, email: true } },
+            reseller: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                clientProfile: { select: { id: true, phone: true, location: true } },
+              },
+            },
             client: { select: { id: true, name: true, phone: true, email: true } },
             obligations: {
               where: { status: { notIn: [CreditObligationStatus.CANCELLED] } },
@@ -425,7 +445,12 @@ export class CreditService {
         }),
         tx.user.findMany({
           where: { tenantId, role: Role.REVENDEDOR },
-          select: { id: true, name: true, email: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            clientProfile: { select: { id: true, phone: true, location: true } },
+          },
           orderBy: { name: 'asc' },
         }),
         tx.client.findMany({
@@ -447,7 +472,9 @@ export class CreditService {
           ? account.reseller?.name || account.reseller?.email || 'Revendedor'
           : account.client?.name || 'Cliente';
       const subjectPhone =
-        account.subjectType === CreditSubjectType.RESELLER ? null : account.client?.phone ?? null;
+        account.subjectType === CreditSubjectType.RESELLER
+          ? account.reseller?.clientProfile?.phone ?? null
+          : account.client?.phone ?? null;
       const subjectEmail =
         account.subjectType === CreditSubjectType.RESELLER
           ? account.reseller?.email ?? null

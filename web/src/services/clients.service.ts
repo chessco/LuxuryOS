@@ -1,10 +1,30 @@
 import api from './api';
 
+export type ClientType = 'RETAIL' | 'VIP' | 'RESELLER';
+
+export interface ClientPortalAccess {
+    enabled: boolean;
+    userId: string | null;
+    username: string | null;
+    email: string | null;
+    role?: string | null;
+}
+
+export interface ClientPortalAccessDto {
+    enable: boolean;
+    username?: string;
+    email?: string;
+    password?: string;
+}
+
 export interface CreateClientDto {
     name: string;
     email?: string;
     phone?: string;
+    location?: string;
+    type?: ClientType;
     tags?: string[];
+    portalAccess?: ClientPortalAccessDto;
 }
 
 export const ClientsService = {
@@ -86,14 +106,35 @@ export const ClientsService = {
                 }
             }
 
+            const clientType: ClientType =
+                c.type === 'RESELLER' || c.type === 'VIP' ? c.type : 'RETAIL';
+            const status =
+                clientType === 'RESELLER'
+                    ? 'Revendedor'
+                    : clientType === 'VIP'
+                        ? 'VIP'
+                        : (c.status || 'Active');
+
             return {
                 ...c,
-                status: c.status || 'Active',
+                type: clientType,
+                tags: Array.isArray(c.tags) ? c.tags : [],
+                portalAccess: c.portalAccess || {
+                    enabled: false,
+                    userId: null,
+                    username: null,
+                    email: null,
+                },
+                status,
                 totalSpentNumber: totalSpentNum,
                 totalSpent: `${totalSpentNum.toLocaleString('es-MX')} MXN`,
                 lastOrder: lastOrderFormatted,
                 initials: c.name ? c.name.substring(0, 2).toUpperCase() : 'CL',
-                initialsColor: 'bg-zinc-800 text-zinc-400'
+                initialsColor: clientType === 'RESELLER'
+                    ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                    : clientType === 'VIP'
+                        ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
+                        : 'bg-zinc-800 text-zinc-400'
             };
         });
     },
@@ -113,4 +154,3 @@ export const ClientsService = {
         return response.data;
     }
 };
-

@@ -19,6 +19,7 @@ import { UsersService } from '../services/users.service';
 import { ClientHistoryModal } from '../components/orders/ClientHistoryModal';
 import { getTrafficLight, TrafficLightColor } from '../utils/trafficLight';
 import RingSizeInput from '../components/orders/RingSizeInput';
+import WidgetDock from '../components/widgets/WidgetDock';
 
 const isAppleMobileDevice = () => typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
@@ -731,41 +732,45 @@ const Orders: React.FC = () => {
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden">
             <header className="shrink-0 z-10 mb-8 px-2">
-                <div className="flex flex-col gap-6">
-                    <div className="flex flex-wrap justify-between items-center gap-4">
-                        <div className="flex flex-col gap-1">
-                            <h2 className="text-foreground text-3xl font-black tracking-tight font-display transition-colors">{boardTitle}</h2>
-                            <p className="text-muted-foreground text-sm transition-colors">{boardSubtitle}</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            {isSystemAdmin && (
-                                <div className="flex bg-muted p-1 rounded-2xl border border-border transition-colors">
+                <div className="flex flex-col gap-5 sm:gap-6">
+                    <div className="flex flex-col-reverse md:flex-row md:items-start md:justify-between gap-4">
+                        <div className="flex-1 min-w-0 flex flex-wrap justify-between items-center gap-3 sm:gap-4">
+                            <div className="flex flex-col gap-1">
+                                <h2 className="text-foreground text-2xl lg:text-3xl font-black tracking-tight font-display transition-colors">{boardTitle}</h2>
+                                <p className="text-muted-foreground text-xs sm:text-sm transition-colors">{boardSubtitle}</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 lg:gap-4">
+                                {isSystemAdmin && (
+                                    <div className="flex bg-muted p-1 rounded-2xl border border-border transition-colors">
+                                        <button
+                                            onClick={() => setViewMode('kanban')}
+                                            className={`flex items-center gap-1.5 px-3 lg:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">view_kanban</span>
+                                            <span>Kanban</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('table')}
+                                            className={`flex items-center gap-1.5 px-3 lg:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">view_list</span>
+                                            <span>Notion</span>
+                                        </button>
+                                    </div>
+                                )}
+                                {!isJoyero && (
                                     <button
-                                        onClick={() => setViewMode('kanban')}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'kanban' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+                                        onClick={() => setIsModalOpen(true)}
+                                        className="flex items-center gap-1.5 sm:gap-2 bg-foreground text-background px-3.5 sm:px-5 lg:px-6 py-2.5 lg:py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
                                     >
-                                        <span className="material-symbols-outlined text-[18px]">view_kanban</span>
-                                        <span>Kanban</span>
+                                        <span className="material-symbols-outlined text-[18px] sm:text-[20px]">add</span>
+                                        <span>{newButtonLabel}</span>
                                     </button>
-                                    <button
-                                        onClick={() => setViewMode('table')}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-card text-foreground shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">view_list</span>
-                                        <span>Notion</span>
-                                    </button>
-                                </div>
-                            )}
-                            {!isJoyero && (
-                                <button
-                                    onClick={() => setIsModalOpen(true)}
-                                    className="flex items-center gap-2 bg-foreground text-background px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
-                                >
-                                    <span className="material-symbols-outlined text-[20px]">add</span>
-                                    <span>{newButtonLabel}</span>
-                                </button>
-                            )}
+                                )}
+                            </div>
                         </div>
+
+                        <WidgetDock />
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-4">

@@ -5,8 +5,9 @@ describe('settings.policy', () => {
     it('detecta claves secretas y las oculta', () => {
         expect(isSecretSettingKey('pitayacore_api_key')).toBe(true);
         expect(isSecretSettingKey('flow_internal_key')).toBe(true);
+        expect(isSecretSettingKey('gold_quote_config')).toBe(true);
         expect(isSecretSettingKey('business_name')).toBe(false);
-        expect(redactSecretSettings({ business_name: 'CARED', pitayacore_api_key: 'x' })).toEqual({ business_name: 'CARED' });
+        expect(redactSecretSettings({ business_name: 'CARED', pitayacore_api_key: 'x', gold_quote_config: '{"marginPercent":8}' })).toEqual({ business_name: 'CARED' });
     });
 
     it('acepta ajustes validos y convierte numeros y booleanos a texto', () => {
