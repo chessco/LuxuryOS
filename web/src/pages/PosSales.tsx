@@ -284,6 +284,7 @@ const PosSales: React.FC = () => {
     const [directClients, setDirectClients] = useState<PosClientOption[]>([]);
     const [showClientSuggestions, setShowClientSuggestions] = useState(false);
     const [directCart, setDirectCart] = useState<Record<string, number>>({});
+    const [directClientId, setDirectClientId] = useState<string | null>(null);
     const [directCustomerName, setDirectCustomerName] = useState('');
     const [directCustomerPhone, setDirectCustomerPhone] = useState('');
     const [directMethod, setDirectMethod] = useState<string>('Efectivo');
@@ -650,6 +651,7 @@ const PosSales: React.FC = () => {
                 })),
                 customerName: directCustomerName.trim() || undefined,
                 customerPhone: directCustomerPhone.trim() || undefined,
+                clientId: directClientId || undefined,
                 notes: directNotes.trim() || undefined,
                 payments: directCollectNow
                     ? [
@@ -667,6 +669,7 @@ const PosSales: React.FC = () => {
             const created = response.data;
             setIsDirectModalOpen(false);
             setDirectCart({});
+            setDirectClientId(null);
             setDirectCustomerName('');
             setDirectCustomerPhone('');
             setDirectReference('');
@@ -1640,6 +1643,7 @@ const PosSales: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => {
+                                                setDirectClientId(null);
                                                 setDirectCustomerName('');
                                                 setDirectCustomerPhone('');
                                             }}
@@ -1662,6 +1666,7 @@ const PosSales: React.FC = () => {
                                             onFocus={() => setShowClientSuggestions(true)}
                                             onBlur={() => window.setTimeout(() => setShowClientSuggestions(false), 160)}
                                             onChange={(event) => {
+                                                setDirectClientId(null);
                                                 setDirectCustomerName(event.target.value);
                                                 setShowClientSuggestions(true);
                                             }}
@@ -1676,6 +1681,7 @@ const PosSales: React.FC = () => {
                                                         type="button"
                                                         onMouseDown={(e) => {
                                                             e.preventDefault();
+                                                            setDirectClientId(client.id);
                                                             setDirectCustomerName(client.name);
                                                             setDirectCustomerPhone(client.phone || '');
                                                             setShowClientSuggestions(false);
@@ -1700,7 +1706,10 @@ const PosSales: React.FC = () => {
                                             id="direct-customer-phone"
                                             type="tel"
                                             value={directCustomerPhone}
-                                            onChange={(event) => setDirectCustomerPhone(event.target.value)}
+                                            onChange={(event) => {
+                                                setDirectClientId(null);
+                                                setDirectCustomerPhone(event.target.value);
+                                            }}
                                             placeholder="Ej. 644 123 4567"
                                             className="w-full h-11 rounded-xl border border-border bg-background px-3 text-sm focus:border-red-500 focus:outline-none"
                                         />

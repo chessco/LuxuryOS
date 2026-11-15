@@ -1,20 +1,20 @@
-import { Body, Controller, Get, Headers, Optional, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { CommerceSaleStatus, Role, SalesChannel } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { ResellerPosService } from './reseller-pos.service';
-import { CreateCommerceProductDto } from './dto/create-commerce-product.dto';
 import { CommerceService } from '../commerce/commerce.service';
+import { CreateProductDto } from '../commerce/dto/commerce-product.dto';
 import { CancelSaleDto, CreateSaleDto } from '../commerce/dto/commerce-sale.dto';
 
 @Controller('reseller')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.REVENDEDOR, Role.TENANT_ADMIN)
+@Roles(Role.REVENDEDOR, Role.TENANT_ADMIN, Role.SYSTEM_ADMIN)
 export class ResellerPosController {
   constructor(
     private readonly resellerPosService: ResellerPosService,
-    @Optional() private readonly commerceService?: CommerceService,
+    private readonly commerceService: CommerceService,
   ) {}
 
   @Get('profile')
@@ -43,12 +43,12 @@ export class ResellerPosController {
   }
 
   @Post('catalog')
-  @Roles(Role.TENANT_ADMIN)
+  @Roles(Role.TENANT_ADMIN, Role.SYSTEM_ADMIN)
   createCatalogProduct(
-    @Body() body: CreateCommerceProductDto,
-    @Request() req: { user: { tenantId: string } },
+    @Body() body: CreateProductDto,
+    @Request() req: { user: { id: string; tenantId: string; role: Role } },
   ) {
-    return this.resellerPosService.createCatalogProduct(req.user.tenantId, body);
+    return this.commerceService.createProduct(req.user, body);
   }
 
   @Get('sales')
@@ -57,9 +57,6 @@ export class ResellerPosController {
     @Query('status') status?: CommerceSaleStatus,
     @Query('q') q?: string,
   ) {
-    if (!this.commerceService) {
-      throw new Error('Commerce service not initialized');
-    }
     return this.commerceService.listSales(req.user, {
       channel: SalesChannel.RESELLER_POS,
       status,
@@ -73,9 +70,6 @@ export class ResellerPosController {
     @Param('id') id: string,
     @Request() req: { user: { id: string; tenantId: string; role: Role } },
   ) {
-    if (!this.commerceService) {
-      throw new Error('Commerce service not initialized');
-    }
     return this.commerceService.getSale(req.user, id, true);
   }
 
@@ -85,9 +79,6 @@ export class ResellerPosController {
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Request() req: { user: { id: string; tenantId: string; role: Role } },
   ) {
-    if (!this.commerceService) {
-      throw new Error('Commerce service not initialized');
-    }
     return this.commerceService.checkout(req.user, SalesChannel.RESELLER_POS, body, idempotencyKey);
   }
 
@@ -97,9 +88,6 @@ export class ResellerPosController {
     @Body() body: CancelSaleDto,
     @Request() req: { user: { id: string; tenantId: string; role: Role } },
   ) {
-    if (!this.commerceService) {
-      throw new Error('Commerce service not initialized');
-    }
     return this.commerceService.cancelSale(req.user, id, body, true);
   }
 }

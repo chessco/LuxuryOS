@@ -515,6 +515,9 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
       create: jest.fn(),
       findFirst: jest.fn(),
     },
+    client: {
+      findFirst: jest.fn(),
+    },
     inventoryReservation: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -549,6 +552,7 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
     tx.inventoryReservation.findMany.mockResolvedValue([]);
     tx.inventoryReservation.count.mockResolvedValue(0);
     tx.commercePayment.findFirst.mockResolvedValue(null);
+    tx.client.findFirst.mockResolvedValue(null);
     prisma.commerceSale.findFirst.mockResolvedValue(null);
     prisma.commercePayment.findFirst.mockResolvedValue(null);
     service = new CommerceService(prisma);
@@ -568,6 +572,7 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
         reservedQuantity: 1,
       },
     ]);
+    tx.client.findFirst.mockResolvedValue({ id: 'client-1' });
     tx.commerceSale.create.mockResolvedValue({ id: '12345678-aaaa-bbbb-cccc-111111111111', currency: 'MXN' });
     tx.commerceProduct.updateMany.mockResolvedValue({ count: 1 });
     tx.commerceSale.findUniqueOrThrow.mockResolvedValue({
@@ -617,6 +622,7 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
       SalesChannel.RESELLER_POS,
       {
         items: [{ productId: 'prod-1', quantity: 2 }],
+        clientId: 'client-1',
         customerName: 'Sofía Pérez',
         customerPhone: '5512345678',
         notes: 'Entrega hoy',
@@ -637,9 +643,52 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
         }),
       }),
     );
+    expect(tx.client.findFirst).toHaveBeenCalledWith({
+      where: { id: 'client-1', tenantId: 'tenant-1' },
+      select: { id: true },
+    });
+    expect(tx.commerceSale.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ clientId: 'client-1' }) }),
+    );
     expect(result.handoffCode).toBe('ORD-12345678');
     expect(result.totalAmount).toBe(240000);
     expect(result.balanceDue).toBe(240000);
+  });
+
+  it('rejects a client that does not belong to the sale tenant', async () => {
+    tx.commerceSale.findFirst.mockResolvedValue(null);
+    tx.client.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.checkout(
+        resellerActor,
+        SalesChannel.RESELLER_POS,
+        { items: [{ productId: 'prod-1', quantity: 1 }], clientId: 'foreign-client' },
+        'idem-foreign-client',
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(tx.commerceProduct.findMany).not.toHaveBeenCalled();
+    expect(tx.commerceSale.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a checkout that mixes product currencies', async () => {
+    tx.commerceSale.findFirst.mockResolvedValue(null);
+    tx.commerceProduct.findMany.mockResolvedValue([
+      { id: 'prod-mxn', sku: 'MXN-1', name: 'Anillo', currency: 'MXN', unitPrice: 100, stockOnHand: 2, reservedQuantity: 0 },
+      { id: 'prod-usd', sku: 'USD-1', name: 'Reloj', currency: 'USD', unitPrice: 20, stockOnHand: 2, reservedQuantity: 0 },
+    ]);
+
+    await expect(
+      service.checkout(
+        cashierActor,
+        SalesChannel.JEWELRY_INTERNAL,
+        { items: [{ productId: 'prod-mxn', quantity: 1 }, { productId: 'prod-usd', quantity: 1 }] },
+        'idem-mixed-currency',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(tx.commerceSale.create).not.toHaveBeenCalled();
   });
 
   it('creates internal partial-payment reservations without an automatic expiration', async () => {
@@ -862,6 +911,25 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
     expect(tx.commerceSale.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ tenantId: 'tenant-1', resellerId: 'reseller-1' }),
+      }),
+    );
+  });
+
+  it('filters sales in Prisma before applying the result limit', async () => {
+    tx.commerceSale.findMany.mockResolvedValue([]);
+
+    await service.listSales(cashierActor, { q: 'ORD-abc12345' });
+
+    expect(tx.commerceSale.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          OR: expect.arrayContaining([
+            { id: { contains: 'abc12345' } },
+            { customerName: { contains: 'ORD-abc12345' } },
+          ]),
+        }),
+        take: 100,
       }),
     );
   });

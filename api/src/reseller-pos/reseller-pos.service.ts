@@ -1,6 +1,5 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCommerceProductDto } from './dto/create-commerce-product.dto';
 import {
   ResellerCatalogItemResponse,
   ResellerCatalogResponse,
@@ -98,49 +97,6 @@ export class ResellerPosService {
         },
       ),
     };
-  }
-
-  async createCatalogProduct(
-    tenantId: string,
-    dto: CreateCommerceProductDto,
-  ): Promise<ResellerCatalogItemResponse> {
-    try {
-      const product = await this.prisma.commerceProduct.create({
-        data: {
-          tenantId,
-          sku: dto.sku.trim().toUpperCase(),
-          name: dto.name.trim(),
-          description: dto.description?.trim() || null,
-          category: dto.category?.trim() || null,
-          imageUrl: dto.imageUrl?.trim() || null,
-          unitPrice: dto.unitPrice,
-          currency: (dto.currency || 'MXN').trim().toUpperCase(),
-          stockOnHand: dto.stockOnHand,
-          availableToResellers: dto.availableToResellers ?? true,
-        },
-        select: {
-          id: true,
-          sku: true,
-          name: true,
-          description: true,
-          category: true,
-          imageUrl: true,
-          unitPrice: true,
-          currency: true,
-          stockOnHand: true,
-          reservedQuantity: true,
-        },
-      });
-
-      return this.toCatalogItem(product);
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
-        throw new ConflictException(
-          'Ya existe un producto con ese SKU para esta organización',
-        );
-      }
-      throw error;
-    }
   }
 
   private toCatalogItem(product: {

@@ -9,7 +9,7 @@ import { CancelSaleDto, CreateSaleDto, SettleSaleDto } from './dto/commerce-sale
 type Actor = { id?: string; sub?: string; tenantId?: string; role?: Role };
 type CartItem = { productId: string; quantity: number };
 type PaymentInput = { amount: number; method: string; reference?: string };
-type CheckoutInput = CreateSaleDto | { items: CartItem[]; customerName?: string; customerPhone?: string; payments?: PaymentInput[]; notes?: string };
+type CheckoutInput = CreateSaleDto | { items: CartItem[]; clientId?: string; customerName?: string; customerPhone?: string; payments?: PaymentInput[]; notes?: string };
 
 @Injectable()
 export class CommerceService {
@@ -820,6 +820,37 @@ export class CommerceService {
     }
   }
 
+  /**
+   * Releases expired, unpaid reservations for every affected tenant. This is
+   * deliberately separate from request-time cleanup so abandoned carts cannot
+   * keep stock reserved until somebody happens to visit the same sales view.
+   * The existing compare-and-swap claims keep the operation safe when more
+   * than one API replica runs this method at the same time.
+   */
+  async releaseExpiredReservationsGlobally() {
+    const now = new Date();
+    const tenants = await this.prisma.inventoryReservation.findMany({
+      where: {
+        status: InventoryReservationStatus.ACTIVE,
+        expiresAt: { not: null, lte: now },
+        sale: {
+          is: {
+            status: CommerceSaleStatus.PENDING_PAYMENT,
+            paidAmount: 0,
+          },
+        },
+      },
+      distinct: ['tenantId'],
+      select: { tenantId: true },
+    });
+
+    for (const { tenantId } of tenants) {
+      await this.prisma.$transaction((tx) =>
+        this.releaseExpiredReservationsInTx(tx, tenantId),
+      );
+    }
+  }
+
   async checkout(actor: Actor, channel: SalesChannel, input: CheckoutInput, idempotencyKey?: string) {
     const session = this.actor(actor, channel);
     const key = String(idempotencyKey || '').trim();
@@ -831,6 +862,7 @@ export class CommerceService {
       idempotencyKey: key,
     };
     const items = this.cart(input.items);
+    const clientId = String(input.clientId || '').trim() || null;
     const payments = Array.isArray(input.payments) ? input.payments : [];
     if (channel === SalesChannel.RESELLER_POS && payments.length) throw new ForbiddenException('Cared es responsable de procesar los pagos de revendedores');
     for (const payment of payments) {
@@ -847,6 +879,14 @@ export class CommerceService {
           return this.toSaleResponse(prior);
         }
 
+        if (clientId) {
+          const client = await tx.client.findFirst({
+            where: { id: clientId, tenantId: session.tenantId },
+            select: { id: true },
+          });
+          if (!client) throw new NotFoundException('Cliente no encontrado');
+        }
+
         await this.releaseExpiredReservationsInTx(tx, session.tenantId, {
           salesChannel: channel,
           resellerId: session.id,
@@ -854,6 +894,9 @@ export class CommerceService {
 
         const products = await tx.commerceProduct.findMany({ where: { id: { in: items.map(i => i.productId) }, tenantId: session.tenantId, status: CommerceProductStatus.ACTIVE, ...(channel === SalesChannel.RESELLER_POS ? { availableToResellers: true } : {}) } });
         if (products.length !== items.length) throw new NotFoundException('Uno o más artículos no están disponibles');
+        if (new Set(products.map(product => product.currency)).size > 1) {
+          throw new BadRequestException('Todos los artículos de una venta deben usar la misma moneda');
+        }
         const productById = new Map(products.map(product => [product.id, product]));
         let subtotal = 0;
         const lines = items.map(item => {
@@ -872,7 +915,7 @@ export class CommerceService {
           tenantId: session.tenantId, resellerId: session.id, salesChannel: channel,
           status: fullyPaid ? CommerceSaleStatus.PAID : CommerceSaleStatus.PENDING_PAYMENT,
           paymentStatus: fullyPaid ? CommercePaymentStatus.PAID : paid > 0 ? CommercePaymentStatus.PARTIAL : CommercePaymentStatus.PENDING,
-          currency: lines[0]?.product.currency || 'MXN', customerName: input.customerName?.trim() || null, customerPhone: input.customerPhone?.trim() || null,
+          currency: lines[0]?.product.currency || 'MXN', clientId, customerName: input.customerName?.trim() || null, customerPhone: input.customerPhone?.trim() || null,
           subtotalAmount: new Prisma.Decimal(subtotal), totalAmount: new Prisma.Decimal(subtotal), paidAmount: new Prisma.Decimal(paid), notes: input.notes?.trim() || null, idempotencyKey: key, paidAt: fullyPaid ? new Date() : null,
           items: { create: lines.map(line => ({ productId: line.product.id, skuSnapshot: line.product.sku, nameSnapshot: line.product.name, unitPrice: new Prisma.Decimal(line.unitPrice), quantity: line.quantity, lineTotal: new Prisma.Decimal(line.unitPrice * line.quantity) })) },
         }});
@@ -927,6 +970,10 @@ export class CommerceService {
   ) {
     const channel = filters?.scopeToReseller ? SalesChannel.RESELLER_POS : SalesChannel.JEWELRY_INTERNAL;
     const session = this.actor(actor, channel);
+    const needle = (filters?.q || '').trim();
+    const handoffNeedle = needle.toUpperCase().startsWith('ORD-')
+      ? needle.slice(4)
+      : needle;
 
     const sales = await this.prisma.$transaction(async (tx) => {
       await this.releaseExpiredReservationsInTx(tx, session.tenantId, {
@@ -944,6 +991,36 @@ export class CommerceService {
         ...(filters?.channel ? { salesChannel: filters.channel } : {}),
         ...(filters?.status ? { status: filters.status } : {}),
         ...(filters?.scopeToReseller && session.role === Role.REVENDEDOR ? { resellerId: session.id } : {}),
+        ...(needle
+          ? {
+              OR: [
+                { id: { contains: handoffNeedle } },
+                { customerName: { contains: needle } },
+                { customerPhone: { contains: needle } },
+                { notes: { contains: needle } },
+                {
+                  reseller: {
+                    is: {
+                      OR: [
+                        { name: { contains: needle } },
+                        { email: { contains: needle } },
+                      ],
+                    },
+                  },
+                },
+                {
+                  items: {
+                    some: {
+                      OR: [
+                        { skuSnapshot: { contains: needle } },
+                        { nameSnapshot: { contains: needle } },
+                      ],
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
       };
 
       return tx.commerceSale.findMany({
@@ -954,22 +1031,7 @@ export class CommerceService {
       });
     });
 
-    const formatted = sales.map((sale) => this.toSaleResponse(sale));
-    const needle = (filters?.q || '').trim().toLowerCase();
-    if (!needle) return formatted;
-    return formatted.filter((sale) => {
-      const haystacks = [
-        sale.id,
-        sale.handoffCode,
-        sale.customerName,
-        sale.customerPhone,
-        sale.resellerName,
-        sale.resellerEmail,
-        sale.notes,
-        ...sale.items.flatMap((item: any) => [item.skuSnapshot, item.nameSnapshot]),
-      ];
-      return haystacks.some((value) => String(value || '').toLowerCase().includes(needle));
-    });
+    return sales.map((sale) => this.toSaleResponse(sale));
   }
 
   async getSale(actor: Actor, saleId: string, scopeToReseller = false) {

@@ -49,6 +49,12 @@ export class CreateSaleDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(1)
+  @MaxLength(191)
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(150)
   customerName?: string;
 

@@ -6,13 +6,13 @@ describe('ResellerPosController', () => {
     getProfile: jest.fn(),
     getCatalog: jest.fn(),
     getInventory: jest.fn(),
-    createCatalogProduct: jest.fn(),
   };
   const commerceService = {
     listSales: jest.fn(),
     getSale: jest.fn(),
     checkout: jest.fn(),
     cancelSale: jest.fn(),
+    createProduct: jest.fn(),
   };
   const controller = new ResellerPosController(service as any, commerceService as any);
 
@@ -43,12 +43,13 @@ describe('ResellerPosController', () => {
     expect(service.getInventory).toHaveBeenCalledWith('tenant-1');
   });
 
-  it('uses the authenticated tenant when an administrator creates a product', () => {
+  it('delegates catalog creation to CommerceService so inventory stays auditable', () => {
     const dto = { sku: 'RNG-001', name: 'Anillo', unitPrice: 100, stockOnHand: 1 };
+    const req = { user: { id: 'admin-1', tenantId: 'tenant-1', role: Role.TENANT_ADMIN } };
 
-    controller.createCatalogProduct(dto, { user: { tenantId: 'tenant-1' } });
+    controller.createCatalogProduct(dto, req);
 
-    expect(service.createCatalogProduct).toHaveBeenCalledWith('tenant-1', dto);
+    expect(commerceService.createProduct).toHaveBeenCalledWith(req.user, dto);
   });
 
   it('delegates reseller sales list, detail, checkout and cancel to CommerceService with scope', () => {
