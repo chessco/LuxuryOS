@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { createHash } from 'crypto';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import {
   CommercePaymentStatus,
@@ -517,6 +518,9 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
       create: jest.fn(),
       findFirst: jest.fn(),
     },
+    creditObligation: {
+      findFirst: jest.fn(),
+    },
     client: {
       findFirst: jest.fn(),
     },
@@ -554,6 +558,7 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
     tx.inventoryReservation.findMany.mockResolvedValue([]);
     tx.inventoryReservation.count.mockResolvedValue(0);
     tx.commercePayment.findFirst.mockResolvedValue(null);
+    tx.creditObligation.findFirst.mockResolvedValue(null);
     tx.client.findFirst.mockResolvedValue(null);
     prisma.commerceSale.findFirst.mockResolvedValue(null);
     prisma.commercePayment.findFirst.mockResolvedValue(null);
@@ -1131,6 +1136,29 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
       }),
     );
     expect(replay.id).toBe(paidSale.id);
+  });
+
+  it('replays a credit-only settlement only with its original idempotency key', async () => {
+    const sale = {
+      id: 'credit-only-sale', tenantId: 'tenant-1', resellerId: 'reseller-1',
+      status: CommerceSaleStatus.PAID, paymentStatus: CommercePaymentStatus.PAID,
+      salesChannel: SalesChannel.RESELLER_POS, currency: 'MXN',
+      subtotalAmount: 100, totalAmount: 100, paidAmount: 0, creditedAmount: 100,
+      items: [], payments: [], reservations: [], creditObligations: [],
+    };
+    const originalKey = 'original-settlement';
+    const obligationKey = `${sale.id}:${createHash('sha256').update(originalKey).digest('hex')}:0`;
+    tx.creditObligation.findFirst.mockImplementation(({ where }: any) =>
+      Promise.resolve(where.idempotencyKey === obligationKey ? { id: 'obli-1' } : null));
+    tx.commerceSale.findFirst.mockResolvedValue(sale);
+
+    const replay = await service.settleSale(cashierActor, sale.id,
+      { creditDrawdowns: [{ facilityType: CreditFacilityType.NON_REVOLVING, amount: 100 }] }, originalKey);
+    expect(replay.id).toBe(sale.id);
+
+    await expect(service.settleSale(cashierActor, sale.id,
+      { creditDrawdowns: [{ facilityType: CreditFacilityType.NON_REVOLVING, amount: 100 }] }, 'new-key',
+    )).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('protects active reservations from TTL expiration after a partial payment', async () => {

@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { CommercePaymentStatus, CommerceProductStatus, CommerceSaleStatus, CreditSubjectType, InventoryMovementType, InventoryReservationStatus, Prisma, Role, SalesChannel } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreditService } from './credit.service';
 import { CreditDrawdownDto } from './dto/commerce-credit.dto';
@@ -1173,7 +1174,7 @@ export class CommerceService {
               where: {
                 tenantId: session.tenantId,
                 saleId,
-                idempotencyKey: `${saleId}:0`,
+                idempotencyKey: `${saleId}:${createHash('sha256').update(key).digest('hex')}:0`,
               },
               select: { id: true },
             })
@@ -1377,6 +1378,7 @@ export class CommerceService {
                   `${itemLabel || 'Orden POS'} · ${this.formatHandoffCode(sale.id)}`,
               })),
               allowOverdueOverride: Boolean(input.allowOverdueOverride),
+              idempotencyKey: key,
             });
           }
         } else {

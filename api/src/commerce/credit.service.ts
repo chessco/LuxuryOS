@@ -15,6 +15,7 @@ import {
   Prisma,
   Role,
 } from '@prisma/client';
+import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreditDrawdownDto,
@@ -510,14 +511,24 @@ export class CreditService {
           );
         }
 
-        const updated = await tx.creditAccount.update({
-          where: { id: existing.id },
+        const claim = await tx.creditAccount.updateMany({
+          where: {
+            id: existing.id,
+            tenantId: session.tenantId,
+            revolvingUsed: { lte: new Prisma.Decimal(revolvingLimit) },
+          },
           data: {
             revolvingLimit: new Prisma.Decimal(revolvingLimit),
             defaultTermDays,
             status: input.status ?? existing.status,
             notes: input.notes !== undefined ? input.notes?.trim() || null : existing.notes,
           },
+        });
+        if (claim.count !== 1) {
+          throw new ConflictException('El cupo utilizado cambiÃ³; vuelve a intentar actualizar el lÃ­mite');
+        }
+        const updated = await tx.creditAccount.findFirstOrThrow({
+          where: { id: existing.id, tenantId: session.tenantId },
           include: { obligations: true },
         });
 
@@ -635,6 +646,7 @@ export class CreditService {
       clientId?: string | null;
       drawdowns: CreditDrawdownDto[];
       allowOverdueOverride?: boolean;
+      idempotencyKey?: string;
     },
   ) {
     if (!params.drawdowns.length) return [];
@@ -739,6 +751,7 @@ export class CreditService {
             tenantId: params.tenantId,
             status: CreditAccountStatus.ACTIVE,
             revolvingUsed: account.revolvingUsed,
+            revolvingLimit: account.revolvingLimit,
           },
           data: { revolvingUsed: new Prisma.Decimal(nextUsed) },
         });
@@ -771,7 +784,9 @@ export class CreditService {
           dueAt,
           status: CreditObligationStatus.OPEN,
           notes: drawdown.notes?.trim() || null,
-          idempotencyKey: `${params.saleId}:${index}`,
+          idempotencyKey: params.idempotencyKey
+            ? `${params.saleId}:${createHash('sha256').update(params.idempotencyKey).digest('hex')}:${index}`
+            : `${params.saleId}:${index}`,
           createdById: params.actorId,
         },
         include: this.obligationInclude,
@@ -866,7 +881,6 @@ export class CreditService {
           },
           include: this.obligationInclude,
           orderBy: [{ status: 'asc' }, { dueAt: 'asc' }],
-          take: 200,
         }),
         tx.creditAccount.findMany({
           where: { tenantId },
@@ -975,6 +989,9 @@ export class CreditService {
           select: { id: true, obligationId: true },
         });
         if (priorPayment) {
+          if (priorPayment.obligationId !== obligationId) {
+            throw new ConflictException('La clave de reintento ya pertenece a otro abono');
+          }
           const existingObligation = await tx.creditObligation.findFirstOrThrow({
             where: { id: priorPayment.obligationId, tenantId: session.tenantId },
             include: this.obligationInclude,
@@ -1071,17 +1088,22 @@ export class CreditService {
         const creditReduction = Math.min(saleCredited, amount);
         const nextSalePaid = roundMoney(Number(obligation.sale.paidAmount) + amount);
         const nextSaleCredited = Math.max(0, roundMoney(saleCredited - creditReduction));
-        await tx.commerceSale.updateMany({
+        const saleClaim = await tx.commerceSale.updateMany({
           where: {
             id: obligation.sale.id,
             tenantId: session.tenantId,
             status: CommerceSaleStatus.PAID,
+            paidAmount: obligation.sale.paidAmount,
+            creditedAmount: obligation.sale.creditedAmount,
           },
           data: {
             paidAmount: new Prisma.Decimal(nextSalePaid),
             creditedAmount: new Prisma.Decimal(nextSaleCredited),
           },
         });
+        if (saleClaim.count !== 1) {
+          throw new ConflictException('El saldo de la venta cambiÃ³; vuelve a intentar el abono');
+        }
       }
 
       await tx.creditLedgerEntry.create({

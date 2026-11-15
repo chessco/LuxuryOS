@@ -1,13 +1,6 @@
 name: Deploy API to Hetzner
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'api/**'
-      - 'docker-compose.prod.yml'
-      - '.github/workflows/deploy-api-hetzner.yml'
   workflow_dispatch:
 
 concurrency:
@@ -29,6 +22,7 @@ jobs:
           port: ${{ secrets.HETZNER_PORT || 22 }}
           script_stop: true
           script: |
+            set -eu
             cd /opt/pitaya/luxuryos
 
             if [ ! -d .git ]; then
@@ -36,20 +30,53 @@ jobs:
               exit 1
             fi
 
-            echo "[1/4] Actualizando repositorio..."
+            echo "[1/7] Actualizando repositorio..."
             git fetch origin main
             git reset --hard origin/main
 
-            echo "[2/5] Construyendo la imagen de API..."
+            echo "[2/7] Construyendo la imagen de API..."
             docker compose --env-file .env.prod -f docker-compose.prod.yml build api
 
-            echo "[3/5] Aplicando únicamente migraciones versionadas..."
+            echo "[3/7] Comprobando el estado de las migraciones..."
+            status_file="$(mktemp)"
+            status_code=0
+            docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm --no-deps api npx prisma migrate status > "$status_file" 2>&1 || status_code=$?
+            cat "$status_file"
+            if [ "$status_code" -ne 0 ] && ! grep -qi 'not yet been applied' "$status_file"; then
+              echo "Estado de migraciones inesperado. No se modifica la base de datos."
+              exit 1
+            fi
+            if grep -Eqi 'failed migration|migration.*failed' "$status_file"; then
+              echo "Hay una migracion fallida. No se modifica la base de datos."
+              exit 1
+            fi
+
+            echo "[4/7] Comparando el esquema real con Prisma..."
+            diff_file="$(mktemp)"
+            docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm --no-deps api sh -c 'npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script' > "$diff_file"
+            if grep -Eqi 'DROP[[:space:]]+(TABLE|COLUMN)|TRUNCATE[[:space:]]+TABLE|DELETE[[:space:]]+FROM' "$diff_file"; then
+              echo "El esquema propuesto elimina datos. No se aplican migraciones."
+              exit 1
+            fi
+
+            echo "[5/7] Creando y verificando un respaldo consistente..."
+            umask 077
+            backup_dir=/opt/pitaya/backups/luxuryos
+            mkdir -p "$backup_dir"
+            backup_file="$backup_dir/predeploy-$(date -u +%Y%m%dT%H%M%SZ).sql"
+            docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --quick --routines --triggers --events --hex-blob --no-tablespaces "$MYSQL_DATABASE"' > "$backup_file"
+            test -s "$backup_file"
+            gzip "$backup_file"
+            gzip -t "$backup_file.gz"
+            sha256sum "$backup_file.gz"
+
+            echo "[6/7] Aplicando únicamente migraciones versionadas..."
             docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm --no-deps api npx prisma migrate deploy
 
-            echo "[4/5] Reiniciando luxury-api-prod con la imagen validada..."
+            echo "[7/7] Reiniciando luxury-api-prod con la imagen validada..."
             docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --no-deps api
 
-            echo "[5/5] Verificando estado..."
+            echo "Verificando estado..."
             sleep 5
             docker ps --filter name=luxury-api-prod
             docker logs --tail 20 luxury-api-prod

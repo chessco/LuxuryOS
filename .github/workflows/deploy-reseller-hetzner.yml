@@ -1,12 +1,6 @@
 name: Deploy Revendedores to Hetzner
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'reseller-web/**'
-      - 'docker-compose.prod.yml'
-      - '.github/workflows/deploy-reseller-hetzner.yml'
   workflow_dispatch:
 
 concurrency:

@@ -16,6 +16,7 @@ describe('CreditService Dual Credit Management (Revolving + Non-Revolving 30d)',
     client: { findFirst: jest.fn(), findMany: jest.fn() },
     creditAccount: {
       findFirst: jest.fn(),
+      findFirstOrThrow: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -58,6 +59,7 @@ describe('CreditService Dual Credit Management (Revolving + Non-Revolving 30d)',
     prisma.$transaction.mockImplementation((callback: (client: typeof tx) => unknown) => callback(tx));
     tx.creditObligation.updateMany.mockResolvedValue({ count: 0 });
     tx.creditObligation.count.mockResolvedValue(0);
+    tx.commerceSale.updateMany.mockResolvedValue({ count: 1 });
     service = new CreditService(prisma);
   });
 
@@ -119,6 +121,23 @@ describe('CreditService Dual Credit Management (Revolving + Non-Revolving 30d)',
         }),
       }),
     );
+  });
+
+  it('rejects a limit reduction if a concurrent drawdown used the quota', async () => {
+    tx.client.findFirst.mockResolvedValue({ id: 'client-1', name: 'Cliente' });
+    tx.creditAccount.findFirst.mockResolvedValue({
+      id: 'acc-1', tenantId: 'tenant-1', clientId: 'client-1',
+      revolvingUsed: 0, revolvingLimit: 1000, status: CreditAccountStatus.ACTIVE,
+      obligations: [],
+    });
+    tx.creditAccount.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.upsertAccount(adminActor, {
+      subjectType: CreditSubjectType.CLIENT, clientId: 'client-1', revolvingLimit: 100,
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.creditAccount.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ revolvingUsed: expect.objectContaining({ lte: expect.anything() }) }),
+    }));
   });
 
   it('allows REVOLVING and NON_REVOLVING ($3,000 piece at 30d) to coexist without NON_REVOLVING consuming revolving quota', async () => {
@@ -299,6 +318,34 @@ describe('CreditService Dual Credit Management (Revolving + Non-Revolving 30d)',
     expect(tx.creditAccount.updateMany).not.toHaveBeenCalled();
     expect(nonRevResult.obligation.status).toBe(CreditObligationStatus.PAID);
     expect(nonRevResult.obligation.balanceDue).toBe(0);
+  });
+
+  it('rejects an abono if another abono changed the sale totals', async () => {
+    tx.creditPayment.findFirst.mockResolvedValue(null);
+    tx.creditObligation.findFirst.mockResolvedValue({
+      id: 'obli-1', tenantId: 'tenant-1', accountId: 'acc-1', saleId: 'sale-1',
+      facilityType: CreditFacilityType.NON_REVOLVING, paidAmount: 0, balanceDue: 100,
+      dueAt: new Date(Date.now() + 86_400_000), status: CreditObligationStatus.OPEN,
+      account: { id: 'acc-1', revolvingUsed: 0 },
+      sale: { id: 'sale-1', paidAmount: 0, creditedAmount: 100 },
+    });
+    tx.creditObligation.updateMany.mockResolvedValue({ count: 1 });
+    tx.creditPayment.create.mockResolvedValue({ id: 'payment-1' });
+    tx.commerceSale.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.recordObligationPayment(
+      cashierActor, 'obli-1', { amount: 50, method: 'Efectivo' }, 'abono-1',
+    )).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.commerceSale.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ paidAmount: 0, creditedAmount: 100 }),
+    }));
+  });
+
+  it('rejects reuse of an abono key for another obligation', async () => {
+    tx.creditPayment.findFirst.mockResolvedValue({ id: 'payment-1', obligationId: 'obli-1' });
+    await expect(service.recordObligationPayment(
+      cashierActor, 'obli-2', { amount: 50, method: 'Efectivo' }, 'abono-1',
+    )).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('blocks new credit when overdue (>30d) obligations exist unless overridden by Admin', async () => {

@@ -2,6 +2,10 @@
 
 ## Seguridad de migraciones
 
+Los tres despliegues de producción se activan manualmente desde GitHub Actions. Un push a `main` no publica cambios: primero se debe verificar el estado real de MySQL y revisar las migraciones pendientes. El orden de activación es API, Revendedores y, por último, web.
+
+Antes de activar **Deploy API to Hetzner**, comprobar en el servidor que `prisma migrate status` sólo muestra las migraciones previstas para esta entrega y revisar el resultado de `prisma migrate diff` contra la base real. Si aparece una diferencia histórica ajena al POS, detenerse y reconciliarla mediante una migración nueva. El workflow repite esas consultas, rechaza diferencias que eliminan tablas o columnas y crea un respaldo consistente en `/opt/pitaya/backups/luxuryos/` antes de ejecutar `prisma migrate deploy`. Comprobar que el respaldo comprimido pasa `gzip -t` y conservar su SHA-256.
+
 Los flujos de API aplican exclusivamente `prisma migrate deploy`. Está prohibido usar `prisma db push` contra producción.
 
 El orden del pipeline es: construir la imagen, aplicar migraciones versionadas con un contenedor temporal, iniciar la nueva API y revisar los logs. La migración inicial de Revendedores es aditiva y no toca órdenes ni pagos de joyería.
