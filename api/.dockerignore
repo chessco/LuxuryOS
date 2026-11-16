@@ -2,3 +2,9 @@ node_modules
 dist
 *.log
 .env*
+
+# Server-only operational helpers must never be copied into production images.
+scratch_db_local.js
+src/check-passwords.ts
+src/reset-jc-password.ts
+src/seed-settings.ts
