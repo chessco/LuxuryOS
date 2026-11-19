@@ -19,6 +19,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
     const [isCreditMenuOpen, setIsCreditMenuOpen] = useState(false);
     const [isInventoryMenuOpen, setIsInventoryMenuOpen] = useState(false);
     const [isQueueMenuOpen, setIsQueueMenuOpen] = useState(false);
+    const [isPosMenuOpen, setIsPosMenuOpen] = useState(false);
+    const [isReportsMenuOpen, setIsReportsMenuOpen] = useState(false);
     const userRole = user.role === 'TENANT_ADMIN' 
         ? 'Atelier Manager' 
         : (user.role === 'JOYERO'
@@ -46,7 +48,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 { name: 'Cotizaciones', icon: 'request_quote', path: '/quotes' },
                 { name: 'Apartados', icon: 'loyalty', path: '/orders?type=LAYAWAY' },
                 { name: 'Pedidos', icon: 'receipt_long', path: '/orders' },
-                { name: 'Reportes', icon: 'analytics', path: '/reports' },
                 { name: 'Finanzas', icon: 'account_balance_wallet', path: '/finance' },
             ]
         },
@@ -57,10 +58,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 { name: 'Clientes', icon: 'person_search', path: '/clients' },
             ],
         },
-        { title: 'Inventario', items: [
+        { title: 'POS', items: [
             { name: 'Caja POS', icon: 'point_of_sale', path: '/pos' },
+        ] },
+        { title: 'Inventario', items: [
             { name: 'Inventario', icon: 'precision_manufacturing', path: '/inventory' },
             { name: 'Operaciones', icon: 'move_to_inbox', path: '/inventory/operations' },
+        ] },
+        { title: 'Reportes', items: [
+            { name: 'Reporte de Entregas', icon: 'local_shipping', path: '/reports' },
+            { name: 'Órdenes Borradas', icon: 'delete_sweep', path: '/reports/deleted-orders' },
         ] },
         {
             title: 'Fila y Turnos',
@@ -104,6 +111,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
             items = items.filter(item => item.path !== '/finance');
         }
 
+        if (!isAdminOrSystem) {
+            items = items.filter(item => item.path !== '/reports/deleted-orders');
+        }
+
         // Ocultar Clientes para el Joyero
         if (isJoyero) {
             items = items.filter(item => item.path !== '/clients' && item.name !== 'Clientes');
@@ -136,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 />
             )}
 
-            <aside className={`
+            <aside className={`luxury-mobile-drawer
                 fixed inset-y-0 left-0 z-50 flex-col border-r border-border bg-sidebar p-4 shadow-2xl transition-all duration-300 ease-in-out shrink-0
                 lg:static lg:z-auto lg:shadow-none
                 ${isOpen
@@ -165,19 +176,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 <nav className="flex flex-col gap-6 flex-1 overflow-y-auto no-scrollbar pb-6">
                     {filteredNavigation.map((section) => (
                         <div key={section.title} className="flex flex-col gap-1">
-                            {section.title === 'Crédito' || section.title === 'Inventario' || section.title === 'Fila y Turnos' ? (
+                            {section.title === 'Crédito' || section.title === 'POS' || section.title === 'Inventario' || section.title === 'Reportes' || section.title === 'Fila y Turnos' ? (
                                 <button
                                     type="button"
                                     onClick={() => {
                                         if (section.title === 'Crédito') setIsCreditMenuOpen((open) => !open);
+                                        if (section.title === 'POS') setIsPosMenuOpen((open) => !open);
                                         if (section.title === 'Inventario') setIsInventoryMenuOpen((open) => !open);
+                                        if (section.title === 'Reportes') setIsReportsMenuOpen((open) => !open);
                                         if (section.title === 'Fila y Turnos') setIsQueueMenuOpen((open) => !open);
                                     }}
                                     aria-expanded={
                                         section.title === 'Crédito'
                                             ? isCreditMenuOpen
+                                            : section.title === 'POS'
+                                                ? isPosMenuOpen
                                             : section.title === 'Inventario'
                                                 ? isInventoryMenuOpen
+                                                : section.title === 'Reportes'
+                                                    ? isReportsMenuOpen
                                                 : isQueueMenuOpen
                                     }
                                     aria-controls={`${section.title.toLowerCase().replaceAll(' ', '-')}-submenu`}
@@ -186,7 +203,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                                     <span>{section.title}</span>
                                     <span className="material-symbols-outlined text-base" aria-hidden="true">
                                         {(section.title === 'Crédito' && isCreditMenuOpen) ||
+                                        (section.title === 'POS' && isPosMenuOpen) ||
                                         (section.title === 'Inventario' && isInventoryMenuOpen) ||
+                                        (section.title === 'Reportes' && isReportsMenuOpen) ||
                                         (section.title === 'Fila y Turnos' && isQueueMenuOpen)
                                             ? 'expand_less'
                                             : 'expand_more'}
@@ -201,7 +220,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                                 id={`${section.title.toLowerCase().replaceAll(' ', '-')}-submenu`}
                                 className={`flex flex-col gap-1 ${
                                     (section.title === 'Crédito' && !isCreditMenuOpen) ||
+                                    (section.title === 'POS' && !isPosMenuOpen) ||
                                     (section.title === 'Inventario' && !isInventoryMenuOpen) ||
+                                    (section.title === 'Reportes' && !isReportsMenuOpen) ||
                                     (section.title === 'Fila y Turnos' && !isQueueMenuOpen)
                                         ? 'hidden'
                                         : ''

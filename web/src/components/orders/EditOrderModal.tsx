@@ -49,12 +49,15 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         status: (order.status || order.stage || 'RECEIVED').toUpperCase(),
         notes: order.notes || '',
         dueDate: order.dueDate ? new Date(order.dueDate).toISOString().split('T')[0] : '',
-        clientId: order.clientId,
-        clientName: order.client?.name || order.client || '' // Check if it's already a string or object
+        clientId: order.clientId || order.client?.id || '',
+        clientName: order.client?.name || order.clientName || order.client || '',
+        clientPhone: order.client?.phone || '',
     });
 
     const [clients, setClientOptions] = useState<any[]>([]);
     const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
+    const [showQuickAddClient, setShowQuickAddClient] = useState(false);
+    const [newClientData, setNewClientData] = useState({ name: '', phone: '', email: '' });
 
     useEffect(() => {
         const fetchClients = async () => {
@@ -169,14 +172,69 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
         }
     };
 
+    const handleClientChange = (name: string) => {
+        const selected = clients.find(
+            client => String(client.name || '').trim().toLowerCase() === name.trim().toLowerCase(),
+        );
+        setFormData(prev => ({
+            ...prev,
+            clientName: name,
+            clientId: selected?.id || '',
+            clientPhone: selected?.phone || (selected ? '' : prev.clientPhone),
+        }));
+    };
+
+    const handleQuickAddClient = async () => {
+        if (!newClientData.name.trim()) {
+            alert('El nombre del cliente es obligatorio.');
+            return;
+        }
+        if (newClientData.phone.replace(/\D/g, '').length < 10) {
+            alert('El teléfono del cliente es obligatorio (mínimo 10 dígitos).');
+            return;
+        }
+
+        try {
+            const created = await ClientsService.create({
+                name: newClientData.name.trim(),
+                phone: newClientData.phone.trim(),
+                email: newClientData.email.trim() || undefined,
+            });
+            setClientOptions(prev => [...prev, created]);
+            setFormData(prev => ({
+                ...prev,
+                clientId: created.id,
+                clientName: created.name,
+                clientPhone: created.phone || newClientData.phone.trim(),
+            }));
+            setNewClientData({ name: '', phone: '', email: '' });
+            setShowQuickAddClient(false);
+        } catch (error) {
+            console.error('Failed to create client from order edit:', error);
+            alert('No fue posible registrar el cliente. Inténtalo de nuevo.');
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.clientId) {
+            alert('Selecciona o registra un cliente antes de guardar la orden.');
+            return;
+        }
+        if (String(formData.clientPhone || '').replace(/\D/g, '').length < 10) {
+            alert('El teléfono del cliente es obligatorio (mínimo 10 dígitos) para WhatsApp.');
+            return;
+        }
         if (items.some((item: any) => item.jewelerLaborCost === undefined || item.jewelerLaborCost === null || String(item.jewelerLaborCost).trim() === '')) {
             alert('La Mano de Obra Joyero es obligatoria para cada pieza.');
             return;
         }
         setIsSaving(true);
         try {
+            const selectedClient = clients.find(client => client.id === formData.clientId);
+            if (selectedClient && String(selectedClient.phone || '').replace(/\D/g, '') !== String(formData.clientPhone || '').replace(/\D/g, '')) {
+                await ClientsService.update(formData.clientId, { phone: formData.clientPhone.trim() });
+            }
             // Sync first item to top-level fields for consistency/listing
             const syncedItems = items.map((it: any) => {
                 const desc = it.description || it.notes || '';
@@ -266,21 +324,73 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ isOpen, onClose,
                             Configuración General y Cliente
                         </h3>
                         <div className="space-y-4">
-                            <AutocompleteInput
-                                name="client"
-                                value={formData.clientName}
-                                onChange={(val) => {
-                                    const selected = clients.find(c => c.name === val);
-                                    setFormData(prev => ({
-                                        ...prev,
-                                        clientName: val,
-                                        clientId: selected?.id || prev.clientId
-                                    }));
-                                }}
-                                options={clients.map(c => c.name)}
-                                placeholder="Cambiar cliente..."
-                                icon="person"
-                            />
+                            {showQuickAddClient ? (
+                                <div className="space-y-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Registrar nuevo cliente</p>
+                                        <button type="button" onClick={() => setShowQuickAddClient(false)} className="text-muted-foreground hover:text-foreground">
+                                            <span className="material-symbols-outlined text-[18px]">close</span>
+                                        </button>
+                                    </div>
+                                    <input
+                                        value={newClientData.name}
+                                        onChange={(e) => setNewClientData(prev => ({ ...prev, name: e.target.value }))}
+                                        placeholder="Nombre del cliente *"
+                                        className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 outline-none"
+                                    />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input
+                                            value={newClientData.phone}
+                                            onChange={(e) => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
+                                            placeholder="Teléfono WhatsApp *"
+                                            className="min-w-0 bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 outline-none"
+                                        />
+                                        <input
+                                            type="email"
+                                            value={newClientData.email}
+                                            onChange={(e) => setNewClientData(prev => ({ ...prev, email: e.target.value }))}
+                                            placeholder="Correo (opcional)"
+                                            className="min-w-0 bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 outline-none"
+                                        />
+                                    </div>
+                                    <button type="button" onClick={handleQuickAddClient} className="w-full rounded-xl bg-indigo-600 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-500">
+                                        Registrar y seleccionar cliente
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    <AutocompleteInput
+                                        name="client"
+                                        value={formData.clientName}
+                                        onChange={handleClientChange}
+                                        options={clients.map(c => c.name)}
+                                        placeholder="Buscar o cambiar cliente..."
+                                        icon="person"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setNewClientData({ name: formData.clientName || '', phone: formData.clientPhone || '', email: '' });
+                                            setShowQuickAddClient(true);
+                                        }}
+                                        className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-400"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">person_add</span>
+                                        Registrar cliente nuevo
+                                    </button>
+                                </>
+                            )}
+                            <div className="space-y-1.5">
+                                <label className="text-amber-500 text-[9px] font-black uppercase tracking-widest px-1">Teléfono WhatsApp del cliente *</label>
+                                <input
+                                    value={formData.clientPhone}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, clientPhone: e.target.value }))}
+                                    placeholder="Ej: 644 123 4567"
+                                    inputMode="tel"
+                                    className="w-full bg-muted border border-border rounded-xl py-3 px-4 text-sm text-foreground focus:border-indigo-500/50 outline-none shadow-inner"
+                                />
+                                <p className="px-1 text-[10px] text-muted-foreground">Obligatorio, mínimo 10 dígitos. Se usa para las notificaciones de WhatsApp.</p>
+                            </div>
                         </div>
                         <div className="flex flex-col gap-4">
                             <div className="space-y-2">

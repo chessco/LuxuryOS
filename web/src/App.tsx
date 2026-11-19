@@ -20,6 +20,7 @@ import StaffQueue from './pages/StaffQueue';
 import Pickup from './pages/Pickup';
 import Integrations from './pages/Integrations';
 import Reports from './pages/Reports';
+import DeletedOrdersReport from './pages/DeletedOrdersReport';
 import Sidebar from './components/Sidebar';
 import PublicOrderTrack from './pages/PublicOrderTrack';
 import PublicQueueTrack from './pages/PublicQueueTrack';
@@ -90,6 +91,11 @@ function App() {
                             </RoleRedirect>
                         } />
                         <Route path="/reports" element={<Reports />} />
+                        <Route path="/reports/deleted-orders" element={
+                            <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
+                                <DeletedOrdersReport />
+                            </RoleRedirect>
+                        } />
                         <Route path="/inventory" element={
                             <RoleRedirect allowedRoles={['TENANT_ADMIN', 'SYSTEM_ADMIN']} redirectTo="/orders">
                                 <Inventory />

@@ -103,7 +103,7 @@ describe('OrdersService Unit Tests', () => {
       )?.[2] as string;
 
     it('marks the automatic createOrder notification as ORDER_CREATED', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
       mockPrisma.order.count.mockResolvedValue(0);
       mockPrisma.order.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: 'created-order-1', ...data }),
@@ -336,7 +336,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
 
   describe('createOrder', () => {
     it('should reject orders without a promised delivery date', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
 
       const dto: any = {
         type: 'MANUFACTURE',
@@ -352,7 +352,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
     });
 
     it('should generate orderCode without leading zeros (e.g. FAB-1 instead of FAB-000001)', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
       mockPrisma.orderNumberSequence.upsert.mockResolvedValue({ currentValue: 1 });
       mockPrisma.order.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: 'order-1', ...data }),
@@ -388,7 +388,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
     });
 
     it('should register initial advance payment and set partial payment status when creating order with advance', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
       mockPrisma.orderNumberSequence.upsert.mockResolvedValue({ currentValue: 1 });
       mockPrisma.order.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: 'order-adv-1', ...data }),
@@ -431,7 +431,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
     });
 
     it('RF-01: should reject workshop orders without medida', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
 
       const dto: any = {
         type: 'REPAIR',
@@ -450,7 +450,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
     });
 
     it('RF-01: should reject workshop orders with only whitespace in medida', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
 
       const dto: any = {
         type: 'REPAIR',
@@ -469,7 +469,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
     });
 
     it('RF-01: should reject workshop orders without grosor', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
 
       const dto: any = {
         type: 'REPAIR',
@@ -488,7 +488,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
     });
 
     it('RF-01: should reject workshop orders with only whitespace in grosor', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
 
       const dto: any = {
         type: 'REPAIR',
@@ -507,7 +507,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
     });
 
     it('RF-01: should allow creating non-workshop orders (e.g. STANDARD) without size/thickness', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
       mockPrisma.order.count.mockResolvedValue(0);
       mockPrisma.order.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: 'order-std', ...data }),
@@ -528,7 +528,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
     });
 
     it('RF-02: should persist photo and add to envelopeImages upon creation', async () => {
-      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
+      mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123', phone: '6621234567' });
       mockPrisma.order.count.mockResolvedValue(0);
       mockPrisma.order.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: 'order-photo-1', ...data }),
@@ -745,6 +745,33 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
   });
 
   describe('updateOrder', () => {
+    it('requires a valid WhatsApp phone when changing the client', async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({
+        id: 'uuid-client-phone',
+        tenantId: 'tenant-1',
+        status: 'RECEIVED',
+        value: 0,
+        laborCost: 0,
+        materialCost: 0,
+        specifications: {},
+      });
+      mockPrisma.client.findFirst.mockResolvedValue({
+        id: 'client-without-phone',
+        phone: null,
+      });
+
+      await expect(
+        service.updateOrder(
+          'tenant-1',
+          'uuid-client-phone',
+          { clientId: 'client-without-phone' },
+          { role: 'ADMIN' },
+        ),
+      ).rejects.toThrow('teléfono del cliente es obligatorio');
+
+      expect(mockPrisma.order.update).not.toHaveBeenCalled();
+    });
+
     it('should update promisedAt delivery date when provided in payload', async () => {
       const mockDbOrder = {
         id: 'uuid-123',

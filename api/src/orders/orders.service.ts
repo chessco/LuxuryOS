@@ -374,7 +374,7 @@ export class OrdersService {
       select: { id: true, phone: true },
     });
     if (!client) throw new BadRequestException('El cliente indicado no existe');
-    if (requirePhone && ('phone' in client || fallbackPhone !== undefined)) {
+    if (requirePhone) {
       const digits = String(client.phone || fallbackPhone || '').replace(
         /\D/g,
         '',
@@ -1201,7 +1201,7 @@ export class OrdersService {
       v === undefined || v === null ? undefined : String(v);
 
     if (clientId !== undefined) {
-      await this.assertClientInTenant(tenantId, clientId);
+      await this.assertClientInTenant(tenantId, clientId, undefined, true);
     }
 
     // Recalculate totalAmount and balance if financial fields are changing

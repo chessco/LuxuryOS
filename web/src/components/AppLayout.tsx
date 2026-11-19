@@ -25,7 +25,7 @@ export default function AppLayout() {
     };
 
     return (
-        <div className="flex h-screen w-full overflow-hidden bg-background">
+        <div className="luxury-app-shell flex w-full overflow-hidden bg-background">
             <Sidebar
                 isOpen={isSidebarOpen}
                 onClose={() => {
@@ -37,10 +37,10 @@ export default function AppLayout() {
                     navigate("/login");
                 }}
             />
-            <div className="flex flex-1 flex-col h-full overflow-hidden bg-background border-l border-border shadow-2xl transition-all duration-300">
+            <div className="flex min-w-0 flex-1 flex-col h-full overflow-hidden bg-background border-l border-border shadow-2xl transition-all duration-300">
                 <Header onToggleMenu={toggleSidebar} />
                 <QuickNavBar />
-                <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 scroll-smooth">
+                <main className="luxury-app-main flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 scroll-smooth">
                     <div className="w-full max-w-[1700px] mx-auto">
                         <Outlet />
                     </div>

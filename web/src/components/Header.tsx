@@ -276,7 +276,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
     };
 
     return (
-        <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-2 sm:px-8 gap-1 sm:gap-4 transition-colors">
+        <header className="luxury-app-header sticky top-0 z-40 flex items-center justify-between border-b border-border bg-header/80 backdrop-blur-xl px-2 sm:px-8 gap-1 sm:gap-4 transition-colors">
             <div className="flex items-center gap-1 sm:gap-3 shrink-0">
                 <button
                     onClick={onToggleMenu}

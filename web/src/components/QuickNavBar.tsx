@@ -37,7 +37,7 @@ export const QuickNavBar: React.FC = () => {
             aria-label="Menú Rápido Persistente"
             className="z-30 w-full shrink-0 border-b border-border/70 bg-card/85 dark:bg-card/70 backdrop-blur-md shadow-xs transition-colors"
         >
-            <div className="w-full max-w-[1700px] mx-auto px-4 sm:px-8 py-2 sm:py-2.5 flex items-center justify-between gap-3">
+            <div className="luxury-quick-nav-content w-full max-w-[1700px] mx-auto px-4 sm:px-8 py-2 sm:py-2.5 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar w-full py-0.5">
                     {QUICK_NAV_ITEMS.map((item) => {
                         const active = isItemActive(item);
