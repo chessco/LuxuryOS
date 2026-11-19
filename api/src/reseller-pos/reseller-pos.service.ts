@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CommerceCommissionStatus, Prisma, Role, SalesChannel } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { priceResellerLines } from '../commerce/commerce-pricing.util';
+import { evaluateResellerPrice, priceResellerLines } from '../commerce/commerce-pricing.util';
 import {
   ResellerCatalogItemResponse,
   ResellerCatalogResponse,
@@ -215,6 +215,7 @@ export class ResellerPosService {
     stockOnHand: number;
     reservedQuantity: number;
   }): ResellerCatalogItemResponse {
+    const price = evaluateResellerPrice(product.unitPrice, product.resellerPrice);
     return {
       id: product.id,
       sku: product.sku,
@@ -222,9 +223,9 @@ export class ResellerPosService {
       description: product.description,
       category: product.category,
       imageUrl: product.imageUrl,
-      unitPrice: Number(product.resellerPrice ?? product.unitPrice),
-      publicUnitPrice: Number(product.unitPrice),
-      estimatedMargin: Math.max(0, Number(product.unitPrice) - Number(product.resellerPrice ?? product.unitPrice)),
+      unitPrice: price.unitPrice,
+      publicUnitPrice: price.publicUnitPrice,
+      estimatedMargin: price.commissionUnitAmount,
       currency: product.currency,
       availableQuantity: Math.max(0, product.stockOnHand - product.reservedQuantity),
     };
@@ -242,6 +243,7 @@ export class ResellerPosService {
     stockOnHand: number;
     reservedQuantity: number;
   }): ResellerInventoryItemResponse {
+    const price = evaluateResellerPrice(product.unitPrice, product.resellerPrice);
     const availableQuantity = Math.max(0, product.stockOnHand - product.reservedQuantity);
     const availabilityStatus = availableQuantity === 0
       ? (product.stockOnHand === 0 ? 'OUT_OF_STOCK' : 'RESERVED')
@@ -253,9 +255,9 @@ export class ResellerPosService {
       name: product.name,
       category: product.category,
       imageUrl: product.imageUrl,
-      unitPrice: Number(product.resellerPrice ?? product.unitPrice),
-      publicUnitPrice: Number(product.unitPrice),
-      estimatedMargin: Math.max(0, Number(product.unitPrice) - Number(product.resellerPrice ?? product.unitPrice)),
+      unitPrice: price.unitPrice,
+      publicUnitPrice: price.publicUnitPrice,
+      estimatedMargin: price.commissionUnitAmount,
       currency: product.currency,
       stockOnHand: product.stockOnHand,
       reservedQuantity: product.reservedQuantity,

@@ -6,6 +6,20 @@ export const toCents = (value: unknown): number => {
   return Math.round((amount + Number.EPSILON) * 100);
 };
 
+export function evaluateResellerPrice(publicPrice: unknown, resellerPrice: unknown) {
+  const publicCents = toCents(publicPrice);
+  const resellerCents = toCents(resellerPrice ?? publicPrice);
+  const marginCents = Math.max(0, publicCents - resellerCents);
+  return {
+    publicCents,
+    resellerCents,
+    marginCents,
+    publicUnitPrice: publicCents / 100,
+    unitPrice: resellerCents / 100,
+    commissionUnitAmount: marginCents / 100,
+  };
+}
+
 export type PricedLine = {
   productId: string;
   quantity: number;
@@ -28,27 +42,22 @@ export function priceResellerLines(
   const lines = items.map((item) => {
     const product = byId.get(item.productId);
     if (!product) throw new Error('Artículo no disponible');
-    const publicCents = toCents(product.unitPrice);
-    const resellerCents = toCents(product.resellerPrice ?? product.unitPrice);
-    const marginCents = Math.max(0, publicCents - resellerCents);
+    const price = evaluateResellerPrice(product.unitPrice, product.resellerPrice);
     return {
       productId: item.productId,
       quantity: item.quantity,
       currency: product.currency,
-      publicUnitPrice: publicCents / 100,
-      unitPrice: resellerCents / 100,
-      commissionUnitAmount: marginCents / 100,
-      commissionAmount: (marginCents * item.quantity) / 100,
-      publicLineTotal: (publicCents * item.quantity) / 100,
-      lineTotal: (resellerCents * item.quantity) / 100,
+      publicUnitPrice: price.publicUnitPrice,
+      unitPrice: price.unitPrice,
+      commissionUnitAmount: price.commissionUnitAmount,
+      commissionAmount: (price.marginCents * item.quantity) / 100,
+      publicLineTotal: (price.publicCents * item.quantity) / 100,
+      lineTotal: (price.resellerCents * item.quantity) / 100,
     };
   });
-  const canonical = lines.map((line) => ({
-    productId: line.productId,
-    quantity: line.quantity,
-    currency: line.currency,
-    publicUnitPriceCents: toCents(line.publicUnitPrice),
-    resellerUnitPriceCents: toCents(line.unitPrice),
-  })).sort((a, b) => a.productId.localeCompare(b.productId));
-  return { lines, quoteFingerprint: createHash('sha256').update(JSON.stringify(canonical)).digest('hex') };
+  const canonical = lines
+    .map((line) => `${line.productId}:${line.quantity}:${line.currency}:${toCents(line.publicUnitPrice)}:${toCents(line.unitPrice)}`)
+    .sort()
+    .join('|');
+  return { lines, quoteFingerprint: createHash('sha256').update(canonical).digest('hex') };
 }

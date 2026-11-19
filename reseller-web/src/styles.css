@@ -311,3 +311,6 @@ h1, h2, h3, p { margin-top: 0; }
 .commission-list { display: grid; gap: .6rem; }
 .commission-list article { flex-wrap: wrap; }
 .commission-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; margin-top: 1rem; }
+.catalog-pricing { display: grid; grid-template-columns: 1fr auto; gap: .2rem .75rem; align-items: baseline; margin: .85rem 0; font-size: .8rem; }
+.catalog-pricing span { color: var(--muted-foreground, #aaa); }
+.catalog-pricing strong { font-size: .95rem; }

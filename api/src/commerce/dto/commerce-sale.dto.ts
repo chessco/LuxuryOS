@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
@@ -7,6 +7,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Length,
+  Matches,
   MaxLength,
   Min,
   MinLength,
@@ -50,8 +52,10 @@ export class CreateSaleDto {
   items!: SaleCartItemDto[];
 
   @IsOptional()
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   @IsString()
-  @MaxLength(64)
+  @Length(64, 64)
+  @Matches(/^[a-f0-9]{64}$/i)
   expectedQuoteFingerprint?: string;
 
   @IsOptional()

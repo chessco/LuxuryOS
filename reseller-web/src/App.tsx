@@ -349,10 +349,12 @@ type CartLine = {
 function CatalogCard({
   item,
   quantityInCart,
+  clientView,
   onAdd,
 }: {
   item: ResellerCatalogItem;
   quantityInCart: number;
+  clientView: boolean;
   onAdd: (item: ResellerCatalogItem) => void;
 }) {
   const availableForCart = Math.max(0, item.availableQuantity - quantityInCart);
@@ -366,8 +368,17 @@ function CatalogCard({
         <p className="sku">{item.sku}</p>
         <h2>{item.name}</h2>
         <p className="description">{item.description || item.category || 'Pieza disponible por catálogo.'}</p>
+        <div className="catalog-pricing">
+          <span>Precio público (P1)</span>
+          <strong>{currency(item.publicUnitPrice, item.currency)}</strong>
+          {!clientView && <>
+            <span>Tu precio (P2)</span>
+            <strong>{currency(item.unitPrice, item.currency)}</strong>
+            <span>Margen sugerido</span>
+            <strong>{currency(item.estimatedMargin, item.currency)}</strong>
+          </>}
+        </div>
         <div className="catalog-meta">
-          <strong>{currency(item.unitPrice, item.currency)}</strong>
           <span className={isAvailable ? 'stock available' : 'stock'}>
             {isAvailable ? `${availableForCart} disponible${availableForCart === 1 ? '' : 's'}` : 'Sin disponibilidad'}
           </span>
@@ -916,6 +927,7 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                     key={item.id}
                     item={item}
                     quantityInCart={cartQuantity(item.id)}
+                    clientView={clientView}
                     onAdd={addToCart}
                   />
                 ))}
