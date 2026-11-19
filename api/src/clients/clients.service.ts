@@ -527,16 +527,9 @@ export class ClientsService {
       });
       const orderIds = orders.map((o) => o.id);
       if (orderIds.length > 0) {
-        await tx.payment.deleteMany({
-          where: { orderId: { in: orderIds } },
-        });
-        await tx.queueTicket.updateMany({
-          where: { orderId: { in: orderIds } },
-          data: { orderId: null },
-        });
-        await tx.order.deleteMany({
-          where: { id: { in: orderIds }, tenantId },
-        });
+        throw new ConflictException(
+          'No se puede eliminar un cliente con órdenes. Conserva el cliente para mantener la trazabilidad.',
+        );
       }
       if (client.resellerUserId) {
         await tx.user.update({
@@ -555,6 +548,7 @@ export class ClientsService {
       where: { id: clientId, tenantId },
       include: {
         orders: {
+          where: { deletedAt: null },
           include: {
             createdBy: { select: { id: true, name: true, email: true } },
             payments: true,

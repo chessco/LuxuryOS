@@ -20,6 +20,12 @@ describe('OrdersService Unit Tests', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
+    orderNumberSequence: {
+      upsert: jest.fn(),
+    },
+    queueTicket: {
+      update: jest.fn(),
+    },
     client: {
       findFirst: jest.fn(),
     },
@@ -65,6 +71,7 @@ describe('OrdersService Unit Tests', () => {
     mockPrisma.setting.findMany.mockResolvedValue([]);
     mockPrisma.user.findFirst.mockResolvedValue(null);
     mockPrisma.notificationLog.create.mockResolvedValue({ id: 'notification-1' });
+    mockPrisma.orderNumberSequence.upsert.mockResolvedValue({ currentValue: 1 });
     mockNotificationService.sendCustomMessage.mockResolvedValue({
       success: true,
     });
@@ -159,7 +166,7 @@ describe('OrdersService Unit Tests', () => {
         expect(message).not.toContain('*Concepto:*');
         expect(message).not.toContain('NOTA GENERAL QUE NO DEBE USARSE');
         expect(mockPrisma.order.findUnique).toHaveBeenCalledWith({
-          where: { id: 'order-whatsapp-1', tenantId: 'tenant-1' },
+          where: { id: 'order-whatsapp-1', tenantId: 'tenant-1', deletedAt: null },
           include: { client: true },
         });
       },
@@ -329,7 +336,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
 
     it('should generate orderCode without leading zeros (e.g. FAB-1 instead of FAB-000001)', async () => {
       mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
-      mockPrisma.order.count.mockResolvedValue(0); // Sequence number = 1
+      mockPrisma.orderNumberSequence.upsert.mockResolvedValue({ currentValue: 1 });
       mockPrisma.order.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: 'order-1', ...data }),
       );
@@ -365,7 +372,7 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
 
     it('should register initial advance payment and set partial payment status when creating order with advance', async () => {
       mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-123' });
-      mockPrisma.order.count.mockResolvedValue(0);
+      mockPrisma.orderNumberSequence.upsert.mockResolvedValue({ currentValue: 1 });
       mockPrisma.order.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: 'order-adv-1', ...data }),
       );
@@ -528,6 +535,25 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
       expect(result.specifications.envelopeImages).toContain(
         'https://example.com/photo.jpg',
       );
+    });
+  });
+
+  describe('soft delete audit', () => {
+    it('retains the order and records who, when, and why it was removed', async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({ id: 'order-1', tenantId: 'tenant-1', deletedAt: null, queueTicket: null });
+      mockPrisma.order.update.mockResolvedValue({ id: 'order-1', deletedAt: new Date() });
+
+      await service.deleteOrder('tenant-1', 'order-1', 'admin-1', 'Captura duplicada');
+
+      expect(mockPrisma.order.update).toHaveBeenCalledWith({
+        where: { id: 'order-1' },
+        data: expect.objectContaining({
+          deletedById: 'admin-1',
+          deletionReason: 'Captura duplicada',
+          deletedAt: expect.any(Date),
+        }),
+      });
+      expect((mockPrisma.order as any).delete).toBeUndefined();
     });
   });
 

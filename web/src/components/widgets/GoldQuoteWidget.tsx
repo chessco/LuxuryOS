@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
     computeMarketKaratPrices,
+    computePurchaseExchangeRate,
     computeWorkshopKaratPrices,
     deriveManualKaratsFrom24K,
     fetchLiveGoldMarket,
@@ -23,7 +24,8 @@ import {
 
 export interface GoldQuoteAdminControlsProps {
     config: GoldQuoteConfig;
-    marketPrices: Record<GoldKarat, number>;
+    spotUsdOz: number;
+    usdMxn: number;
     onSaved: (nextConfig: GoldQuoteConfig) => void;
     showVisibilityToggle?: boolean;
     showSettingsLink?: boolean;
@@ -33,7 +35,8 @@ export interface GoldQuoteAdminControlsProps {
 /** Formulario compartido de administración para controlar visibilidad y precios oficiales del taller. */
 export const GoldQuoteAdminControls: React.FC<GoldQuoteAdminControlsProps> = ({
     config,
-    marketPrices,
+    spotUsdOz,
+    usdMxn,
     onSaved,
     showVisibilityToggle = true,
     showSettingsLink = true,
@@ -47,9 +50,14 @@ export const GoldQuoteAdminControls: React.FC<GoldQuoteAdminControlsProps> = ({
         setDraftConfig(config);
     }, [config]);
 
+    const draftPurchaseBasePrices = useMemo(() => {
+        const adjustedFx = computePurchaseExchangeRate(usdMxn, draftConfig.exchangeRateAdjustmentMxn);
+        return computeMarketKaratPrices(spotUsdOz, adjustedFx);
+    }, [spotUsdOz, usdMxn, draftConfig.exchangeRateAdjustmentMxn]);
+
     const draftWorkshopPrices = useMemo(
-        () => computeWorkshopKaratPrices(marketPrices, draftConfig),
-        [marketPrices, draftConfig],
+        () => computeWorkshopKaratPrices(draftPurchaseBasePrices, draftConfig),
+        [draftPurchaseBasePrices, draftConfig],
     );
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -76,10 +84,10 @@ export const GoldQuoteAdminControls: React.FC<GoldQuoteAdminControlsProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <h4 className="text-xs font-black uppercase tracking-wider text-foreground">
-                        Control Administrador · Precio Oficial de Taller
+                        Control Administrador · Oferta Oficial de Compra
                     </h4>
                     <p className="text-[11px] text-muted-foreground">
-                        Define si el taller cotiza sobre el precio en vivo (+margen) o con tarifa fija manual.
+                        Define cuánto paga el taller por debajo del spot, usando un tipo de cambio ajustado.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -134,9 +142,9 @@ export const GoldQuoteAdminControls: React.FC<GoldQuoteAdminControlsProps> = ({
             {/* Selector de 3 modos */}
             <div className="grid grid-cols-3 gap-1.5 bg-background/70 p-1 rounded-xl border border-border">
                 {[
-                    { id: 'MARGIN_PERCENT' as GoldPricingMode, label: 'Spot + % Margen' },
-                    { id: 'MARGIN_FIXED' as GoldPricingMode, label: 'Spot + $ Fijo' },
-                    { id: 'MANUAL' as GoldPricingMode, label: 'Manual Fijo' },
+                    { id: 'MARGIN_PERCENT' as GoldPricingMode, label: 'Spot - % Compra' },
+                    { id: 'MARGIN_FIXED' as GoldPricingMode, label: 'Spot - $ Fijo' },
+                    { id: 'MANUAL' as GoldPricingMode, label: 'Compra Manual' },
                 ].map((mode) => (
                     <button
                         key={mode.id}
@@ -155,9 +163,11 @@ export const GoldQuoteAdminControls: React.FC<GoldQuoteAdminControlsProps> = ({
 
             {draftConfig.pricingMode === 'MARGIN_PERCENT' && (
                 <div className="flex flex-wrap items-center gap-3">
-                    <label className="text-xs font-bold text-foreground">Porcentaje sobre Mercado (%):</label>
+                    <label className="text-xs font-bold text-foreground">Descuento de compra sobre spot (%):</label>
                     <input
                         type="number"
+                        min="0"
+                        max="100"
                         step="0.5"
                         value={draftConfig.marginPercent}
                         onChange={(e) =>
@@ -177,9 +187,10 @@ export const GoldQuoteAdminControls: React.FC<GoldQuoteAdminControlsProps> = ({
 
             {draftConfig.pricingMode === 'MARGIN_FIXED' && (
                 <div className="flex flex-wrap items-center gap-3">
-                    <label className="text-xs font-bold text-foreground">Margen base 24K (+MXN/g):</label>
+                    <label className="text-xs font-bold text-foreground">Descuento fijo base 24K (MXN/g):</label>
                     <input
                         type="number"
+                        min="0"
                         step="5"
                         value={draftConfig.marginFixedMxn}
                         onChange={(e) =>
@@ -201,7 +212,7 @@ export const GoldQuoteAdminControls: React.FC<GoldQuoteAdminControlsProps> = ({
                 <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                         <span className="text-[11px] font-bold text-muted-foreground">
-                            Precios manuales de taller (MXN por gramo):
+                            Ofertas manuales de compra (MXN por gramo):
                         </span>
                         <button
                             type="button"
@@ -244,6 +255,26 @@ export const GoldQuoteAdminControls: React.FC<GoldQuoteAdminControlsProps> = ({
                 </div>
             )}
 
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-background/80 px-3 py-2.5">
+                <label className="text-xs font-bold text-foreground">Ajuste al tipo de cambio (restar MXN):</label>
+                <input
+                    type="number"
+                    min="0"
+                    step="0.05"
+                    value={draftConfig.exchangeRateAdjustmentMxn}
+                    onChange={(e) =>
+                        setDraftConfig((prev) => ({
+                            ...prev,
+                            exchangeRateAdjustmentMxn: Math.max(0, Number(e.target.value)),
+                        }))
+                    }
+                    className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm font-black text-foreground outline-none focus:border-indigo-500 tabular-nums"
+                />
+                <span className="text-[11px] text-muted-foreground">
+                    TC compra: <strong className="text-foreground">${computePurchaseExchangeRate(usdMxn, draftConfig.exchangeRateAdjustmentMxn).toFixed(2)}</strong>
+                </span>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                 <div className="text-[11px]">
                     {saveMessage && (
@@ -263,7 +294,7 @@ export const GoldQuoteAdminControls: React.FC<GoldQuoteAdminControlsProps> = ({
                     disabled={saving}
                     className="px-4 py-2 rounded-xl bg-foreground text-background text-xs font-black uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer"
                 >
-                    {saving ? 'Guardando...' : 'Guardar en Taller'}
+                    {saving ? 'Guardando...' : 'Guardar Oferta de Compra'}
                 </button>
             </div>
 
@@ -389,9 +420,19 @@ export const GoldQuoteWidget: React.FC = () => {
         [market.spotUsdOz, market.usdMxn],
     );
 
+    const purchaseExchangeRate = useMemo(
+        () => computePurchaseExchangeRate(market.usdMxn, config.exchangeRateAdjustmentMxn),
+        [market.usdMxn, config.exchangeRateAdjustmentMxn],
+    );
+
+    const purchaseBasePrices = useMemo(
+        () => computeMarketKaratPrices(market.spotUsdOz, purchaseExchangeRate),
+        [market.spotUsdOz, purchaseExchangeRate],
+    );
+
     const workshopPrices = useMemo(
-        () => computeWorkshopKaratPrices(marketPrices, config),
-        [marketPrices, config],
+        () => computeWorkshopKaratPrices(purchaseBasePrices, config),
+        [purchaseBasePrices, config],
     );
 
     if (!config.enabled) {
@@ -452,7 +493,7 @@ export const GoldQuoteWidget: React.FC = () => {
                             </span>
                         ) : (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 text-[9px] font-bold text-amber-700 dark:text-amber-300 shrink-0">
-                                Precio Taller
+                                Oferta Compra
                             </span>
                         )}
                     </div>
@@ -510,11 +551,11 @@ export const GoldQuoteWidget: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Fila central: Precio Taller destacado (+ Mercado solo para Admin) */}
+                {/* Fila central: oferta de compra destacada; valor spot visible solo para Admin */}
                 <div className="flex items-baseline justify-between gap-2 mb-2">
                     <div className="flex items-baseline gap-1.5 min-w-0">
                         <span className="text-[11px] font-black uppercase text-amber-600 dark:text-amber-400">
-                            {selectedKarat} Taller
+                            {selectedKarat} Compra
                         </span>
                         <span className="text-lg sm:text-xl font-black tracking-tight text-foreground tabular-nums leading-none">
                             {formatMxn(activeWorkshopPrice, 0)}
@@ -582,8 +623,8 @@ export const GoldQuoteWidget: React.FC = () => {
                                         <div>
                                             <h3 className="text-base sm:text-lg font-black text-foreground leading-tight">
                                                 {isAdmin
-                                                    ? 'Cotización del Oro · Taller & Mercado'
-                                                    : 'Calculadora de Oro · Precios de Taller'}
+                                                    ? 'Compra de Oro · Oferta & Mercado'
+                                                    : 'Calculadora de Compra de Oro'}
                                             </h3>
                                             <p className="text-[11px] text-muted-foreground mt-0.5">
                                                 {isAdmin
@@ -597,7 +638,7 @@ export const GoldQuoteWidget: React.FC = () => {
                                                           hour: '2-digit',
                                                           minute: '2-digit',
                                                       })}`
-                                                    : 'Tarifa oficial vigente del taller para cotización a clientes'}
+                                                    : 'Oferta oficial vigente para compra de oro al cliente'}
                                             </p>
                                         </div>
                                     </div>
@@ -648,15 +689,18 @@ export const GoldQuoteWidget: React.FC = () => {
                                         </div>
                                         <div className="rounded-2xl bg-muted/40 border border-border/60 p-3">
                                             <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                                                USD / MXN
+                                                USD / MXN Spot
                                             </p>
                                             <p className="text-sm sm:text-base font-black text-foreground tabular-nums mt-0.5">
                                                 ${market.usdMxn.toFixed(2)} MXN
                                             </p>
+                                            <p className="text-[10px] font-bold text-amber-700 dark:text-amber-300 mt-0.5">
+                                                TC compra ${purchaseExchangeRate.toFixed(2)}
+                                            </p>
                                         </div>
                                         <div className="rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3">
                                             <p className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                                                Regla Taller
+                                                Regla de Compra
                                             </p>
                                             <p className="text-sm sm:text-base font-black text-foreground truncate mt-0.5">
                                                 {modeBadgeLabel}
@@ -725,7 +769,7 @@ export const GoldQuoteWidget: React.FC = () => {
                                         {isAdmin && (
                                             <div className="rounded-xl bg-background border border-border/70 px-3 py-2">
                                                 <span className="block text-[10px] font-bold text-muted-foreground uppercase">
-                                                    Costo Mercado
+                                                    Valor Spot
                                                 </span>
                                                 <span className="text-sm font-black text-foreground tabular-nums">
                                                     {formatMxn(calcMarketTotal, 2)}
@@ -734,7 +778,7 @@ export const GoldQuoteWidget: React.FC = () => {
                                         )}
                                         <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2">
                                             <span className="block text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase">
-                                                {isAdmin ? 'Precio Taller' : `Total Taller (${gramsNumeric}g × ${formatMxn(activeWorkshopPrice, 2)})`}
+                                                {isAdmin ? 'Oferta de Compra' : `Total a Pagar (${gramsNumeric}g × ${formatMxn(activeWorkshopPrice, 2)})`}
                                             </span>
                                             <span className="text-base font-black text-amber-700 dark:text-amber-300 tabular-nums">
                                                 {formatMxn(calcWorkshopTotal, 2)}
@@ -743,7 +787,7 @@ export const GoldQuoteWidget: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Tabla por Quilataje (Vendedores solo ven Tarifa Oficial de Taller) */}
+                                {/* Tabla por quilataje; vendedores solo ven la oferta oficial de compra */}
                                 <div className="rounded-2xl border border-border overflow-hidden">
                                     <table className="w-full text-left text-xs">
                                         <thead className="bg-muted/60 border-b border-border text-[10px] font-black uppercase tracking-wider text-muted-foreground">
@@ -751,7 +795,7 @@ export const GoldQuoteWidget: React.FC = () => {
                                                 <th className="py-2.5 px-3">Quilataje</th>
                                                 {isAdmin && <th className="py-2.5 px-3 text-right">Mercado (MXN/g)</th>}
                                                 <th className="py-2.5 px-3 text-right">
-                                                    {isAdmin ? 'Taller (MXN/g)' : 'Tarifa Oficial de Taller (MXN/g)'}
+                                                    {isAdmin ? 'Compra (MXN/g)' : 'Oferta de Compra (MXN/g)'}
                                                 </th>
                                                 {isAdmin && <th className="py-2.5 px-3 text-right">Diferencia</th>}
                                             </tr>
@@ -799,7 +843,8 @@ export const GoldQuoteWidget: React.FC = () => {
                                 {isAdmin && (
                                     <GoldQuoteAdminControls
                                         config={config}
-                                        marketPrices={marketPrices}
+                                        spotUsdOz={market.spotUsdOz}
+                                        usdMxn={market.usdMxn}
                                         compact
                                         onSaved={(saved) => {
                                             setConfig(saved);

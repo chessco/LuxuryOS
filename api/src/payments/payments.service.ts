@@ -122,7 +122,7 @@ export class PaymentsService {
     async getPaymentsByOrder(orderId: string, tenantId?: string) {
         if (tenantId) {
             const order = await this.prisma.order.findFirst({
-                where: { id: orderId, tenantId },
+                where: { id: orderId, tenantId, deletedAt: null },
             });
             if (!order) throw new BadRequestException('Orden no encontrada');
         }

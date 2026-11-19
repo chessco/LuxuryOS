@@ -53,6 +53,7 @@ export class PublicOrdersController {
     if (!this.tokenIndexBuilding) {
       this.tokenIndexBuilding = (async () => {
         const rows = await this.prisma.order.findMany({
+          where: { deletedAt: null },
           select: { id: true },
           orderBy: { createdAt: 'desc' },
           take: 20000,
@@ -91,8 +92,8 @@ export class PublicOrdersController {
 
     // 1. Direct match by full UUID (36 characters)
     if (clean.length === 36) {
-      const order = await this.prisma.order.findUnique({
-        where: { id: clean },
+      const order = await this.prisma.order.findFirst({
+        where: { id: clean, deletedAt: null },
         include: { client: true },
       });
       if (order) return order;
@@ -102,8 +103,8 @@ export class PublicOrdersController {
     if (clean.length >= 16) {
       const orderId = await this.findOrderIdByToken(clean);
       if (orderId) {
-        const order = await this.prisma.order.findUnique({
-          where: { id: orderId },
+        const order = await this.prisma.order.findFirst({
+          where: { id: orderId, deletedAt: null },
           include: { client: true },
         });
         if (order) return order;
@@ -115,6 +116,7 @@ export class PublicOrdersController {
       const orders = await this.prisma.order.findMany({
         where: {
           id: { startsWith: clean.toLowerCase() },
+          deletedAt: null,
         },
         take: 2,
         include: { client: true },

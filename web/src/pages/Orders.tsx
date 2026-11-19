@@ -20,6 +20,7 @@ import { ClientHistoryModal } from '../components/orders/ClientHistoryModal';
 import { getTrafficLight, TrafficLightColor } from '../utils/trafficLight';
 import RingSizeInput from '../components/orders/RingSizeInput';
 import WidgetDock from '../components/widgets/WidgetDock';
+import { DeletedOrdersModal } from '../components/orders/DeletedOrdersModal';
 
 const isAppleMobileDevice = () => typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
@@ -209,6 +210,7 @@ const Orders: React.FC = () => {
     const [labelPrintOrder, setLabelPrintOrder] = useState<any | null>(null);
     const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
     const [cameraPieceIndex, setCameraPieceIndex] = useState<number | null>(null);
+    const [isDeletedOrdersOpen, setIsDeletedOrdersOpen] = useState(false);
 
     useEffect(() => {
         if (autoOpenNew && !isJoyero) {
@@ -492,9 +494,15 @@ const Orders: React.FC = () => {
     };
 
     const handleDeleteOrder = async (id: string) => {
+        const reason = window.prompt('Indica el motivo de eliminación. La orden se conservará en la bitácora:');
+        if (reason === null) return;
+        if (!reason.trim()) {
+            alert('El motivo de eliminación es obligatorio.');
+            return;
+        }
         try {
-            await OrdersService.deleteOrder(id);
-            alert("Pedido eliminado exitosamente.");
+            await OrdersService.deleteOrder(id, reason.trim());
+            alert("Orden retirada del tablero y conservada en la bitácora.");
             fetchBoard();
         } catch (error) {
             console.error(error);
@@ -758,6 +766,16 @@ const Orders: React.FC = () => {
                                         </button>
                                     </div>
                                 )}
+                                {isSystemAdmin && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsDeletedOrdersOpen(true)}
+                                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-card text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                                    >
+                                        <span className="material-symbols-outlined text-[18px]">history</span>
+                                        <span>Eliminadas</span>
+                                    </button>
+                                )}
                                 {!isJoyero && (
                                     <button
                                         onClick={() => setIsModalOpen(true)}
@@ -984,6 +1002,11 @@ const Orders: React.FC = () => {
                     />
                 )}
             </AnimatePresence>
+
+            <DeletedOrdersModal
+                isOpen={isDeletedOrdersOpen}
+                onClose={() => setIsDeletedOrdersOpen(false)}
+            />
 
             <LabelPrintModal
                 isOpen={isLabelPrintOpen}

@@ -394,6 +394,7 @@ export class QueueService {
 
         let orderWhere: any = {
             tenantId,
+            deletedAt: null,
         };
 
         if (orderConditions.length > 0) {

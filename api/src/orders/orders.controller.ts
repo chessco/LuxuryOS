@@ -83,6 +83,14 @@ export class OrdersController {
         return this.ordersService.getOrders(req.user.tenantId);
     }
 
+    @Get('deleted-orders')
+    async getDeletedOrders(@Request() req) {
+        if (!isAdminRole(req.user?.role, req.user?.email)) {
+            throw new ForbiddenException('Solo administradores pueden consultar órdenes eliminadas');
+        }
+        return this.ordersService.getDeletedOrders(req.user.tenantId);
+    }
+
     @Post('orders/:id/generate-image')
     async generateAIImage(@Param('id') id: string, @Request() req) {
         return this.ordersService.generateAIImage(req.user.tenantId, id);
@@ -161,11 +169,20 @@ export class OrdersController {
     }
 
     @Delete('orders/:id')
-    async deleteOrder(@Param('id') id: string, @Request() req) {
+    async deleteOrder(
+        @Param('id') id: string,
+        @Body() body: { reason?: string },
+        @Request() req,
+    ) {
         if (!isAdminRole(req.user?.role, req.user?.email)) {
             throw new ForbiddenException('Solo un Administrador del Sistema puede eliminar pedidos');
         }
-        return this.ordersService.deleteOrder(req.user.tenantId, id);
+        return this.ordersService.deleteOrder(
+            req.user.tenantId,
+            id,
+            req.user.id || req.user.userId,
+            body?.reason,
+        );
     }
 
     @Post('orders/:id/send-whatsapp')

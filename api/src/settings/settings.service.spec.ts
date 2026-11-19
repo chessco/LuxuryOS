@@ -18,6 +18,7 @@ describe('SettingsService public gold quote', () => {
         pricingMode: 'MARGIN_PERCENT',
         primaryKarat: '14K',
         marginPercent: 10,
+        exchangeRateAdjustmentMxn: 1,
         fallbackSpotUsdOz: 2500,
         fallbackUsdMxn: 20,
       }),
@@ -28,7 +29,7 @@ describe('SettingsService public gold quote', () => {
     global.fetch = originalFetch;
   });
 
-  it('returns final workshop prices without exposing private margins', async () => {
+  it('returns final purchase offers below spot without exposing private adjustments', async () => {
     global.fetch = jest.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ price: 3000 }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ rates: { MXN: 20 } }) }) as any;
@@ -39,8 +40,10 @@ describe('SettingsService public gold quote', () => {
     expect(result.primaryKarat).toBe('14K');
     expect(result.source).toBe('live');
     expect(result.workshopPricesMxn['24K']).toBeGreaterThan(0);
+    expect(result.workshopPricesMxn['24K']).toBeLessThan((3000 * 20) / 31.1034768);
     expect(result).not.toHaveProperty('marginPercent');
     expect(result).not.toHaveProperty('marginFixedMxn');
+    expect(result).not.toHaveProperty('exchangeRateAdjustmentMxn');
     expect(result).not.toHaveProperty('pricingMode');
   });
 
@@ -52,7 +55,7 @@ describe('SettingsService public gold quote', () => {
     const result = await service.getPublicGoldQuote('tenant-gold-fallback');
 
     expect(result.source).toBe('fallback');
-    expect(result.workshopPricesMxn['24K']).toBeCloseTo(((2500 * 20) / 31.1034768) * 1.1, 2);
+    expect(result.workshopPricesMxn['24K']).toBeCloseTo(((2500 * (20 - 1)) / 31.1034768) * 0.9, 2);
   });
 
   it('invalidates the public cache when the private configuration changes', async () => {
@@ -65,5 +68,11 @@ describe('SettingsService public gold quote', () => {
     await service.getPublicGoldQuote('tenant-gold-cache');
 
     expect(prisma.setting.findUnique).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks destructive demo cleanup so production orders remain auditable', async () => {
+    await expect(service.clearDemoData('tenant-1')).rejects.toThrow(
+      'Las órdenes sólo admiten borrado lógico',
+    );
   });
 });

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 type GoldKarat = '10K' | '14K' | '18K' | '24K';
@@ -9,6 +9,7 @@ interface GoldQuoteConfig {
   primaryKarat: GoldKarat;
   marginPercent: number;
   marginFixedMxn: number;
+  exchangeRateAdjustmentMxn: number;
   manualPricesMxn: Record<GoldKarat, number>;
   fallbackSpotUsdOz: number;
   fallbackUsdMxn: number;
@@ -36,6 +37,7 @@ const DEFAULT_GOLD_CONFIG: GoldQuoteConfig = {
   primaryKarat: '14K',
   marginPercent: 8,
   marginFixedMxn: 85,
+  exchangeRateAdjustmentMxn: 1,
   manualPricesMxn: { '10K': 790, '14K': 1105, '18K': 1420, '24K': 1895 },
   fallbackSpotUsdOz: 2650,
   fallbackUsdMxn: 20.2,
@@ -74,6 +76,9 @@ export class SettingsService {
         primaryKarat,
         marginPercent: Number.isFinite(Number(parsed.marginPercent)) ? Number(parsed.marginPercent) : DEFAULT_GOLD_CONFIG.marginPercent,
         marginFixedMxn: Number.isFinite(Number(parsed.marginFixedMxn)) ? Number(parsed.marginFixedMxn) : DEFAULT_GOLD_CONFIG.marginFixedMxn,
+        exchangeRateAdjustmentMxn: Number.isFinite(Number(parsed.exchangeRateAdjustmentMxn))
+          ? Math.max(0, Number(parsed.exchangeRateAdjustmentMxn))
+          : DEFAULT_GOLD_CONFIG.exchangeRateAdjustmentMxn,
         manualPricesMxn: Object.fromEntries(
           Object.keys(GOLD_PURITY).map((karat) => {
             const key = karat as GoldKarat;
@@ -130,7 +135,8 @@ export class SettingsService {
       ? fxResult
       : config.fallbackUsdMxn;
     const source: PublicGoldQuote['source'] = spotResult === spotUsdOz && fxResult === usdMxn ? 'live' : 'fallback';
-    const market24k = (spotUsdOz * usdMxn) / TROY_OUNCE_GRAMS;
+    const adjustedUsdMxn = Math.max(0.01, usdMxn - config.exchangeRateAdjustmentMxn);
+    const market24k = (spotUsdOz * adjustedUsdMxn) / TROY_OUNCE_GRAMS;
     const workshopPricesMxn = Object.fromEntries(
       Object.entries(GOLD_PURITY).map(([karat, purity]) => {
         const key = karat as GoldKarat;
@@ -138,8 +144,8 @@ export class SettingsService {
         const price = config.pricingMode === 'MANUAL'
           ? config.manualPricesMxn[key]
           : config.pricingMode === 'MARGIN_PERCENT'
-            ? marketPrice * (1 + config.marginPercent / 100)
-            : marketPrice + config.marginFixedMxn * purity;
+            ? marketPrice * (1 - Math.min(100, Math.max(0, config.marginPercent)) / 100)
+            : Math.max(0, marketPrice - Math.max(0, config.marginFixedMxn) * purity);
         return [key, Number(price.toFixed(2))];
       }),
     ) as Record<GoldKarat, number>;
@@ -185,49 +191,9 @@ export class SettingsService {
   }
 
   async clearDemoData(tenantId: string) {
-    // Delete in sequence to avoid foreign key constraint violations
-    
-    // 1. Delete payments belonging to orders of this tenant
-    await this.prisma.payment.deleteMany({
-      where: {
-        order: { tenantId }
-      }
-    });
-
-    // 2. Delete queue events of tickets of this tenant
-    await this.prisma.queueEvent.deleteMany({
-      where: {
-        ticket: { tenantId }
-      }
-    });
-
-    // 3. Delete notification logs of this tenant
-    await this.prisma.notificationLog.deleteMany({
-      where: { tenantId }
-    });
-
-    // 4. Delete queue ticket recommendations of tickets of this tenant
-    await this.prisma.queueTicketRecommendation.deleteMany({
-      where: {
-        ticket: { tenantId }
-      }
-    });
-
-    // 5. Delete queue tickets of this tenant
-    await this.prisma.queueTicket.deleteMany({
-      where: { tenantId }
-    });
-
-    // 6. Delete orders of this tenant
-    await this.prisma.order.deleteMany({
-      where: { tenantId }
-    });
-
-    // 7. Delete clients of this tenant
-    await this.prisma.client.deleteMany({
-      where: { tenantId }
-    });
-
-    return { success: true };
+    void tenantId;
+    throw new ForbiddenException(
+      'La limpieza destructiva está deshabilitada. Las órdenes sólo admiten borrado lógico con auditoría.',
+    );
   }
 }

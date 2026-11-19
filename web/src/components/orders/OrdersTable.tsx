@@ -597,10 +597,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                         <button
                                             onClick={async (e) => {
                                                 e.stopPropagation();
-                                                if (window.confirm("¿Seguro que deseas eliminar permanentemente este pedido? Esta acción no se puede deshacer y borrará todos los pagos asociados.")) {
+                                                if (window.confirm("¿Retirar esta orden del tablero? Se conservará completa en la bitácora de eliminaciones.")) {
+                                                    const reason = window.prompt('Indica el motivo de eliminación:');
+                                                    if (reason === null) return;
+                                                    if (!reason.trim()) {
+                                                        alert('El motivo de eliminación es obligatorio.');
+                                                        return;
+                                                    }
                                                     try {
-                                                        await OrdersService.deleteOrder(order.id);
-                                                        alert("Pedido eliminado exitosamente.");
+                                                        await OrdersService.deleteOrder(order.id, reason.trim());
+                                                        alert("Orden retirada y conservada en la bitácora.");
                                                         if (onOrderDeleted) onOrderDeleted();
                                                     } catch (err) {
                                                         console.error(err);

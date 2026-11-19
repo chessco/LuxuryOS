@@ -7,6 +7,7 @@ describe('QuotesService', () => {
     client: { findFirst: jest.fn() },
     quote: { count: jest.fn(), create: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), updateMany: jest.fn(), update: jest.fn() },
     order: { count: jest.fn(), create: jest.fn() },
+    orderNumberSequence: { upsert: jest.fn() },
     $transaction: jest.fn(),
   };
   const notifications: any = { sendCustomMessage: jest.fn() };
@@ -48,9 +49,9 @@ describe('QuotesService', () => {
     const quote: any = { id: 'q1', tenantId: 'tenant-1', clientId: 'client-1', quoteCode: 'COT-1', status: QuoteStatus.AUTHORIZED, convertedOrder: null, pieceType: 'Anillo', notes: 'Detalle', totalAmount: 2500, materialCost: 900, laborCost: 1600, specifications: { metal: 'Oro', karats: '14K', size: '7', thickness: '2 mm', weight: '3 g', itemCode: 'ANI-01', imageUrl: '/uploads/anillo.png' } };
     prisma.quote.findFirst.mockResolvedValue(quote);
     prisma.quote.updateMany.mockResolvedValue({ count: 1 });
-    prisma.order.count.mockResolvedValue(4);
+    prisma.orderNumberSequence.upsert.mockResolvedValue({ currentValue: 5 });
     prisma.order.create.mockImplementation(({ data }: any) => Promise.resolve({ id: 'order-1', specifications: data.specifications }));
-    prisma.$transaction.mockImplementation((callback: any) => callback({ quote: prisma.quote, order: prisma.order }));
+    prisma.$transaction.mockImplementation((callback: any) => callback({ quote: prisma.quote, order: prisma.order, orderNumberSequence: prisma.orderNumberSequence }));
     strategies.getStrategy.mockReturnValue({ getInitialStatus: () => 'RECEIVED' });
 
     await service.convert('tenant-1', 'q1', { targetType: OrderType.REPAIR }, 'user-1');

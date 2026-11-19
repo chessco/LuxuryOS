@@ -446,12 +446,18 @@ const OrderDetail: React.FC = () => {
 
     const handleDeleteOrder = async () => {
         if (!id) return;
-        if (!window.confirm("¿Estás completamente seguro de eliminar esta orden? Esta acción no se puede deshacer y borrará todos los pagos asociados.")) {
+        if (!window.confirm("¿Retirar esta orden? Se conservará completa en la bitácora de eliminaciones.")) {
+            return;
+        }
+        const reason = window.prompt('Indica el motivo de eliminación:');
+        if (reason === null) return;
+        if (!reason.trim()) {
+            alert('El motivo de eliminación es obligatorio.');
             return;
         }
         try {
-            await OrdersService.deleteOrder(id);
-            alert("Pedido eliminado exitosamente.");
+            await OrdersService.deleteOrder(id, reason.trim());
+            alert("Orden retirada y conservada en la bitácora.");
             window.location.href = "/orders";
         } catch (error) {
             console.error(error);

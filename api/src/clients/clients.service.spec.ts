@@ -106,17 +106,12 @@ describe('ClientsService Unit Tests', () => {
   });
 
   describe('delete', () => {
-    it('should delete a client and its associated orders, payments, and tickets', async () => {
+    it('should preserve clients that have orders to maintain audit history', async () => {
       mockPrisma.client.findFirst.mockResolvedValue({ id: 'client-1' });
       mockPrisma.order.findMany.mockResolvedValue([{ id: 'ord-1' }, { id: 'ord-2' }]);
-      mockPrisma.payment.deleteMany.mockResolvedValue({ count: 2 });
-      mockPrisma.queueTicket.updateMany.mockResolvedValue({ count: 1 });
-      mockPrisma.order.deleteMany.mockResolvedValue({ count: 2 });
-      mockPrisma.client.delete.mockResolvedValue({ id: 'client-1' });
-
-      const result = await service.delete('tenant-1', 'client-1');
-
-      expect(result).toEqual({ id: 'client-1' });
+      await expect(service.delete('tenant-1', 'client-1')).rejects.toThrow(
+        'No se puede eliminar un cliente con órdenes',
+      );
       expect(mockPrisma.client.findFirst).toHaveBeenCalledWith({
         where: { id: 'client-1', tenantId: 'tenant-1' },
         select: { id: true, resellerUserId: true },
@@ -125,19 +120,8 @@ describe('ClientsService Unit Tests', () => {
         where: { clientId: 'client-1', tenantId: 'tenant-1' },
         select: { id: true },
       });
-      expect(mockPrisma.payment.deleteMany).toHaveBeenCalledWith({
-        where: { orderId: { in: ['ord-1', 'ord-2'] } },
-      });
-      expect(mockPrisma.queueTicket.updateMany).toHaveBeenCalledWith({
-        where: { orderId: { in: ['ord-1', 'ord-2'] } },
-        data: { orderId: null },
-      });
-      expect(mockPrisma.order.deleteMany).toHaveBeenCalledWith({
-        where: { id: { in: ['ord-1', 'ord-2'] }, tenantId: 'tenant-1' },
-      });
-      expect(mockPrisma.client.delete).toHaveBeenCalledWith({
-        where: { id: 'client-1' },
-      });
+      expect(mockPrisma.order.deleteMany).not.toHaveBeenCalled();
+      expect(mockPrisma.client.delete).not.toHaveBeenCalled();
     });
 
     it('should throw error if client does not exist when deleting', async () => {

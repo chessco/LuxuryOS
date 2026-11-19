@@ -46,6 +46,9 @@ test('goldQuoteUtils exposes 4 karats, 3 pricing modes, enabled flag, and /setti
   assert.match(goldUtilsSource, /\/settings\/gold-quote/);
   assert.match(goldUtilsSource, /pricingMode:\s*'MANUAL'/);
   assert.match(goldUtilsSource, /31\.1034768/);
+  assert.match(goldUtilsSource, /exchangeRateAdjustmentMxn:\s*1/);
+  assert.match(goldUtilsSource, /safeFx\s*-\s*safeAdjustment/);
+  assert.match(goldUtilsSource, /1\s*-\s*pct\s*\/\s*100/);
 });
 
 test('gold settings become locally visible only after server persistence succeeds', () => {
@@ -59,10 +62,12 @@ test('gold settings become locally visible only after server persistence succeed
   assert.ok(localPublish > serverWrite, 'must not publish an unconfirmed configuration locally');
 });
 
-test('GoldQuoteWidget separates Seller workshop calculator from Admin market/margin controls', () => {
+test('GoldQuoteWidget separates Seller purchase calculator from Admin market/discount controls', () => {
   assert.match(goldWidgetSource, /createPortal/);
   assert.match(goldWidgetSource, /isAdmin/);
-  assert.match(goldWidgetSource, /Calculadora de Oro · Precios de Taller/);
+  assert.match(goldWidgetSource, /Calculadora de Compra de Oro/);
+  assert.match(goldWidgetSource, /Oferta de Compra/);
+  assert.match(goldWidgetSource, /TC compra/);
   assert.match(goldWidgetSource, /calculate/);
   assert.match(goldWidgetSource, /if \(!config\.enabled\)/);
   assert.match(goldWidgetSource, /\{isAdmin && \(/);

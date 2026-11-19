@@ -101,6 +101,7 @@ describe('AuraToolsService', () => {
       await service.execute(admin, 'buscar_orden', { codigo: ' rep-54 ' });
       expect(prisma.order.findFirst.mock.calls[0][0].where).toEqual({
         tenantId: 'tenant-1',
+        deletedAt: null,
         specifications: { path: '$.orderCode', equals: 'REP-54' },
       });
     });

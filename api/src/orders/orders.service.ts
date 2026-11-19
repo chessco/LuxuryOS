@@ -14,6 +14,7 @@ import * as path from 'path';
 import { OrderStrategyFactory } from './strategies/order-strategy.factory';
 import { NotificationService } from '../queue/notification.service';
 import { SettingsService } from '../settings/settings.service';
+import { allocateOrderCode } from './order-number';
 import {
   isAdminRole,
   isDesignerRole,
@@ -103,7 +104,7 @@ export class OrdersService {
 
   async getBoard(tenantId: string, type?: string) {
     if (type === 'QUOTE') throw new BadRequestException('Las cotizaciones no pertenecen al Kanban');
-    const query: any = { tenantId };
+    const query: any = { tenantId, deletedAt: null };
     if (type) {
       query.type = type;
     } else {
@@ -156,8 +157,8 @@ export class OrdersService {
     user?: any,
     options?: { viaQrDelivery?: boolean },
   ) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
+    const order = await this.prisma.order.findFirst({
+      where: { id, tenantId, deletedAt: null },
     });
 
     if (!order) throw new NotFoundException('Pedido no encontrado');
@@ -571,24 +572,6 @@ export class OrdersService {
       }
     }
 
-    const count = await this.prisma.order.count({
-      where: { tenantId, type },
-    });
-    const sequence = count + 1;
-    const prefix =
-      type === 'REPAIR'
-        ? 'REP'
-        : type === 'MANUFACTURE'
-          ? 'FAB'
-          : type === 'DESIGN'
-            ? 'DIS'
-            : type === 'LASER'
-              ? 'LAS'
-              : type === 'LAYAWAY'
-                ? 'APT'
-                : 'PED';
-    const orderCode = `${prefix}-${sequence}`;
-
     // RF-02: Persistencia robusta de fotografías
     let photoUrl =
       data.imageUrl || data.specifications?.items?.[0]?.imageUrl || undefined;
@@ -626,9 +609,8 @@ export class OrdersService {
     const jewelerPercentageSnapshot = requiresJewelerAssignment
       ? await this.getJewelerPercentageSnapshot(tenantId, assignedJeweler)
       : {};
-    const specifications = {
+    const baseSpecifications = {
       ...(typeof data.specifications === 'object' ? data.specifications : {}),
-      orderCode,
       envelopeImages: existingEnvelopeImages,
       ...(updatedItems ? { items: updatedItems } : {}),
       ...jewelerPercentageSnapshot,
@@ -643,6 +625,7 @@ export class OrdersService {
     } = data;
 
     const created = await this.prisma.$transaction(async (tx) => {
+      const orderCode = await allocateOrderCode(tx, tenantId, type);
       const ord = await tx.order.create({
         data: {
           ...cleanOrderData,
@@ -658,7 +641,7 @@ export class OrdersService {
           margin,
           paymentStatus,
           status: status ?? undefined, // Let Prisma default to DRAFT if undefined
-          specifications,
+          specifications: { ...baseSpecifications, orderCode },
         },
         include: {
           client: true,
@@ -698,7 +681,7 @@ export class OrdersService {
 
   async getOrders(tenantId: string) {
     const orders = await this.prisma.order.findMany({
-      where: { tenantId, type: { not: 'QUOTE' } },
+      where: { tenantId, type: { not: 'QUOTE' }, deletedAt: null },
       include: {
         client: true,
         createdBy: { select: { id: true, name: true, email: true } },
@@ -725,7 +708,7 @@ export class OrdersService {
     if (orderUrlMatch) cleanIdOrCode = orderUrlMatch[1];
 
     let order = await this.prisma.order.findFirst({
-      where: { id: cleanIdOrCode, tenantId },
+      where: { id: cleanIdOrCode, tenantId, deletedAt: null },
       include: {
         client: true,
         createdBy: { select: { id: true, name: true, email: true } },
@@ -737,7 +720,7 @@ export class OrdersService {
 
     if (!order) {
       const allOrders = await this.prisma.order.findMany({
-        where: { tenantId },
+        where: { tenantId, deletedAt: null },
         include: {
           client: true,
           createdBy: { select: { id: true, name: true, email: true } },
@@ -853,6 +836,7 @@ export class OrdersService {
       where: {
         tenantId: order.tenantId,
         type: order.type,
+        deletedAt: null,
         createdAt: { lte: order.createdAt },
       },
     });
@@ -889,7 +873,7 @@ export class OrdersService {
   async addNote(tenantId: string, orderId: string, userId: string, content: string) {
     const normalized = String(content || '').trim();
     if (!normalized) throw new BadRequestException('La nota no puede estar vacía');
-    const order = await this.prisma.order.findFirst({ where: { id: orderId, tenantId }, select: { id: true } });
+    const order = await this.prisma.order.findFirst({ where: { id: orderId, tenantId, deletedAt: null }, select: { id: true } });
     if (!order) throw new NotFoundException('Pedido no encontrado');
     const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, name: true, email: true } });
     if (!user) throw new ForbiddenException('Usuario no válido para este negocio');
@@ -1344,28 +1328,52 @@ export class OrdersService {
     });
   }
 
-  async deleteOrder(tenantId: string, id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
+  async getDeletedOrders(tenantId: string) {
+    const orders = await this.prisma.order.findMany({
+      where: { tenantId, deletedAt: { not: null } },
+      include: {
+        client: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        deletedBy: { select: { id: true, name: true, email: true } },
+      },
+    });
+    return orders
+      .sort((a, b) => new Date(b.deletedAt || 0).getTime() - new Date(a.deletedAt || 0).getTime())
+      .map((order) => ({
+        ...order,
+        orderCode: (order.specifications as any)?.orderCode || null,
+      }));
+  }
+
+  async deleteOrder(tenantId: string, id: string, userId: string, reason?: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id, tenantId, deletedAt: null },
       include: { queueTicket: true },
     });
     if (!order) {
       throw new NotFoundException('Pedido no encontrado');
     }
 
-    if (order.queueTicket) {
-      await this.prisma.queueTicket.update({
-        where: { id: order.queueTicket.id },
-        data: { orderId: null },
-      });
+    const normalizedReason = String(reason || '').trim();
+    if (!normalizedReason) {
+      throw new BadRequestException('Indica el motivo de eliminación de la orden');
     }
 
-    await this.prisma.payment.deleteMany({
-      where: { orderId: id },
-    });
-
-    return this.prisma.order.delete({
-      where: { id },
+    return this.prisma.$transaction(async (tx) => {
+      if (order.queueTicket) {
+        await tx.queueTicket.update({
+          where: { id: order.queueTicket.id },
+          data: { orderId: null },
+        });
+      }
+      return tx.order.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedById: userId,
+          deletionReason: normalizedReason.slice(0, 500),
+        },
+      });
     });
   }
 
@@ -1387,7 +1395,7 @@ export class OrdersService {
     context: OrderWhatsAppContext = 'WORKFLOW',
   ) {
     const order = await this.prisma.order.findUnique({
-      where: { id, tenantId },
+      where: { id, tenantId, deletedAt: null },
       include: { client: true },
     });
 

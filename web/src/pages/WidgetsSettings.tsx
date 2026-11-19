@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { GoldQuoteAdminControls } from '../components/widgets/GoldQuoteWidget';
 import {
     computeMarketKaratPrices,
+    computePurchaseExchangeRate,
     computeWorkshopKaratPrices,
     fetchLiveGoldMarket,
     formatMxn,
@@ -64,8 +65,14 @@ const WidgetsSettings: React.FC = () => {
     );
 
     const workshopPrices = useMemo(
-        () => computeWorkshopKaratPrices(marketPrices, config),
-        [marketPrices, config],
+        () => computeWorkshopKaratPrices(
+            computeMarketKaratPrices(
+                market.spotUsdOz,
+                computePurchaseExchangeRate(market.usdMxn, config.exchangeRateAdjustmentMxn),
+            ),
+            config,
+        ),
+        [market.spotUsdOz, market.usdMxn, config],
     );
 
     const handleQuickToggle = async () => {
@@ -120,7 +127,7 @@ const WidgetsSettings: React.FC = () => {
                             <div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <h2 className="text-base sm:text-lg font-black text-foreground">
-                                        Cotización del Oro &amp; Calculadora de Taller
+                                        Compra de Oro &amp; Calculadora de Oferta
                                     </h2>
                                     <span
                                         className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
@@ -133,8 +140,8 @@ const WidgetsSettings: React.FC = () => {
                                     </span>
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
-                                    Administradores ven cotización Spot, tipo de cambio y margen. Vendedores únicamente ven la tarifa
-                                    oficial de taller y pueden abrir la calculadora en gramos sin acceso a costos base ni márgenes.
+                                    Administradores ven spot, tipo de cambio y descuentos. Vendedores únicamente ven la oferta
+                                    oficial de compra y pueden calcular gramos sin acceso a costos base ni ajustes.
                                 </p>
                             </div>
                         </div>
@@ -186,7 +193,7 @@ const WidgetsSettings: React.FC = () => {
                             {KARAT_LIST.map(({ karat }) => (
                                 <div key={karat} className="rounded-2xl bg-muted/40 border border-border/60 p-3">
                                     <span className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 block">
-                                        {karat} Taller
+                                        {karat} Compra
                                     </span>
                                     <span className="text-sm font-black text-foreground tabular-nums block">
                                         {formatMxn(workshopPrices[karat], 0)}/g
@@ -202,7 +209,8 @@ const WidgetsSettings: React.FC = () => {
                     {/* Formulario compartido de parámetros */}
                     <GoldQuoteAdminControls
                         config={config}
-                        marketPrices={marketPrices}
+                        spotUsdOz={market.spotUsdOz}
+                        usdMxn={market.usdMxn}
                         showVisibilityToggle
                         showSettingsLink={false}
                         onSaved={(saved) => setConfig(saved)}

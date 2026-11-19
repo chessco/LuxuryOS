@@ -55,8 +55,13 @@ export const OrdersService = {
         return response.data;
     },
 
-    async deleteOrder(id: string) {
-        const response = await api.delete(`/kanban/orders/${id}`);
+    async deleteOrder(id: string, reason: string) {
+        const response = await api.delete(`/kanban/orders/${id}`, { data: { reason } });
+        return response.data;
+    },
+
+    async getDeletedOrders() {
+        const response = await api.get('/kanban/deleted-orders');
         return response.data;
     },
 

@@ -6,6 +6,7 @@ import { NotificationService } from '../queue/notification.service';
 import { OrderStrategyFactory } from '../orders/strategies/order-strategy.factory';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { ConvertQuoteDto } from './dto/convert-quote.dto';
+import { allocateOrderCode } from '../orders/order-number';
 
 const PUBLIC_WEB_URL = process.env.PUBLIC_WEB_URL || 'https://luxuryos.pitayacode.io';
 
@@ -95,13 +96,11 @@ export class QuotesService {
       }
     }
     const strategy = this.strategies.getStrategy(dto.targetType);
-    const prefix: Record<string, string> = { STANDARD: 'PED', REPAIR: 'REP', MANUFACTURE: 'FAB', DESIGN: 'DIS', LASER: 'LAS', LAYAWAY: 'APT' };
     const order = await this.prisma.$transaction(async tx => {
       // Move to the terminal state as the conditional lock. The enclosing transaction rolls it back if order creation fails.
       const locked = await tx.quote.updateMany({ where: { id, tenantId, status: QuoteStatus.AUTHORIZED, convertedOrderId: null }, data: { status: QuoteStatus.CONVERTED, convertedAt: new Date() } });
       if (!locked.count) throw new ConflictException('La cotización ya fue convertida');
-      const sequence = (await tx.order.count({ where: { tenantId, type: dto.targetType } })) + 1;
-      const orderCode = `${prefix[dto.targetType]}-${sequence}`;
+      const orderCode = await allocateOrderCode(tx, tenantId, dto.targetType);
       const created = await tx.order.create({ data: {
         tenantId, clientId: quote.clientId, createdById: userId, type: dto.targetType,
         status: strategy.getInitialStatus(), pieceType: quote.pieceType, value: quote.totalAmount,

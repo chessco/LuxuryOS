@@ -9,6 +9,7 @@ export interface GoldQuoteConfig {
     primaryKarat: GoldKarat;
     marginPercent: number;
     marginFixedMxn: number;
+    exchangeRateAdjustmentMxn: number;
     manualPricesMxn: Record<GoldKarat, number>;
     fallbackSpotUsdOz: number;
     fallbackUsdMxn: number;
@@ -43,6 +44,7 @@ export const DEFAULT_GOLD_CONFIG: GoldQuoteConfig = {
     primaryKarat: '14K',
     marginPercent: 8,
     marginFixedMxn: 85,
+    exchangeRateAdjustmentMxn: 1,
     manualPricesMxn: {
         '10K': 790,
         '14K': 1105,
@@ -65,6 +67,15 @@ export function computeMarketKaratPrices(spotUsdOz: number, usdMxn: number): Rec
     }, {} as Record<GoldKarat, number>);
 }
 
+/** Tipo de cambio conservador usado para calcular ofertas de compra de oro. */
+export function computePurchaseExchangeRate(usdMxn: number, adjustmentMxn: number): number {
+    const safeFx = Number.isFinite(usdMxn) && usdMxn > 0 ? usdMxn : DEFAULT_GOLD_CONFIG.fallbackUsdMxn;
+    const safeAdjustment = Number.isFinite(adjustmentMxn)
+        ? Math.max(0, adjustmentMxn)
+        : DEFAULT_GOLD_CONFIG.exchangeRateAdjustmentMxn;
+    return Number(Math.max(0.01, safeFx - safeAdjustment).toFixed(4));
+}
+
 /** Calcula el precio oficial del taller por gramo en MXN según el modo configurado por Administración. */
 export function computeWorkshopKaratPrices(
     marketPrices: Record<GoldKarat, number>,
@@ -82,11 +93,11 @@ export function computeWorkshopKaratPrices(
     return KARAT_LIST.reduce((acc, { karat, purity }) => {
         const base = marketPrices[karat] || 0;
         if (config.pricingMode === 'MARGIN_PERCENT') {
-            const pct = Number(config.marginPercent) || 0;
-            acc[karat] = Number((base * (1 + pct / 100)).toFixed(2));
+            const pct = Math.min(100, Math.max(0, Number(config.marginPercent) || 0));
+            acc[karat] = Number((base * (1 - pct / 100)).toFixed(2));
         } else {
-            const fixedAdd = (Number(config.marginFixedMxn) || 0) * purity;
-            acc[karat] = Number((base + fixedAdd).toFixed(2));
+            const fixedDiscount = Math.max(0, Number(config.marginFixedMxn) || 0) * purity;
+            acc[karat] = Number(Math.max(0, base - fixedDiscount).toFixed(2));
         }
         return acc;
     }, {} as Record<GoldKarat, number>);
@@ -123,6 +134,9 @@ export function parseGoldConfig(raw: unknown): GoldQuoteConfig {
             primaryKarat,
             marginPercent: Number.isFinite(Number(p.marginPercent)) ? Number(p.marginPercent) : DEFAULT_GOLD_CONFIG.marginPercent,
             marginFixedMxn: Number.isFinite(Number(p.marginFixedMxn)) ? Number(p.marginFixedMxn) : DEFAULT_GOLD_CONFIG.marginFixedMxn,
+            exchangeRateAdjustmentMxn: Number.isFinite(Number(p.exchangeRateAdjustmentMxn))
+                ? Math.max(0, Number(p.exchangeRateAdjustmentMxn))
+                : DEFAULT_GOLD_CONFIG.exchangeRateAdjustmentMxn,
             manualPricesMxn: {
                 '10K': Number(p.manualPricesMxn?.['10K']) || DEFAULT_GOLD_CONFIG.manualPricesMxn['10K'],
                 '14K': Number(p.manualPricesMxn?.['14K']) || DEFAULT_GOLD_CONFIG.manualPricesMxn['14K'],
@@ -393,7 +407,7 @@ export function getCurrentUserLabel(): string {
 }
 
 export function getModeBadgeLabel(config: GoldQuoteConfig): string {
-    if (config.pricingMode === 'MANUAL') return 'Fijo Taller';
-    if (config.pricingMode === 'MARGIN_PERCENT') return `Spot +${config.marginPercent}%`;
-    return `Spot +$${config.marginFixedMxn}`;
+    if (config.pricingMode === 'MANUAL') return 'Compra fija';
+    if (config.pricingMode === 'MARGIN_PERCENT') return `Spot -${config.marginPercent}%`;
+    return `Spot -$${config.marginFixedMxn}`;
 }

@@ -145,6 +145,7 @@ export class AuraToolsService {
     const order = await this.prisma.order.findFirst({
       where: {
         tenantId: ctx.tenantId,
+        deletedAt: null,
         specifications: { path: '$.orderCode', equals: code },
       },
       include: { client: { select: { name: true } } },
@@ -179,6 +180,7 @@ export class AuraToolsService {
         : undefined;
     const where = {
       tenantId: ctx.tenantId,
+      deletedAt: null,
       status: { in: IN_WORKSHOP_STATUSES },
       ...(type ? { type } : {}),
     };
@@ -229,6 +231,7 @@ export class AuraToolsService {
     const to = new Date(Date.UTC(year, m, 1));
     const where = {
       tenantId: ctx.tenantId,
+      deletedAt: null,
       createdAt: { gte: from, lt: to },
       status: { not: 'CANCELLED' as OrderStatus },
     };
