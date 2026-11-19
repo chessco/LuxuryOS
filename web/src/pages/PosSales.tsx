@@ -17,6 +17,14 @@ type CreditAccountStatus = 'ACTIVE' | 'SUSPENDED';
 type CreditObligationStatus = 'OPEN' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 type FinancingMode = 'CASH' | 'REVOLVING' | 'NON_REVOLVING' | 'MIXED';
 
+const COMMISSION_STATUS_LABELS = {
+    PENDING: 'Pendiente',
+    PENDING_CREDIT: 'Pendiente de crédito',
+    EARNED: 'Ganado',
+    VOIDED: 'Anulado',
+    NONE: 'Sin margen',
+} as const;
+
 type CommerceSaleItem = {
     id: string;
     productId: string;
@@ -2923,7 +2931,7 @@ const PosSales: React.FC = () => {
                                     <h3 className="font-black">Margen de reventa</h3>
                                     <div className="flex justify-between"><span>Precio público (P1)</span><strong>{money(selectedSale.publicTotalAmount || 0, selectedSale.currency)}</strong></div>
                                     <div className="flex justify-between"><span>Margen revendedor</span><strong>{money(selectedSale.commissionAmount || 0, selectedSale.currency)}</strong></div>
-                                    <div className="flex justify-between"><span>Estado</span><strong>{{ PENDING: 'Pendiente', PENDING_CREDIT: 'Pendiente de crédito', EARNED: 'Ganado', VOIDED: 'Anulado', NONE: 'Sin margen' }[selectedSale.commissionStatus]}</strong></div>
+                                    <div className="flex justify-between"><span>Estado</span><strong>{COMMISSION_STATUS_LABELS[selectedSale.commissionStatus]}</strong></div>
                                 </div>
                             )}
 

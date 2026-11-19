@@ -666,7 +666,7 @@ export class CommerceService {
     return `ORD-${saleId.slice(0, 8).toUpperCase()}`;
   }
 
-  private toSaleResponse(sale: any, actorRole?: Role) {
+  private toSaleResponse(sale: any, actorRole: Role) {
     const showMargin = (actorRole === Role.REVENDEDOR || actorRole === Role.TENANT_ADMIN || actorRole === Role.SYSTEM_ADMIN) && sale.salesChannel === SalesChannel.RESELLER_POS;
     const subtotalAmount = Number(sale.subtotalAmount ?? 0);
     const discountAmount = Number(sale.discountAmount ?? 0);
@@ -1247,7 +1247,7 @@ export class CommerceService {
 
         const totalAmount = Math.round(Number(sale.totalAmount) * 100) / 100;
         const existingPaid = Math.round(Number(sale.paidAmount) * 100) / 100;
-        const existingCredited = Math.round(Number((sale as any).creditedAmount ?? 0) * 100) / 100;
+        const existingCredited = Math.round(Number(sale.creditedAmount ?? 0) * 100) / 100;
         const incomingPaid = Math.round(
           payments.reduce((sum, payment) => sum + Number(payment.amount), 0) * 100,
         ) / 100;

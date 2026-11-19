@@ -722,6 +722,11 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
     [cart, clientView, liveQuote],
   );
 
+  const quoteLinesByProductId = useMemo(
+    () => new Map(liveQuote?.lines.map((line) => [line.productId, line]) || []),
+    [liveQuote],
+  );
+
   const cartCurrency = cart[0]?.item.currency || 'MXN';
   const cartItemCount = useMemo(
     () => cart.reduce((count, line) => count + line.quantity, 0),
@@ -1109,27 +1114,32 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                 <p className="cart-empty">Selecciona piezas arriba o desde el catálogo. La disponibilidad se reserva por 30 minutos al generar la orden.</p>
               ) : (
                 <div className="cart-lines">
-                  {cart.map((line) => (
-                    <article className="cart-line" key={line.item.id}>
-                      <div>
-                        <p className="sku">{line.item.sku}</p>
-                        <h3>{line.item.name}</h3>
-                        <strong>{currency((clientView ? liveQuote?.lines.find(quoted => quoted.productId === line.item.id)?.publicLineTotal : liveQuote?.lines.find(quoted => quoted.productId === line.item.id)?.lineTotal) ?? (clientView ? line.item.publicUnitPrice : line.item.unitPrice) * line.quantity, line.item.currency)}</strong>
-                        {!clientView && <small>Precio público {currency(liveQuote?.lines.find(quoted => quoted.productId === line.item.id)?.publicUnitPrice ?? line.item.publicUnitPrice, line.item.currency)} · Margen {currency(liveQuote?.lines.find(quoted => quoted.productId === line.item.id)?.commissionAmount ?? line.item.estimatedMargin * line.quantity, line.item.currency)}</small>}
-                      </div>
-                      <div className="quantity-stepper" aria-label={`Cantidad de ${line.item.name}`}>
-                        <button type="button" onClick={() => updateQuantity(line.item.id, line.quantity - 1)} aria-label={`Quitar una ${line.item.name}`}>−</button>
-                        <span>{line.quantity}</span>
-                        <button
-                          type="button"
-                          onClick={() => updateQuantity(line.item.id, line.quantity + 1)}
-                          disabled={line.quantity >= line.item.availableQuantity}
-                          aria-label={`Agregar una ${line.item.name}`}
-                        >+
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+                  {cart.map((line) => {
+                      const quoted = quoteLinesByProductId.get(line.item.id);
+                      const displayedLineTotal = clientView ? quoted?.publicLineTotal : quoted?.lineTotal;
+                      const fallbackLineTotal = (clientView ? line.item.publicUnitPrice : line.item.unitPrice) * line.quantity;
+                      return (
+                        <article className="cart-line" key={line.item.id}>
+                          <div>
+                            <p className="sku">{line.item.sku}</p>
+                            <h3>{line.item.name}</h3>
+                            <strong>{currency(displayedLineTotal ?? fallbackLineTotal, line.item.currency)}</strong>
+                            {!clientView && <small>Precio público {currency(quoted?.publicUnitPrice ?? line.item.publicUnitPrice, line.item.currency)} · Margen {currency(quoted?.commissionAmount ?? line.item.estimatedMargin * line.quantity, line.item.currency)}</small>}
+                          </div>
+                          <div className="quantity-stepper" aria-label={`Cantidad de ${line.item.name}`}>
+                            <button type="button" onClick={() => updateQuantity(line.item.id, line.quantity - 1)} aria-label={`Quitar una ${line.item.name}`}>−</button>
+                            <span>{line.quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(line.item.id, line.quantity + 1)}
+                              disabled={line.quantity >= line.item.availableQuantity}
+                              aria-label={`Agregar una ${line.item.name}`}
+                            >+
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
                 </div>
               )}
               <div className="cart-total">
