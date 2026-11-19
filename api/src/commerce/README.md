@@ -11,6 +11,7 @@ Shared commerce core supporting internal POS (`JEWELRY_INTERNAL`), reseller POS 
 - [`credit.controller.ts`](./credit.controller.ts): `CreditController` (`/commerce/credit`, roles `VENDEDOR | TENANT_ADMIN | SYSTEM_ADMIN`):
   - `GET /commerce/credit/accounts`, `PUT /commerce/credit/accounts` (admin-only), `GET /commerce/credit/subject-summary`, `GET /commerce/credit/obligations`, `GET /commerce/credit/obligations/:id`, `POST /commerce/credit/obligations/:id/payments`.
 - [`commerce.service.ts`](./commerce.service.ts): `CommerceService` implements product CRUD, kardex movements, `checkout`, `settleSale`, `cancelSale`, `getResellerCredit`, and transactional reservation expiration (`releaseExpiredReservationsGlobally`).
+- [`commerce-pricing.util.ts`](./commerce-pricing.util.ts): Cent-exact reseller Price 1/Price 2 snapshots and deterministic quote fingerprint shared by quote preview and checkout.
 - [`credit.service.ts`](./credit.service.ts): `CreditService` manages credit accounts, overdue synchronization (`syncOverdueObligationsInTx`), `applySaleCreditDrawdownsInTx`, `recordObligationPayment`, ledger entries (`CreditLedgerEntry`), and `getResellerCredit`.
 - [`reservation-expiry.service.ts`](./reservation-expiry.service.ts): `ReservationExpiryService` runs every `60_000 ms` on all API replicas using optimistic claims to expire abandoned cart reservations.
 
@@ -24,6 +25,7 @@ Shared commerce core supporting internal POS (`JEWELRY_INTERNAL`), reseller POS 
 - **Dual credit & delinquency lock (`CreditService.applySaleCreditDrawdownsInTx`)**:
   - Supports `REVOLVING` (bounded by authorized `revolvingLimit`) and `NON_REVOLVING` (default `30` days term), supporting cash/transfer, revolving, non-revolving, or mixed settlement across unregistered/registered subjects (client credit drawdowns require `clientId`).
   - Accounts with `status === 'SUSPENDED'` or unresolved `OVERDUE` obligations (`> 30` days / past `dueAt`) block new drawdowns unless `allowOverdueOverride === true` is authorized by `TENANT_ADMIN` or `SYSTEM_ADMIN` (recorded in `CommerceAuditLog`).
+- **Reseller margin lifecycle**: Checkout freezes public prices and `max(0, P1 - P2)` spread. Settlement marks it `EARNED` only when the sale is fully paid without outstanding credit; final credit repayment promotes `PENDING_CREDIT` to `EARNED`. Cancellation and expiration void pending margins. Cashier responses omit all margin fields.
 
 ## Global Side Effects
 - Transactional MySQL reads/writes on `CommerceProduct`, `InventoryMovement`, `InventoryReservation`, `CommerceSale`, `CommerceSaleItem`, `CommercePayment`, `CreditAccount`, `CreditObligation`, `CreditPayment`, `CreditLedgerEntry`, and `CommerceAuditLog`.

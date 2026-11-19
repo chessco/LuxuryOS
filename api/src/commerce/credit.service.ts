@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   CommerceSaleStatus,
+  CommerceCommissionStatus,
   CreditAccountStatus,
   CreditFacilityType,
   CreditLedgerEntryType,
@@ -718,6 +719,10 @@ export class CreditService {
       });
     }
 
+    if (account.currency !== params.currency) {
+      throw new BadRequestException('La moneda de la venta no coincide con la cuenta de crédito');
+    }
+
     if (account.status === CreditAccountStatus.SUSPENDED) {
       throw new ForbiddenException(
         `La cuenta de crédito de ${subject.subjectName} está suspendida y no permite nuevas disposiciones.`,
@@ -1034,7 +1039,7 @@ export class CreditService {
         where: { id: obligationId, tenantId: session.tenantId },
         include: {
           account: true,
-          sale: { select: { id: true, paidAmount: true, creditedAmount: true } },
+          sale: { select: { id: true, paidAmount: true, creditedAmount: true, commissionStatus: true } },
         },
       });
       if (!obligation) {
@@ -1126,6 +1131,9 @@ export class CreditService {
           data: {
             paidAmount: new Prisma.Decimal(nextSalePaid),
             creditedAmount: new Prisma.Decimal(nextSaleCredited),
+            ...(nextSaleCredited === 0 && obligation.sale.commissionStatus === CommerceCommissionStatus.PENDING_CREDIT
+              ? { commissionStatus: CommerceCommissionStatus.EARNED, commissionEarnedAt: now }
+              : {}),
           },
         });
         if (saleClaim.count !== 1) {

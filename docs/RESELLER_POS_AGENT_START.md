@@ -132,10 +132,10 @@ El canal nunca debe determinarse únicamente en el frontend. El API debe validar
 
 ### MVP 3 — Comisiones
 
-- Reglas configurables.
-- Comisión por producto, categoría o porcentaje.
-- Historial de comisiones.
-- Reporte por revendedor y periodo.
+- Margen fijo por pieza `max(0, Precio 1 - Precio 2)`, congelado en la venta.
+- Reconocimiento al liquidar la venta y saldar todo el crédito.
+- Cotización sin reserva y reporte por revendedor, moneda y periodo.
+- Reglas configurables por producto o categoría quedan para una fase posterior.
 
 ### MVP 4 — Operación
 
@@ -160,7 +160,7 @@ GET  /reseller/sales/:id
 POST /reseller/sales
 POST /reseller/sales/:id/cancel
 
-# Pendientes (MVP 3)
+# MVP 3
 POST /reseller/quotes
 GET  /reseller/commissions
 ```
@@ -224,11 +224,11 @@ La base local construida solo con las migraciones históricas no materializa tod
 - **Permisos y flujo de cancelaciones:** Implementado mediante `POST /reseller/sales/:id/cancel` y `CommerceService.cancelSale` con liberación transaccional de reservas.
 - **Ventas a crédito y sus límites:** Implementado crédito dual (`REVOLVING` y `NON_REVOLVING` a 30 días en `CreditService` / `CreditController`), liquidación en 4 modos en `web/src/pages/PosSales.tsx` y vista de solo lectura `"Mi crédito"` en `reseller-web/src/App.tsx`.
 
-### Pendientes
+### MVP 3
 
-- Fórmula, reglas y endpoint de comisiones (MVP 3: `POST /reseller/quotes`, `GET /reseller/commissions`).
-
-Las decisiones pendientes no bloquean la fundación, catálogo, crédito ni cancelaciones ya desplegados, pero deben resolverse antes de liberar el módulo de comisiones (MVP 3).
+- Fórmula fija: `max(0, Precio 1 - Precio 2)` por unidad, registrada al reservar la venta.
+- `POST /reseller/quotes` es una vista previa sin reserva; `GET /reseller/commissions` consulta márgenes por actor y tenant.
+- El margen pasa a ganado sólo cuando la venta está pagada y `creditedAmount` llega a cero.
 
 ## 10. Checklist antes de codificar
 

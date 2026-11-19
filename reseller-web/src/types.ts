@@ -32,6 +32,8 @@ export interface ResellerCatalogItem {
   category: string | null;
   imageUrl: string | null;
   unitPrice: number;
+  publicUnitPrice: number;
+  estimatedMargin: number;
   currency: string;
   availableQuantity: number;
 }
@@ -49,6 +51,8 @@ export interface ResellerInventoryItem {
   category: string | null;
   imageUrl: string | null;
   unitPrice: number;
+  publicUnitPrice: number;
+  estimatedMargin: number;
   currency: string;
   stockOnHand: number;
   reservedQuantity: number;
@@ -134,9 +138,55 @@ export interface ResellerSale {
 
 export interface CreateResellerSaleInput {
   items: Array<{ productId: string; quantity: number }>;
+  expectedQuoteFingerprint?: string;
   customerName?: string;
   customerPhone?: string;
   notes?: string;
+}
+
+export interface ResellerQuote {
+  lines: Array<{
+    productId: string;
+    sku: string;
+    name: string;
+    quantity: number;
+    currency: string;
+    unitPrice: number;
+    publicUnitPrice: number;
+    commissionUnitAmount: number;
+    commissionAmount: number;
+    lineTotal: number;
+    publicLineTotal: number;
+    availableQuantity: number;
+    isAvailable: boolean;
+  }>;
+  currency: string;
+  publicTotalAmount: number;
+  totalAmount: number;
+  estimatedMargin: number;
+  allItemsAvailable: boolean;
+  reservesInventory: false;
+  quoteFingerprint: string;
+  evaluatedAt: string;
+}
+
+export type ResellerCommissionStatus = 'PENDING' | 'PENDING_CREDIT' | 'EARNED' | 'VOIDED';
+export interface ResellerCommissions {
+  totalsByCurrency: Record<string, Record<ResellerCommissionStatus, number>>;
+  items: Array<{
+    id: string;
+    resellerId: string;
+    currency: string;
+    createdAt: string;
+    totalAmount: number;
+    publicTotalAmount: number | null;
+    commissionAmount: number;
+    commissionStatus: ResellerCommissionStatus;
+    commissionEarnedAt: string | null;
+  }>;
+  page: number;
+  limit: number;
+  total: number;
 }
 
 export type ResellerCreditFacilityType = 'REVOLVING' | 'NON_REVOLVING';

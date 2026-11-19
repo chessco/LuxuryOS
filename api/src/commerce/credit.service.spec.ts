@@ -232,7 +232,7 @@ describe('CreditService Dual Credit Management (Revolving + Non-Revolving 30d)',
       dueAt: new Date(Date.now() + 10 * 86_400_000),
       status: CreditObligationStatus.OPEN,
       account: { id: 'acc-1', revolvingUsed: 2500 },
-      sale: { id: 'sale-rev-1', paidAmount: 0, creditedAmount: 2000 },
+      sale: { id: 'sale-rev-1', paidAmount: 0, creditedAmount: 2000, commissionStatus: 'PENDING_CREDIT' },
     });
     tx.creditObligation.updateMany.mockResolvedValue({ count: 1 });
     tx.creditPayment.create.mockResolvedValue({ id: 'cp-1' });
@@ -265,6 +265,7 @@ describe('CreditService Dual Credit Management (Revolving + Non-Revolving 30d)',
       'pay-rev-1',
     );
     expect(Number(tx.creditAccount.updateMany.mock.calls[0][0].data.revolvingUsed)).toBe(1300);
+    expect(tx.commerceSale.updateMany.mock.calls[0][0].data.commissionStatus).toBeUndefined();
     expect(revPayResult.obligation.balanceDue).toBe(800);
 
     // 2) Pay NON_REVOLVING obligation ($3,000) -> does NOT modify revolvingUsed
@@ -283,7 +284,7 @@ describe('CreditService Dual Credit Management (Revolving + Non-Revolving 30d)',
       dueAt: new Date(Date.now() + 20 * 86_400_000),
       status: CreditObligationStatus.OPEN,
       account: { id: 'acc-1', revolvingUsed: 1300 },
-      sale: { id: 'sale-nonrev-1', paidAmount: 0, creditedAmount: 3000 },
+      sale: { id: 'sale-nonrev-1', paidAmount: 0, creditedAmount: 3000, commissionStatus: 'PENDING_CREDIT' },
     });
     tx.creditObligation.updateMany.mockResolvedValue({ count: 1 });
     tx.creditPayment.create.mockResolvedValue({ id: 'cp-2' });
@@ -316,6 +317,8 @@ describe('CreditService Dual Credit Management (Revolving + Non-Revolving 30d)',
       'pay-nonrev-1',
     );
     expect(tx.creditAccount.updateMany).not.toHaveBeenCalled();
+    expect(tx.commerceSale.updateMany.mock.calls[0][0].data.commissionStatus).toBe('EARNED');
+    expect(tx.commerceSale.updateMany.mock.calls[0][0].data.commissionEarnedAt).toBeInstanceOf(Date);
     expect(nonRevResult.obligation.status).toBe(CreditObligationStatus.PAID);
     expect(nonRevResult.obligation.balanceDue).toBe(0);
   });

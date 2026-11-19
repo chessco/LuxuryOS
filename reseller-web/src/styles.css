@@ -300,3 +300,14 @@ h1, h2, h3, p { margin-top: 0; }
   .login-theme-control { top: 16px; right: 16px; }
   .login-card { padding: 1.3rem; }
 }
+.client-view-toggle { display: flex; align-items: center; gap: .65rem; padding: .85rem 1rem; border: 1px solid rgba(255,255,255,.15); border-radius: 12px; margin: 1rem 0; }
+.client-view-toggle input { width: 1rem; height: 1rem; accent-color: #E21621; }
+.commission-filters { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0; }
+.commission-filters label { display: grid; gap: .4rem; min-width: 150px; }
+.commission-filters input, .commission-filters select { padding: .7rem; border-radius: 8px; color: inherit; background: var(--surface, #171717); border: 1px solid rgba(255,255,255,.2); }
+.commission-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.commission-summary article, .commission-list article { padding: 1rem; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; }
+.commission-summary p, .commission-list article { display: flex; justify-content: space-between; gap: 1rem; }
+.commission-list { display: grid; gap: .6rem; }
+.commission-list article { flex-wrap: wrap; }
+.commission-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; margin-top: 1rem; }

@@ -11,6 +11,8 @@ Isolated backend entrypoint and read/checkout facades for **Revendedores** (`Sal
   - `POST /reseller/catalog` (`TENANT_ADMIN | SYSTEM_ADMIN` only) -> `commerceService.createProduct`
   - `GET /reseller/inventory` -> `resellerPosService.getInventory`
   - `GET /reseller/credit` -> `commerceService.getResellerCredit`
+  - `POST /reseller/quotes` -> stateless live price and availability preview, no inventory reservation.
+  - `GET /reseller/commissions` -> tenant and reseller scoped margin report; cashier role is excluded.
   - `GET /reseller/sales`, `GET /reseller/sales/:id`, `POST /reseller/sales`, `POST /reseller/sales/:id/cancel` -> delegated to `commerceService` with `SalesChannel.RESELLER_POS` and `scopeToReseller: true`.
 - [`reseller-pos.service.ts`](./reseller-pos.service.ts): `ResellerPosService` maps active tenant products flagged `availableToResellers: true` into explicit response shapes (`availableQuantity`, `resellerPrice ?? unitPrice`, availability buckets `AVAILABLE | LOW_STOCK | RESERVED | OUT_OF_STOCK`).
 - [`reseller-pos.contract.ts`](./reseller-pos.contract.ts): TypeScript response contracts synchronized with [`docs/contracts/reseller-pos.openapi.yaml`](../../../docs/contracts/reseller-pos.openapi.yaml).

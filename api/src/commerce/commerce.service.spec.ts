@@ -565,6 +565,23 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
     service = new CommerceService(prisma);
   });
 
+  it('blinds resale margin fields for cashiers across sale serialization', () => {
+    const sale = {
+      id: 'sale-1', tenantId: 'tenant-1', resellerId: 'reseller-1', salesChannel: SalesChannel.RESELLER_POS,
+      status: CommerceSaleStatus.PAID, paymentStatus: CommercePaymentStatus.PAID, currency: 'MXN',
+      subtotalAmount: 100, discountAmount: 0, totalAmount: 100, paidAmount: 100, creditedAmount: 0,
+      publicTotalAmount: 150, commissionAmount: 50, commissionStatus: 'EARNED', commissionEarnedAt: new Date(),
+      items: [{ id: 'item-1', productId: 'p1', skuSnapshot: 'P1', nameSnapshot: 'Pieza', unitPrice: 100, quantity: 1, lineTotal: 100, publicUnitPrice: 150, commissionUnitAmount: 50, commissionAmount: 50 }],
+      payments: [], reservations: [], creditObligations: [], createdAt: new Date(), updatedAt: new Date(),
+    };
+    const cashier = (service as any).toSaleResponse(sale, Role.VENDEDOR);
+    const admin = (service as any).toSaleResponse(sale, Role.TENANT_ADMIN);
+    expect(cashier).not.toHaveProperty('commissionAmount');
+    expect(cashier).not.toHaveProperty('publicTotalAmount');
+    expect(cashier.items[0]).not.toHaveProperty('publicUnitPrice');
+    expect(admin).toMatchObject({ commissionAmount: 50, publicTotalAmount: 150 });
+  });
+
   it('reserves stock on RESELLER_POS checkout using resellerPrice without immediate payment and generates handoffCode', async () => {
     tx.commerceSale.findFirst.mockResolvedValue(null);
     tx.commerceProduct.findMany.mockResolvedValue([
@@ -1418,6 +1435,7 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
       totalAmount: 3000,
       paidAmount: 0,
       creditedAmount: 0,
+      commissionStatus: 'PENDING',
       notes: null,
       createdAt: new Date(),
       items: [
@@ -1506,6 +1524,7 @@ describe('CommerceService Omnichannel OMS & Handoff', () => {
       }),
     );
     expect(settled.creditedAmount).toBe(2500);
+    expect(tx.commerceSale.updateMany.mock.calls[0][0].data.commissionStatus).toBe('PENDING_CREDIT');
     expect(settled.balanceDue).toBe(0);
     expect(settled.creditObligations).toHaveLength(1);
   });

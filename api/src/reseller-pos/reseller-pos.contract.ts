@@ -24,6 +24,8 @@ export interface ResellerCatalogItemResponse {
   category: string | null;
   imageUrl: string | null;
   unitPrice: number;
+  publicUnitPrice: number;
+  estimatedMargin: number;
   currency: string;
   availableQuantity: number;
 }
@@ -45,6 +47,8 @@ export interface ResellerInventoryItemResponse {
   category: string | null;
   imageUrl: string | null;
   unitPrice: number;
+  publicUnitPrice: number;
+  estimatedMargin: number;
   currency: string;
   stockOnHand: number;
   reservedQuantity: number;

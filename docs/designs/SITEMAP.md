@@ -13,6 +13,8 @@ Mapa central para ubicar las especificaciones, reglas operativas, contratos y re
 - [RESELLER_POS_TEST_PLAN.md](../RESELLER_POS_TEST_PLAN.md) — Batería de pruebas y comandos de verificación de Revendedores, API y Web.
 - [LUXURYOS_POS_OMS_AUDIT.md](../architecture/LUXURYOS_POS_OMS_AUDIT.md) — Auditoría del módulo POS interno, reservas e idempotencia (`20261111050000_add_pos_oms_support`).
 - [reseller-pos.openapi.yaml](../contracts/reseller-pos.openapi.yaml) — Contrato OpenAPI 3.1.0 de `/reseller/*`.
+- [reseller_pos_commissions_quotes_rfc.md](./reseller_pos_commissions_quotes_rfc.md) — RFC de MVP 3 Revendedores: márgenes congelados al cobrar (excluyendo saldo a crédito y rol `VENDEDOR`) y cotizaciones sin reserva con detección de cambios (`quoteFingerprint`).
+- [reseller_pos_commissions_quotes.md](./reseller_pos_commissions_quotes.md) — Diseño técnico formal (`Status: Accepted`, Fecha `2026-11-18`, Autor `chessco`, Componentes `api/src/commerce`, `api/src/reseller-pos`, `api/prisma`, `reseller-web`, `web/src/pages/PosSales.tsx`, `docs/contracts/reseller-pos.openapi.yaml`): márgenes congelados por diferencial `Precio 1 - Precio 2` reconocidos al liquidar (`creditedAmount === 0`), ocultos para `Role.VENDEDOR`, y cotizaciones sin reserva con detección de cambios vía `quoteFingerprint`.
 
 ## Contratos de Código (*Peanuts & Hay*)
 

@@ -57,7 +57,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResellerCatalogItem'
+                $ref: '#/components/schemas/ResellerAdminProduct'
         '400':
           description: The request failed validation.
         '401':
@@ -84,6 +84,95 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /reseller/quotes:
+    post:
+      operationId: calculateResellerQuote
+      summary: Calculates live prices and availability without reserving inventory.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResellerQuoteRequest'
+      responses:
+        '200':
+          description: Live quote with deterministic price fingerprint.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResellerQuote'
+        '400':
+          description: Invalid cart or mixed currencies.
+        '404':
+          description: A requested product is unavailable to resellers.
+  /reseller/commissions:
+    get:
+      operationId: getResellerCommissions
+      summary: Lists own margins or tenant margins for administrators.
+      parameters:
+        - { name: resellerId, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, PENDING_CREDIT, EARNED, VOIDED] } }
+        - { name: currency, in: query, schema: { type: string, pattern: '^[A-Za-z]{3}$' } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200':
+          description: Paginated sales and totals by currency across all statuses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResellerCommissions'
+        '400':
+          description: Invalid filters.
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /reseller/sales:
+    post:
+      operationId: createResellerSale
+      summary: Creates an idempotent reseller sale and reserves stock.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [items]
+              properties:
+                items: { $ref: '#/components/schemas/ResellerQuoteRequest/properties/items' }
+                expectedQuoteFingerprint: { type: string, minLength: 64, maxLength: 64 }
+                customerName: { type: string }
+                customerPhone: { type: string }
+                notes: { type: string }
+      responses:
+        '201':
+          description: Reserved sale.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResellerSale' }
+        '409':
+          description: Price or stock changed before the sale could be reserved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResellerQuoteConflict' }
+    get:
+      operationId: listResellerSales
+      summary: Lists reseller sales scoped to the actor and tenant.
+      responses:
+        '200':
+          description: Sales.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ResellerSale' }
 components:
   securitySchemes:
     bearerAuth:
@@ -126,7 +215,7 @@ components:
       type: object
       additionalProperties: false
       required:
-        [id, sku, name, description, category, imageUrl, unitPrice, currency, availableQuantity]
+        [id, sku, name, description, category, imageUrl, unitPrice, publicUnitPrice, estimatedMargin, currency, availableQuantity]
       properties:
         id:
           type: string
@@ -142,6 +231,12 @@ components:
           type: [string, 'null']
           format: uri
         unitPrice:
+          type: number
+          minimum: 0
+        publicUnitPrice:
+          type: number
+          minimum: 0
+        estimatedMargin:
           type: number
           minimum: 0
         currency:
@@ -166,7 +261,7 @@ components:
       type: object
       additionalProperties: false
       required:
-        [id, sku, name, category, imageUrl, unitPrice, currency, stockOnHand, reservedQuantity, availableQuantity, availabilityStatus]
+        [id, sku, name, category, imageUrl, unitPrice, publicUnitPrice, estimatedMargin, currency, stockOnHand, reservedQuantity, availableQuantity, availabilityStatus]
       properties:
         id:
           type: string
@@ -180,6 +275,12 @@ components:
           type: [string, 'null']
           format: uri
         unitPrice:
+          type: number
+          minimum: 0
+        publicUnitPrice:
+          type: number
+          minimum: 0
+        estimatedMargin:
           type: number
           minimum: 0
         currency:
@@ -254,3 +355,215 @@ components:
           minimum: 0
         availableToResellers:
           type: boolean
+    ResellerAdminProduct:
+      type: object
+      additionalProperties: false
+      required: [id, sku, name, description, category, imageUrl, unitCost, unitPrice, resellerPrice, wholesalePrice, currency, stockOnHand, reservedQuantity, availableQuantity, availableToResellers, status, hasHistory, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        sku: { type: string }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        category: { type: [string, 'null'] }
+        imageUrl: { type: [string, 'null'] }
+        unitCost: { type: [number, 'null'] }
+        unitPrice: { type: number }
+        resellerPrice: { type: [number, 'null'] }
+        wholesalePrice: { type: [number, 'null'] }
+        currency: { type: string }
+        stockOnHand: { type: integer }
+        reservedQuantity: { type: integer }
+        availableQuantity: { type: integer }
+        availableToResellers: { type: boolean }
+        status: { type: string }
+        hasHistory: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ResellerSale:
+      type: object
+      additionalProperties: false
+      required: [id, handoffCode, tenantId, resellerId, resellerName, resellerEmail, clientId, salesChannel, status, paymentStatus, currency, customerName, customerPhone, subtotalAmount, discountAmount, totalAmount, paidAmount, creditedAmount, balanceDue, notes, cancellationReason, expiresAt, paidAt, cancelledAt, createdAt, updatedAt, items, payments, reservations, creditObligations]
+      properties:
+        id: { type: string }
+        handoffCode: { type: string }
+        tenantId: { type: string }
+        resellerId: { type: string }
+        resellerName: { type: [string, 'null'] }
+        resellerEmail: { type: [string, 'null'] }
+        clientId: { type: [string, 'null'] }
+        salesChannel: { type: string, const: RESELLER_POS }
+        status: { type: string, enum: [DRAFT, PENDING_PAYMENT, PAID, CANCELLED, EXPIRED] }
+        paymentStatus: { type: string, enum: [PENDING, PARTIAL, PAID, FAILED, REFUNDED] }
+        currency: { type: string }
+        customerName: { type: [string, 'null'] }
+        customerPhone: { type: [string, 'null'] }
+        subtotalAmount: { type: number }
+        discountAmount: { type: number }
+        totalAmount: { type: number }
+        publicTotalAmount: { type: [number, 'null'] }
+        commissionAmount: { type: [number, 'null'] }
+        commissionStatus: { type: string, enum: [NONE, PENDING, PENDING_CREDIT, EARNED, VOIDED] }
+        commissionEarnedAt: { type: [string, 'null'], format: date-time }
+        paidAmount: { type: number }
+        creditedAmount: { type: number }
+        balanceDue: { type: number }
+        notes: { type: [string, 'null'] }
+        cancellationReason: { type: [string, 'null'] }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+        cancelledAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, productId, skuSnapshot, nameSnapshot, unitPrice, quantity, lineTotal, createdAt]
+            properties:
+              id: { type: string }
+              productId: { type: string }
+              skuSnapshot: { type: string }
+              nameSnapshot: { type: string }
+              unitPrice: { type: number }
+              publicUnitPrice: { type: [number, 'null'] }
+              commissionUnitAmount: { type: [number, 'null'] }
+              commissionAmount: { type: [number, 'null'] }
+              quantity: { type: integer }
+              lineTotal: { type: number }
+              createdAt: { type: string, format: date-time }
+        payments:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, amount, method, reference, status, recordedById, recordedByName, recordedAt]
+            properties:
+              id: { type: string }
+              amount: { type: number }
+              method: { type: string }
+              reference: { type: [string, 'null'] }
+              status: { type: string }
+              recordedById: { type: [string, 'null'] }
+              recordedByName: { type: [string, 'null'] }
+              recordedAt: { type: string, format: date-time }
+        reservations:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, productId, quantity, status, expiresAt]
+            properties:
+              id: { type: string }
+              productId: { type: string }
+              quantity: { type: integer }
+              status: { type: string }
+              expiresAt: { type: [string, 'null'], format: date-time }
+        creditObligations:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, code, facilityType, title, principalAmount, paidAmount, balanceDue, dueAt, status]
+            properties:
+              id: { type: string }
+              code: { type: string }
+              facilityType: { type: string }
+              title: { type: [string, 'null'] }
+              principalAmount: { type: number }
+              paidAmount: { type: number }
+              balanceDue: { type: number }
+              dueAt: { type: string, format: date-time }
+              status: { type: string }
+    ResellerQuoteConflict:
+      type: object
+      additionalProperties: true
+      required: [code, message, conflicts, currentQuote]
+      properties:
+        code: { type: string, enum: [QUOTE_DRIFT, INSUFFICIENT_STOCK] }
+        message: { type: string }
+        conflicts: { type: array, items: { type: object } }
+        currentQuote: { $ref: '#/components/schemas/ResellerQuote' }
+    ResellerQuoteRequest:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [productId, quantity]
+            properties:
+              productId: { type: string }
+              quantity: { type: integer, minimum: 1 }
+    ResellerQuote:
+      type: object
+      additionalProperties: false
+      required: [lines, currency, publicTotalAmount, totalAmount, estimatedMargin, allItemsAvailable, reservesInventory, quoteFingerprint, evaluatedAt]
+      properties:
+        lines:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [productId, sku, name, quantity, currency, publicUnitPrice, unitPrice, commissionUnitAmount, commissionAmount, publicLineTotal, lineTotal, availableQuantity, isAvailable]
+            properties:
+              productId: { type: string }
+              sku: { type: string }
+              name: { type: string }
+              quantity: { type: integer, minimum: 1 }
+              currency: { type: string }
+              publicUnitPrice: { type: number, minimum: 0 }
+              unitPrice: { type: number, minimum: 0 }
+              commissionUnitAmount: { type: number, minimum: 0 }
+              commissionAmount: { type: number, minimum: 0 }
+              publicLineTotal: { type: number, minimum: 0 }
+              lineTotal: { type: number, minimum: 0 }
+              availableQuantity: { type: integer, minimum: 0 }
+              isAvailable: { type: boolean }
+        currency: { type: string }
+        publicTotalAmount: { type: number, minimum: 0 }
+        totalAmount: { type: number, minimum: 0 }
+        estimatedMargin: { type: number, minimum: 0 }
+        allItemsAvailable: { type: boolean }
+        reservesInventory: { type: boolean, const: false }
+        quoteFingerprint: { type: string, minLength: 64, maxLength: 64 }
+        evaluatedAt: { type: string, format: date-time }
+    ResellerCommissions:
+      type: object
+      additionalProperties: false
+      required: [totalsByCurrency, items, page, limit, total]
+      properties:
+        totalsByCurrency:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            required: [PENDING, PENDING_CREDIT, EARNED, VOIDED]
+            properties:
+              PENDING: { type: number }
+              PENDING_CREDIT: { type: number }
+              EARNED: { type: number }
+              VOIDED: { type: number }
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, resellerId, currency, createdAt, commissionAmount, commissionStatus, commissionEarnedAt, totalAmount, publicTotalAmount]
+            properties:
+              id: { type: string }
+              resellerId: { type: string }
+              currency: { type: string }
+              createdAt: { type: string, format: date-time }
+              commissionAmount: { type: number }
+              commissionStatus: { type: string, enum: [PENDING, PENDING_CREDIT, EARNED, VOIDED] }
+              commissionEarnedAt: { type: [string, 'null'], format: date-time }
+              totalAmount: { type: number }
+              publicTotalAmount: { type: [number, 'null'] }
+        page: { type: integer, minimum: 1 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }

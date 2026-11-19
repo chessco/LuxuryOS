@@ -24,6 +24,9 @@ type CommerceSaleItem = {
     nameSnapshot: string;
     quantity: number;
     unitPrice: number;
+    publicUnitPrice?: number | null;
+    commissionUnitAmount?: number | null;
+    commissionAmount?: number | null;
     lineTotal: number;
 };
 
@@ -76,6 +79,9 @@ type CommerceSale = {
     subtotalAmount: number;
     discountAmount: number;
     totalAmount: number;
+    publicTotalAmount?: number | null;
+    commissionAmount?: number | null;
+    commissionStatus?: 'NONE' | 'PENDING' | 'PENDING_CREDIT' | 'EARNED' | 'VOIDED';
     paidAmount: number;
     creditedAmount?: number;
     balanceDue: number;
@@ -2911,6 +2917,15 @@ const PosSales: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
+
+                            {isCreditAdmin && selectedSale.salesChannel === 'RESELLER_POS' && selectedSale.commissionStatus && selectedSale.commissionStatus !== 'NONE' && (
+                                <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                                    <h3 className="font-black">Margen de reventa</h3>
+                                    <div className="flex justify-between"><span>Precio público (P1)</span><strong>{money(selectedSale.publicTotalAmount || 0, selectedSale.currency)}</strong></div>
+                                    <div className="flex justify-between"><span>Margen revendedor</span><strong>{money(selectedSale.commissionAmount || 0, selectedSale.currency)}</strong></div>
+                                    <div className="flex justify-between"><span>Estado</span><strong>{{ PENDING: 'Pendiente', PENDING_CREDIT: 'Pendiente de crédito', EARNED: 'Ganado', VOIDED: 'Anulado', NONE: 'Sin margen' }[selectedSale.commissionStatus]}</strong></div>
+                                </div>
+                            )}
 
                             {selectedSale.creditObligations && selectedSale.creditObligations.length > 0 && (
                                 <div>

@@ -1,14 +1,17 @@
 import { Component, FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   cancelResellerSale,
+  calculateResellerQuote,
   createResellerSale,
   errorMessage,
   getResellerCatalog,
   getResellerCredit,
+  getResellerCommissions,
   getResellerInventory,
   getResellerProfile,
   getResellerSales,
   login,
+  readQuoteConflict,
   resellerSession,
 } from './services/api';
 import { useTheme } from './context/ThemeContext';
@@ -16,11 +19,14 @@ import type {
   ResellerCatalogItem,
   ResellerCreditObligationStatus,
   ResellerCreditResponse,
+  ResellerCommissions,
+  ResellerCommissionStatus,
   ResellerInventoryAvailabilityStatus,
   ResellerInventoryResponse,
   ResellerProfile,
   ResellerSale,
   ResellerSaleStatus,
+  ResellerQuote,
 } from './types';
 
 const currency = (amount: number, code: string) => {
@@ -134,7 +140,7 @@ function ThemeSelector({ compact = false }: { compact?: boolean }) {
   );
 }
 
-type ResellerSection = 'dashboard' | 'inventory' | 'catalog' | 'cart' | 'sales' | 'credit';
+type ResellerSection = 'dashboard' | 'inventory' | 'catalog' | 'cart' | 'sales' | 'credit' | 'commissions';
 
 const NAV_SECTIONS: ReadonlyArray<{
   id: ResellerSection;
@@ -148,6 +154,7 @@ const NAV_SECTIONS: ReadonlyArray<{
   { id: 'cart', label: 'Venta en preparación', icon: 'shopping_bag', hash: '#venta' },
   { id: 'sales', label: 'Mis ventas', icon: 'receipt_long', hash: '#mis-ventas' },
   { id: 'credit', label: 'Mi crédito', icon: 'credit_score', hash: '#credito' },
+  { id: 'commissions', label: 'Mis márgenes', icon: 'payments', hash: '#comisiones' },
 ];
 
 function sectionFromHash(hash: string): ResellerSection {
@@ -432,6 +439,17 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [creditData, setCreditData] = useState<ResellerCreditResponse | null>(null);
   const [creditLoading, setCreditLoading] = useState(false);
+  const [clientView, setClientView] = useState(false);
+  const [liveQuote, setLiveQuote] = useState<ResellerQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [quoteConflict, setQuoteConflict] = useState<string | null>(null);
+  const [commissions, setCommissions] = useState<ResellerCommissions | null>(null);
+  const [commissionsPage, setCommissionsPage] = useState(1);
+  const [commissionsStatus, setCommissionsStatus] = useState<'' | ResellerCommissionStatus>('');
+  const [commissionsCurrency, setCommissionsCurrency] = useState('');
+  const [commissionsFrom, setCommissionsFrom] = useState('');
+  const [commissionsTo, setCommissionsTo] = useState('');
 
   const selectSection = useCallback((section: ResellerSection) => {
     setActiveSection(section);
@@ -484,6 +502,10 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
         throw new Error('Respuesta inesperada del servidor de revendedores.');
       }
       setItems(catalog.items);
+      setCart(current => current.flatMap(line => {
+        const fresh = catalog.items.find(item => item.id === line.item.id);
+        return fresh ? [{ item: fresh, quantity: line.quantity }] : [];
+      }));
       setInventory(inventoryResponse);
     } catch (requestError) {
       setError(errorMessage(requestError));
@@ -511,13 +533,46 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
     void Promise.all([loadCatalog(), loadSales(), loadCredit()]);
   }, [loadCatalog, loadSales, loadCredit]);
 
+  useEffect(() => {
+    if (activeSection !== 'cart' || cart.length === 0) {
+      setLiveQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setLiveQuote(null);
+    setQuoteLoading(true);
+    setQuoteError(null);
+    const timer = window.setTimeout(() => {
+      void calculateResellerQuote(cart.map(line => ({ productId: line.item.id, quantity: line.quantity })))
+        .then(quote => { if (!cancelled) setLiveQuote(quote); })
+        .catch(requestError => { if (!cancelled) setQuoteError(errorMessage(requestError)); })
+        .finally(() => { if (!cancelled) setQuoteLoading(false); });
+    }, 300);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [activeSection, cart]);
+
+  useEffect(() => {
+    if (activeSection !== 'commissions') return;
+    let cancelled = false;
+    void getResellerCommissions({ page: commissionsPage, status: commissionsStatus || undefined, currency: commissionsCurrency || undefined, from: commissionsFrom || undefined, to: commissionsTo || undefined })
+      .then(data => { if (!cancelled) setCommissions(data); })
+      .catch(requestError => { if (!cancelled) setError(errorMessage(requestError)); });
+    return () => { cancelled = true; };
+  }, [activeSection, commissionsPage, commissionsStatus, commissionsCurrency, commissionsFrom, commissionsTo]);
+
   const cartQuantity = useCallback(
     (productId: string) => cart.find((line) => line.item.id === productId)?.quantity || 0,
     [cart],
   );
 
   const addToCart = useCallback((item: ResellerCatalogItem) => {
+    if (cart.length > 0 && cart[0].item.currency !== item.currency) {
+      setCheckoutError('Las piezas de una venta deben usar la misma moneda.');
+      selectSection('cart');
+      return;
+    }
     setCheckoutError(null);
+    setQuoteConflict(null);
     setLastCreatedSale(null);
     setIdempotencyKey(createIdempotencyKey());
     setCart((current) => {
@@ -528,7 +583,7 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
         line.item.id === item.id ? { ...line, quantity: line.quantity + 1 } : line,
       );
     });
-  }, []);
+  }, [cart, selectSection]);
 
   const updateQuantity = useCallback((productId: string, nextQuantity: number) => {
     setCheckoutError(null);
@@ -544,6 +599,10 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
 
   const handlePrepareOrder = async () => {
     if (cart.length === 0 || submittingSale) return;
+    if (!liveQuote || quoteLoading || !liveQuote.allItemsAvailable) {
+      setCheckoutError('Revisa la cotización y la disponibilidad antes de preparar el cobro.');
+      return;
+    }
     const trimmedName = customerName.trim();
     const trimmedPhone = customerPhone.trim();
     if (!trimmedName || !trimmedPhone) {
@@ -556,6 +615,7 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
       const sale = await createResellerSale(
         {
           items: cart.map((line) => ({ productId: line.item.id, quantity: line.quantity })),
+          expectedQuoteFingerprint: liveQuote.quoteFingerprint,
           customerName: trimmedName,
           customerPhone: trimmedPhone,
           ...(orderNotes.trim() ? { notes: orderNotes.trim() } : {}),
@@ -571,7 +631,12 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
       setIdempotencyKey(createIdempotencyKey());
       await Promise.all([loadCatalog(), loadSales()]);
     } catch (requestError) {
-      setCheckoutError(errorMessage(requestError));
+      const conflict = readQuoteConflict(requestError);
+      setCheckoutError(conflict?.message || errorMessage(requestError));
+      setQuoteConflict(conflict ? 'El precio o la disponibilidad cambió. Revisa los importes actuales y confirma de nuevo.' : null);
+      setLiveQuote(conflict?.currentQuote || null);
+      if (!conflict?.currentQuote) void calculateResellerQuote(cart.map(line => ({ productId: line.item.id, quantity: line.quantity })))
+        .then(setLiveQuote).catch(() => undefined);
     } finally {
       setSubmittingSale(false);
     }
@@ -640,8 +705,10 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
   }, [inventory, inventoryCategory, inventoryQuery, inventoryStatus]);
 
   const cartTotal = useMemo(
-    () => cart.reduce((total, line) => total + line.item.unitPrice * line.quantity, 0),
-    [cart],
+    () => liveQuote
+      ? (clientView ? liveQuote.publicTotalAmount : liveQuote.totalAmount)
+      : cart.reduce((total, line) => total + (clientView ? line.item.publicUnitPrice : line.item.unitPrice) * line.quantity, 0),
+    [cart, clientView, liveQuote],
   );
 
   const cartCurrency = cart[0]?.item.currency || 'MXN';
@@ -927,6 +994,17 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                 </div>
                 <span>{currency(cartTotal, cartCurrency)}</span>
               </div>
+              <label className="client-view-toggle">
+                <input type="checkbox" checked={clientView} onChange={event => setClientView(event.target.checked)} />
+                Vista para cliente · mostrar precio público
+              </label>
+              {!clientView && (
+                <p className="cart-disclaimer" aria-live="polite">
+                  {quoteLoading ? 'Actualizando cotización…' : quoteError || (liveQuote ? `Cotización vigente · Margen sugerido ${currency(liveQuote.estimatedMargin, liveQuote.currency)} · Sin reserva de inventario` : 'Preparando cotización…')}
+                </p>
+              )}
+              {liveQuote && !liveQuote.allItemsAvailable && <p className="form-error" role="alert">Una o más piezas ya no tienen disponibilidad suficiente.</p>}
+              {quoteConflict && <p className="form-error" role="alert">{quoteConflict}</p>}
               <div className="cart-customer-fields">
                 <p className="eyebrow full-span">1. Maestro · Datos del cliente</p>
                 <label>
@@ -996,7 +1074,7 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                             <span className="sku">{item.sku}</span>
                             <strong>{item.name}</strong>
                             <small>
-                              {currency(item.unitPrice, item.currency)} · {remaining} {remaining === 1 ? 'disponible' : 'disponibles'}
+                              {currency(clientView ? item.publicUnitPrice : item.unitPrice, item.currency)} · {remaining} {remaining === 1 ? 'disponible' : 'disponibles'}
                               {inCart > 0 ? ` (${inCart} en orden)` : ''}
                             </small>
                           </div>
@@ -1024,7 +1102,8 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                       <div>
                         <p className="sku">{line.item.sku}</p>
                         <h3>{line.item.name}</h3>
-                        <strong>{currency(line.item.unitPrice * line.quantity, line.item.currency)}</strong>
+                        <strong>{currency((clientView ? liveQuote?.lines.find(quoted => quoted.productId === line.item.id)?.publicLineTotal : liveQuote?.lines.find(quoted => quoted.productId === line.item.id)?.lineTotal) ?? (clientView ? line.item.publicUnitPrice : line.item.unitPrice) * line.quantity, line.item.currency)}</strong>
+                        {!clientView && <small>Precio público {currency(liveQuote?.lines.find(quoted => quoted.productId === line.item.id)?.publicUnitPrice ?? line.item.publicUnitPrice, line.item.currency)} · Margen {currency(liveQuote?.lines.find(quoted => quoted.productId === line.item.id)?.commissionAmount ?? line.item.estimatedMargin * line.quantity, line.item.currency)}</small>}
                       </div>
                       <div className="quantity-stepper" aria-label={`Cantidad de ${line.item.name}`}>
                         <button type="button" onClick={() => updateQuantity(line.item.id, line.quantity - 1)} aria-label={`Quitar una ${line.item.name}`}>−</button>
@@ -1046,15 +1125,15 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                 <strong>{currency(cartTotal, cartCurrency)}</strong>
               </div>
               {checkoutError && <p className="form-error checkout-error" role="alert">{checkoutError}</p>}
-              <button
+              {!clientView && <button
                 type="button"
                 className="checkout-button"
-                disabled={cart.length === 0 || submittingSale}
+                disabled={cart.length === 0 || submittingSale || quoteLoading || !liveQuote || !liveQuote.allItemsAvailable}
                 onClick={() => void handlePrepareOrder()}
               >
                 <span className="material-symbols-outlined" aria-hidden="true">payments</span>
                 {submittingSale ? 'Reservando inventario…' : 'Preparar cobro con Cared'}
-              </button>
+              </button>}
               <p className="cart-disclaimer">Al confirmar, el inventario queda reservado 30 minutos para que Cared realice el cobro en POS.</p>
             </aside>
           </section>
@@ -1175,6 +1254,53 @@ function ResellerHome({ profile, onSignOut }: { profile: ResellerProfile; onSign
                 );
               })()
             )}
+          </section>
+        )}
+
+        {activeSection === 'commissions' && (
+          <section id="reseller-commissions" className="inventory-workspace section-view" aria-labelledby="commissions-title">
+            <div className="inventory-heading">
+              <div>
+                <p className="eyebrow">REVENDEDORES</p>
+                <h2 id="commissions-title">Mis márgenes</h2>
+                <p>El margen se gana cuando Cared cobra la venta y se liquida todo el crédito.</p>
+              </div>
+            </div>
+            <div className="commission-filters">
+              <label>Desde <input type="date" value={commissionsFrom} onChange={event => { setCommissionsPage(1); setCommissionsFrom(event.target.value); }} /></label>
+              <label>Hasta <input type="date" value={commissionsTo} onChange={event => { setCommissionsPage(1); setCommissionsTo(event.target.value); }} /></label>
+              <label>Estado <select value={commissionsStatus} onChange={event => { setCommissionsPage(1); setCommissionsStatus(event.target.value as '' | ResellerCommissionStatus); }}>
+                <option value="">Todos</option><option value="PENDING">Pendiente</option><option value="PENDING_CREDIT">Pendiente de crédito</option><option value="EARNED">Ganado</option><option value="VOIDED">Anulado</option>
+              </select></label>
+              <label>Moneda <input maxLength={3} value={commissionsCurrency} onChange={event => { setCommissionsPage(1); setCommissionsCurrency(event.target.value.toUpperCase()); }} placeholder="Todas" /></label>
+            </div>
+            <div className="commission-summary">
+              {Object.entries(commissions?.totalsByCurrency || {}).map(([code, totals]) => (
+                <article key={code}>
+                  <h3>{code}</h3>
+                  <p>Ganado <strong>{currency(totals.EARNED || 0, code)}</strong></p>
+                  <p>Pendiente de crédito <strong>{currency(totals.PENDING_CREDIT || 0, code)}</strong></p>
+                  <p>Pendiente <strong>{currency(totals.PENDING || 0, code)}</strong></p>
+                </article>
+              ))}
+            </div>
+            {commissions?.items.length ? (
+              <div className="commission-list">
+                {commissions.items.map(item => (
+                  <article key={item.id}>
+                    <strong>Venta ORD-{item.id.slice(0, 8).toUpperCase()}</strong>
+                    <span>{new Date(item.createdAt).toLocaleDateString('es-MX')}</span>
+                    <span>{item.commissionStatus === 'EARNED' ? 'Ganado' : item.commissionStatus === 'PENDING_CREDIT' ? 'Pendiente de crédito' : item.commissionStatus === 'VOIDED' ? 'Anulado' : 'Pendiente'}</span>
+                    <strong>{currency(item.commissionAmount, item.currency)}</strong>
+                  </article>
+                ))}
+              </div>
+            ) : <p className="empty-state">No hay márgenes para este periodo.</p>}
+            <div className="commission-pagination">
+              <button type="button" className="secondary" disabled={commissionsPage <= 1} onClick={() => setCommissionsPage(page => page - 1)}>Anterior</button>
+              <span>Página {commissionsPage}</span>
+              <button type="button" className="secondary" disabled={!commissions || commissionsPage * commissions.limit >= commissions.total} onClick={() => setCommissionsPage(page => page + 1)}>Siguiente</button>
+            </div>
           </section>
         )}
 

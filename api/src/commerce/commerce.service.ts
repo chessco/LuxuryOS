@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { CommercePaymentStatus, CommerceProductStatus, CommerceSaleStatus, CreditSubjectType, InventoryMovementType, InventoryReservationStatus, Prisma, Role, SalesChannel } from '@prisma/client';
+import { CommerceCommissionStatus, CommercePaymentStatus, CommerceProductStatus, CommerceSaleStatus, CreditSubjectType, InventoryMovementType, InventoryReservationStatus, Prisma, Role, SalesChannel } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
@@ -8,11 +8,12 @@ import { CreditService } from './credit.service';
 import { CreditDrawdownDto } from './dto/commerce-credit.dto';
 import { CreateProductDto, RecordProductMovementDto, UpdateProductDto } from './dto/commerce-product.dto';
 import { CancelSaleDto, CreateSaleDto, SettleSaleDto } from './dto/commerce-sale.dto';
+import { priceResellerLines } from './commerce-pricing.util';
 
 type Actor = { id?: string; sub?: string; tenantId?: string; role?: Role };
 type CartItem = { productId: string; quantity: number };
 type PaymentInput = { amount: number; method: string; reference?: string };
-type CheckoutInput = CreateSaleDto | { items: CartItem[]; clientId?: string; customerName?: string; customerPhone?: string; payments?: PaymentInput[]; creditDrawdowns?: CreditDrawdownDto[]; allowOverdueOverride?: boolean; notes?: string };
+type CheckoutInput = CreateSaleDto | { items: CartItem[]; clientId?: string; customerName?: string; customerPhone?: string; payments?: PaymentInput[]; creditDrawdowns?: CreditDrawdownDto[]; allowOverdueOverride?: boolean; notes?: string; expectedQuoteFingerprint?: string };
 
 @Injectable()
 export class CommerceService {
@@ -183,7 +184,7 @@ export class CommerceService {
       ...product,
       unitPrice: Number(product.unitPrice),
       resellerPrice: product.resellerPrice != null ? Number(product.resellerPrice) : null,
-      wholesalePrice: product.wholesalePrice != null ? Number(product.wholesalePrice) : null,
+      ...(actor.role === Role.VENDEDOR ? { wholesalePrice: undefined } : { wholesalePrice: product.wholesalePrice != null ? Number(product.wholesalePrice) : null }),
       availableQuantity: Math.max(0, product.stockOnHand - product.reservedQuantity),
     }));
   }
@@ -665,7 +666,8 @@ export class CommerceService {
     return `ORD-${saleId.slice(0, 8).toUpperCase()}`;
   }
 
-  private toSaleResponse(sale: any) {
+  private toSaleResponse(sale: any, actorRole?: Role) {
+    const showMargin = (actorRole === Role.REVENDEDOR || actorRole === Role.TENANT_ADMIN || actorRole === Role.SYSTEM_ADMIN) && sale.salesChannel === SalesChannel.RESELLER_POS;
     const subtotalAmount = Number(sale.subtotalAmount ?? 0);
     const discountAmount = Number(sale.discountAmount ?? 0);
     const totalAmount = Number(sale.totalAmount ?? 0);
@@ -694,6 +696,12 @@ export class CommerceService {
       subtotalAmount,
       discountAmount,
       totalAmount,
+      ...(showMargin ? {
+        publicTotalAmount: sale.publicTotalAmount == null ? null : Number(sale.publicTotalAmount),
+        commissionAmount: sale.commissionAmount == null ? null : Number(sale.commissionAmount),
+        commissionStatus: sale.commissionStatus,
+        commissionEarnedAt: sale.commissionEarnedAt ?? null,
+      } : {}),
       paidAmount,
       creditedAmount,
       balanceDue: Math.max(0, Math.round((totalAmount - paidAmount - creditedAmount) * 100) / 100),
@@ -711,6 +719,11 @@ export class CommerceService {
             skuSnapshot: item.skuSnapshot,
             nameSnapshot: item.nameSnapshot,
             unitPrice: Number(item.unitPrice),
+            ...(showMargin ? {
+              publicUnitPrice: item.publicUnitPrice == null ? null : Number(item.publicUnitPrice),
+              commissionUnitAmount: item.commissionUnitAmount == null ? null : Number(item.commissionUnitAmount),
+              commissionAmount: item.commissionAmount == null ? null : Number(item.commissionAmount),
+            } : {}),
             quantity: item.quantity,
             lineTotal: Number(item.lineTotal),
             createdAt: item.createdAt,
@@ -834,6 +847,10 @@ export class CommerceService {
         data: { status: CommerceSaleStatus.EXPIRED },
       });
       if (updatedSale.count === 1) {
+        await tx.commerceSale.updateMany({
+          where: { id: candidateSaleId, tenantId, commissionStatus: CommerceCommissionStatus.PENDING },
+          data: { commissionStatus: CommerceCommissionStatus.VOIDED },
+        });
         await tx.commerceAuditLog.create({
           data: {
             tenantId,
@@ -916,7 +933,7 @@ export class CommerceService {
           include: this.saleInclude,
         });
         if (prior) {
-          return this.toSaleResponse(prior);
+          return this.toSaleResponse(prior, session.role);
         }
 
         if (clientId) {
@@ -927,10 +944,7 @@ export class CommerceService {
           if (!client) throw new NotFoundException('Cliente no encontrado');
         }
 
-        await this.releaseExpiredReservationsInTx(tx, session.tenantId, {
-          salesChannel: channel,
-          resellerId: session.id,
-        });
+        await this.releaseExpiredReservationsInTx(tx, session.tenantId);
 
         const products = await tx.commerceProduct.findMany({ where: { id: { in: items.map(i => i.productId) }, tenantId: session.tenantId, status: CommerceProductStatus.ACTIVE, ...(channel === SalesChannel.RESELLER_POS ? { availableToResellers: true } : {}) } });
         if (products.length !== items.length) throw new NotFoundException('Uno o más artículos no están disponibles');
@@ -948,6 +962,34 @@ export class CommerceService {
           return { product, quantity: item.quantity, unitPrice };
         });
         subtotal = Math.round(subtotal * 100) / 100;
+        const priced = channel === SalesChannel.RESELLER_POS ? priceResellerLines(items, products) : null;
+        const pricedById = new Map(priced?.lines.map(line => [line.productId, line]) || []);
+        if (priced) subtotal = Math.round(priced.lines.reduce((sum, line) => sum + line.lineTotal, 0) * 100) / 100;
+        if (channel === SalesChannel.RESELLER_POS && subtotal <= 0) {
+          throw new BadRequestException('El total de la venta debe ser mayor a cero');
+        }
+        if (channel === SalesChannel.RESELLER_POS) {
+          const currentQuote = priced ? {
+            lines: priced.lines.map(line => {
+              const product = productById.get(line.productId)!;
+              const availableQuantity = Math.max(0, product.stockOnHand - product.reservedQuantity);
+              return { ...line, sku: product.sku, name: product.name, availableQuantity, isAvailable: availableQuantity >= line.quantity };
+            }),
+            currency: products[0].currency,
+            publicTotalAmount: Math.round(priced.lines.reduce((sum, line) => sum + line.publicLineTotal, 0) * 100) / 100,
+            totalAmount: Math.round(priced.lines.reduce((sum, line) => sum + line.lineTotal, 0) * 100) / 100,
+            estimatedMargin: Math.round(priced.lines.reduce((sum, line) => sum + line.commissionAmount, 0) * 100) / 100,
+            allItemsAvailable: true,
+            reservesInventory: false,
+            quoteFingerprint: priced.quoteFingerprint,
+            evaluatedAt: new Date().toISOString(),
+          } : null;
+          const unavailable = lines.filter(line => line.product.stockOnHand - line.product.reservedQuantity < line.quantity);
+          if (unavailable.length) throw new ConflictException({ code: 'INSUFFICIENT_STOCK', message: 'Stock insuficiente', conflicts: unavailable.map(line => ({ productId: line.product.id, availableQuantity: Math.max(0, line.product.stockOnHand - line.product.reservedQuantity) })), currentQuote: { ...currentQuote, allItemsAvailable: false } });
+          if (input.expectedQuoteFingerprint && input.expectedQuoteFingerprint !== priced?.quoteFingerprint) {
+            throw new ConflictException({ code: 'QUOTE_DRIFT', message: 'Los precios cambiaron; revisa la cotización', conflicts: [], currentQuote });
+          }
+        }
         const paid = Math.round(payments.reduce((sum, payment) => sum + Number(payment.amount), 0) * 100) / 100;
         const credited = Math.round(creditDrawdowns.reduce((sum, drawdown) => sum + Number(drawdown.amount), 0) * 100) / 100;
         const totalCovered = Math.round((paid + credited) * 100) / 100;
@@ -962,7 +1004,8 @@ export class CommerceService {
           paymentStatus: fullyPaid ? CommercePaymentStatus.PAID : paid > 0 ? CommercePaymentStatus.PARTIAL : CommercePaymentStatus.PENDING,
           currency: lines[0]?.product.currency || 'MXN', clientId, customerName: input.customerName?.trim() || null, customerPhone: input.customerPhone?.trim() || null,
           subtotalAmount: new Prisma.Decimal(subtotal), totalAmount: new Prisma.Decimal(subtotal), paidAmount: new Prisma.Decimal(paid), ...(credited > 0 ? { creditedAmount: new Prisma.Decimal(credited) } : {}), notes: input.notes?.trim() || null, idempotencyKey: key, paidAt: fullyPaid ? new Date() : null,
-          items: { create: lines.map(line => ({ productId: line.product.id, skuSnapshot: line.product.sku, nameSnapshot: line.product.name, unitPrice: new Prisma.Decimal(line.unitPrice), quantity: line.quantity, lineTotal: new Prisma.Decimal(line.unitPrice * line.quantity) })) },
+          ...(priced ? { publicTotalAmount: new Prisma.Decimal(Math.round(priced.lines.reduce((sum, line) => sum + line.publicLineTotal, 0) * 100) / 100), commissionAmount: new Prisma.Decimal(Math.round(priced.lines.reduce((sum, line) => sum + line.commissionAmount, 0) * 100) / 100), commissionStatus: CommerceCommissionStatus.PENDING } : {}),
+          items: { create: lines.map(line => ({ productId: line.product.id, skuSnapshot: line.product.sku, nameSnapshot: line.product.name, unitPrice: new Prisma.Decimal(line.unitPrice), quantity: line.quantity, lineTotal: new Prisma.Decimal(pricedById.get(line.product.id)?.lineTotal ?? Math.round(line.unitPrice * line.quantity * 100) / 100), ...(pricedById.has(line.product.id) ? { publicUnitPrice: new Prisma.Decimal(pricedById.get(line.product.id)!.publicUnitPrice), commissionUnitAmount: new Prisma.Decimal(pricedById.get(line.product.id)!.commissionUnitAmount), commissionAmount: new Prisma.Decimal(pricedById.get(line.product.id)!.commissionAmount) } : {}) })) },
         }});
         for (const line of lines) {
           const product = line.product;
@@ -1008,7 +1051,7 @@ export class CommerceService {
         }
         await tx.commerceAuditLog.create({ data: { tenantId: session.tenantId, actorId: session.id, entityType: 'SALE', entityId: sale.id, action: fullyPaid ? 'SALE_PAID' : 'SALE_RESERVED', payload: { channel, subtotal, paid, credited } } });
         const created = await tx.commerceSale.findUniqueOrThrow({ where: { id: sale.id }, include: this.saleInclude });
-        return this.toSaleResponse(created);
+        return this.toSaleResponse(created, session.role);
       });
     } catch (error: any) {
       if (error?.code === 'P2002') {
@@ -1016,7 +1059,7 @@ export class CommerceService {
           where: replayWhere,
           include: this.saleInclude,
         });
-        if (prior) return this.toSaleResponse(prior);
+        if (prior) return this.toSaleResponse(prior, session.role);
       }
       throw error;
     }
@@ -1094,7 +1137,7 @@ export class CommerceService {
       });
     });
 
-    return sales.map((sale) => this.toSaleResponse(sale));
+    return sales.map((sale) => this.toSaleResponse(sale, session.role));
   }
 
   async getSale(actor: Actor, saleId: string, scopeToReseller = false) {
@@ -1125,7 +1168,7 @@ export class CommerceService {
       return found;
     });
 
-    return this.toSaleResponse(sale);
+    return this.toSaleResponse(sale, session.role);
   }
 
   async settleSale(
@@ -1185,7 +1228,7 @@ export class CommerceService {
             include: this.saleInclude,
           });
           if (!replaySale) throw new NotFoundException('Orden de venta no encontrada');
-          return this.toSaleResponse(replaySale);
+          return this.toSaleResponse(replaySale, session.role);
         }
 
         await this.releaseExpiredReservationsInTx(tx, session.tenantId, { saleId });
@@ -1259,6 +1302,10 @@ export class CommerceService {
                 ...(nextCredited > 0 ? { creditedAmount: new Prisma.Decimal(nextCredited) } : {}),
                 ...(overrideClientId && !sale.clientId ? { clientId: overrideClientId } : {}),
                 paidAt: new Date(),
+                ...(sale.commissionStatus === CommerceCommissionStatus.PENDING ? {
+                  commissionStatus: nextCredited > 0 ? CommerceCommissionStatus.PENDING_CREDIT : CommerceCommissionStatus.EARNED,
+                  commissionEarnedAt: nextCredited > 0 ? null : new Date(),
+                } : {}),
                 notes,
               }
             : {
@@ -1420,7 +1467,7 @@ export class CommerceService {
           where: { id: sale.id },
           include: this.saleInclude,
         });
-        return this.toSaleResponse(refreshed);
+        return this.toSaleResponse(refreshed, session.role);
       });
     } catch (error: any) {
       if (error?.code === 'P2002') {
@@ -1433,7 +1480,7 @@ export class CommerceService {
             where: { id: saleId, tenantId: session.tenantId },
             include: this.saleInclude,
           });
-          if (replaySale) return this.toSaleResponse(replaySale);
+          if (replaySale) return this.toSaleResponse(replaySale, session.role);
         }
       }
       throw error;
@@ -1498,6 +1545,7 @@ export class CommerceService {
         },
         data: {
           status: CommerceSaleStatus.CANCELLED,
+          ...(sale.commissionStatus === CommerceCommissionStatus.PENDING ? { commissionStatus: CommerceCommissionStatus.VOIDED } : {}),
           cancelledAt: new Date(),
           cancellationReason: reason,
         },
@@ -1552,7 +1600,7 @@ export class CommerceService {
         where: { id: sale.id },
         include: this.saleInclude,
       });
-      return this.toSaleResponse(refreshed);
+      return this.toSaleResponse(refreshed, session.role);
     });
   }
 }

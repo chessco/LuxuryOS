@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { CommerceSaleStatus, Role, SalesChannel } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -7,6 +7,7 @@ import { ResellerPosService } from './reseller-pos.service';
 import { CommerceService } from '../commerce/commerce.service';
 import { CreateProductDto } from '../commerce/dto/commerce-product.dto';
 import { CancelSaleDto, CreateSaleDto } from '../commerce/dto/commerce-sale.dto';
+import { ResellerQuoteDto } from './dto/reseller-quote.dto';
 
 @Controller('reseller')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -45,6 +46,20 @@ export class ResellerPosController {
   @Get('credit')
   getCredit(@Request() req: { user: { id: string; tenantId: string; role: Role } }) {
     return this.commerceService.getResellerCredit(req.user);
+  }
+
+  @Post('quotes')
+  @HttpCode(HttpStatus.OK)
+  calculateQuote(@Body() body: ResellerQuoteDto, @Request() req: { user: { tenantId: string } }) {
+    return this.resellerPosService.calculateQuote(req.user.tenantId, body.items);
+  }
+
+  @Get('commissions')
+  getCommissions(
+    @Request() req: { user: { id: string; tenantId: string; role: Role } },
+    @Query() query: { resellerId?: string; status?: string; currency?: string; from?: string; to?: string; page?: string; limit?: string },
+  ) {
+    return this.resellerPosService.listCommissions(req.user, query);
   }
 
   @Post('catalog')

@@ -8,6 +8,8 @@ import type {
   ResellerProfile,
   ResellerSale,
   ResellerSaleStatus,
+  ResellerQuote,
+  ResellerCommissions,
 } from '../types';
 
 const TOKEN_KEY = 'cared_revendedores_token';
@@ -53,6 +55,23 @@ export async function getResellerCatalog(): Promise<ResellerCatalogResponse> {
 export async function getResellerInventory(): Promise<ResellerInventoryResponse> {
   const response = await api.get<ResellerInventoryResponse>('/reseller/inventory');
   return response.data;
+}
+
+export async function calculateResellerQuote(items: Array<{ productId: string; quantity: number }>): Promise<ResellerQuote> {
+  const response = await api.post<ResellerQuote>('/reseller/quotes', { items });
+  return response.data;
+}
+
+export async function getResellerCommissions(params: { page?: number; status?: string; currency?: string; from?: string; to?: string } = {}): Promise<ResellerCommissions> {
+  const response = await api.get<ResellerCommissions>('/reseller/commissions', { params });
+  return response.data;
+}
+
+export function readQuoteConflict(error: unknown): { code: string; message: string; currentQuote: ResellerQuote | null } | null {
+  if (!axios.isAxiosError(error) || error.response?.status !== 409) return null;
+  const data = error.response.data as { code?: string; message?: string; currentQuote?: ResellerQuote };
+  if (data.code !== 'QUOTE_DRIFT' && data.code !== 'INSUFFICIENT_STOCK') return null;
+  return { code: data.code, message: data.message || 'La cotización cambió', currentQuote: data.currentQuote || null };
 }
 
 export async function createResellerSale(

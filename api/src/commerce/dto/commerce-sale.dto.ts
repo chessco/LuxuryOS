@@ -51,6 +51,11 @@ export class CreateSaleDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(64)
+  expectedQuoteFingerprint?: string;
+
+  @IsOptional()
+  @IsString()
   @MinLength(1)
   @MaxLength(191)
   clientId?: string;
