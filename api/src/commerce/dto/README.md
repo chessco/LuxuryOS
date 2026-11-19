@@ -18,6 +18,7 @@ Validated request payload contracts (`class-validator` + `class-transformer`) sh
   - `CreditDrawdownDto`: `facilityType` (`CreditFacilityType`: `REVOLVING` | `NON_REVOLVING`), `amount >= 0.01`, optional `title`, `termDays` (`1..365`), `notes`.
   - `UpsertCreditAccountDto`: `subjectType` (`CreditSubjectType`), `resellerId` / `clientId`, `revolvingLimit >= 0`, optional `defaultTermDays` (`1..365`), `status` (`CreditAccountStatus`), `notes`.
   - `RecordCreditPaymentDto`: `amount >= 0.01`, `method`, optional `reference`, `notes`.
+  - `CreateCreditNoteDto`: administrative adjustment with `amount >= 0.01`, mandatory `reason`, optional `notes`; it cannot exceed the open obligation balance.
 
 ## Invariants
 - String trimming and numeric coercion (`@Transform(trimIfString)`, `@Type(() => Number)`) normalize payloads before service checks.

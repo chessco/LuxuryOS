@@ -20,7 +20,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreditService } from './credit.service';
-import { RecordCreditPaymentDto, UpsertCreditAccountDto } from './dto/commerce-credit.dto';
+import { CreateCreditNoteDto, RecordCreditPaymentDto, UpsertCreditAccountDto } from './dto/commerce-credit.dto';
 
 @Controller('commerce/credit')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -86,5 +86,11 @@ export class CreditController {
     @Headers('idempotency-key') key?: string,
   ) {
     return this.credit.recordObligationPayment(req.user, id, body, key);
+  }
+
+  @Post('obligations/:id/credit-notes')
+  @Roles(Role.TENANT_ADMIN, Role.SYSTEM_ADMIN)
+  createCreditNote(@Request() req: any, @Param('id') id: string, @Body() body: CreateCreditNoteDto) {
+    return this.credit.createCreditNote(req.user, id, body);
   }
 }

@@ -109,3 +109,22 @@ export class RecordCreditPaymentDto {
   @MaxLength(1000)
   notes?: string;
 }
+
+export class CreateCreditNoteDto {
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  amount!: number;
+
+  @Transform(trimIfString)
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason!: string;
+
+  @IsOptional()
+  @Transform(trimIfString)
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+}

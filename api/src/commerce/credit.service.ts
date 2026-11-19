@@ -20,6 +20,7 @@ import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreditDrawdownDto,
+  CreateCreditNoteDto,
   RecordCreditPaymentDto,
   UpsertCreditAccountDto,
 } from './dto/commerce-credit.dto';
@@ -111,6 +112,10 @@ export class CreditService {
     },
     payments: {
       orderBy: { recordedAt: 'desc' as const },
+      include: { recordedBy: { select: { id: true, name: true, email: true } } },
+    },
+    creditNotes: {
+      orderBy: { createdAt: 'desc' as const },
       include: { recordedBy: { select: { id: true, name: true, email: true } } },
     },
     createdBy: { select: { id: true, name: true, email: true } },
@@ -270,6 +275,16 @@ export class CreditService {
             recordedById: payment.recordedById ?? null,
             recordedByName: payment.recordedBy?.name || payment.recordedBy?.email || null,
             recordedAt: payment.recordedAt,
+          }))
+        : [],
+      creditNotes: Array.isArray(obligation.creditNotes)
+        ? obligation.creditNotes.map((note: any) => ({
+            id: note.id,
+            amount: roundMoney(note.amount),
+            reason: note.reason,
+            notes: note.notes ?? null,
+            recordedByName: note.recordedBy?.name || note.recordedBy?.email || null,
+            createdAt: note.createdAt,
           }))
         : [],
     };
@@ -890,6 +905,127 @@ export class CreditService {
     return createdObligations.map((item) => this.toObligationResponse(item));
   }
 
+  async applyOrderRevolvingCreditInTx(
+    tx: Prisma.TransactionClient,
+    params: {
+      tenantId: string;
+      actorId?: string;
+      orderId: string;
+      orderCode: string;
+      resellerId: string;
+      currency: string;
+      amount: number;
+      reference?: string;
+    },
+  ) {
+    const amount = roundMoney(params.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('El monto a crédito revolvente debe ser mayor a 0');
+    }
+
+    let account = await tx.creditAccount.findFirst({
+      where: {
+        tenantId: params.tenantId,
+        resellerId: params.resellerId,
+      },
+    });
+    if (!account) {
+      throw new ConflictException('El revendedor no tiene una línea de crédito revolvente autorizada');
+    }
+    if (account.status !== CreditAccountStatus.ACTIVE) {
+      throw new ForbiddenException('La línea de crédito revolvente del revendedor está suspendida');
+    }
+    if (account.currency !== params.currency) {
+      throw new BadRequestException('La moneda de la orden no coincide con la línea de crédito');
+    }
+
+    await this.syncOverdueObligationsInTx(tx, params.tenantId, account.id);
+    const overdueCount = await tx.creditObligation.count({
+      where: {
+        tenantId: params.tenantId,
+        accountId: account.id,
+        status: CreditObligationStatus.OVERDUE,
+        balanceDue: { gt: 0 },
+      },
+    });
+    if (overdueCount > 0) {
+      throw new ConflictException('El revendedor tiene saldo vencido; no puede usar crédito revolvente');
+    }
+
+    const available = Math.max(0, roundMoney(account.revolvingLimit) - roundMoney(account.revolvingUsed));
+    if (amount > available) {
+      throw new ConflictException(`Cupo revolvente insuficiente. Disponible: ${available.toFixed(2)} ${params.currency}`);
+    }
+
+    const nextRevolvingUsed = roundMoney(roundMoney(account.revolvingUsed) + amount);
+    const claim = await tx.creditAccount.updateMany({
+      where: {
+        id: account.id,
+        tenantId: params.tenantId,
+        status: CreditAccountStatus.ACTIVE,
+        revolvingUsed: account.revolvingUsed,
+        revolvingLimit: account.revolvingLimit,
+      },
+      data: { revolvingUsed: new Prisma.Decimal(nextRevolvingUsed) },
+    });
+    if (claim.count !== 1) {
+      throw new ConflictException('El cupo de crédito cambió durante el cobro; vuelve a intentar');
+    }
+
+    const issuedAt = new Date();
+    const termDays = account.defaultTermDays || 30;
+    const dueAt = new Date(issuedAt.getTime() + termDays * MS_PER_DAY);
+    const title = `Crédito Revolvente ${termDays}d · ${params.orderCode}`;
+    const obligation = await tx.creditObligation.create({
+      data: {
+        tenantId: params.tenantId,
+        accountId: account.id,
+        orderId: params.orderId,
+        facilityType: CreditFacilityType.REVOLVING,
+        title,
+        currency: params.currency,
+        principalAmount: new Prisma.Decimal(amount),
+        paidAmount: new Prisma.Decimal(0),
+        balanceDue: new Prisma.Decimal(amount),
+        termDays,
+        issuedAt,
+        dueAt,
+        status: CreditObligationStatus.OPEN,
+        notes: params.reference?.trim() || null,
+        createdById: params.actorId || null,
+      },
+      include: this.obligationInclude,
+    });
+
+    await tx.creditLedgerEntry.create({
+      data: {
+        tenantId: params.tenantId,
+        accountId: account.id,
+        obligationId: obligation.id,
+        actorId: params.actorId || null,
+        type: CreditLedgerEntryType.DRAWDOWN,
+        facilityType: CreditFacilityType.REVOLVING,
+        amount: new Prisma.Decimal(amount),
+        balanceAfter: new Prisma.Decimal(amount),
+        revolvingUsedAfter: new Prisma.Decimal(nextRevolvingUsed),
+        notes: title,
+        metadata: { orderId: params.orderId, orderCode: params.orderCode, reference: params.reference?.trim() || null },
+      },
+    });
+    await tx.commerceAuditLog.create({
+      data: {
+        tenantId: params.tenantId,
+        actorId: params.actorId || null,
+        entityType: 'ORDER',
+        entityId: params.orderId,
+        action: 'ORDER_REVOLVING_CREDIT_DRAWN',
+        payload: { orderCode: params.orderCode, obligationId: obligation.id, amount, currency: params.currency, revolvingUsedAfter: nextRevolvingUsed },
+      },
+    });
+
+    return this.toObligationResponse(obligation);
+  }
+
   async listObligations(
     actor: Actor,
     filters?: {
@@ -1189,6 +1325,97 @@ export class CreditService {
         obligation: this.toObligationResponse(refreshed),
         replayed: false,
       };
+    });
+  }
+
+  async createCreditNote(actor: Actor, obligationId: string, input: CreateCreditNoteDto) {
+    const session = this.adminActor(actor);
+    const amount = roundMoney(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('El importe de la nota de crédito debe ser mayor a 0');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const obligation = await tx.creditObligation.findFirst({
+        where: { id: obligationId, tenantId: session.tenantId },
+        include: { account: true },
+      });
+      if (!obligation) throw new NotFoundException('Obligación crediticia no encontrada');
+      if (obligation.status === CreditObligationStatus.PAID || obligation.status === CreditObligationStatus.CANCELLED) {
+        throw new ConflictException('No se puede emitir una nota de crédito sobre una obligación cerrada');
+      }
+
+      const balanceDue = roundMoney(obligation.balanceDue);
+      if (amount > balanceDue) {
+        throw new BadRequestException(`La nota (${amount.toFixed(2)}) excede el saldo pendiente (${balanceDue.toFixed(2)})`);
+      }
+      const nextBalance = roundMoney(balanceDue - amount);
+      const nextPaid = roundMoney(roundMoney(obligation.paidAmount) + amount);
+      const now = new Date();
+      const nextStatus = nextBalance === 0 ? CreditObligationStatus.PAID : CreditObligationStatus.PARTIAL;
+
+      const obligationClaim = await tx.creditObligation.updateMany({
+        where: { id: obligation.id, tenantId: session.tenantId, balanceDue: obligation.balanceDue },
+        data: {
+          paidAmount: new Prisma.Decimal(nextPaid),
+          balanceDue: new Prisma.Decimal(nextBalance),
+          status: nextStatus,
+          ...(nextBalance === 0 ? { paidAt: now } : {}),
+        },
+      });
+      if (obligationClaim.count !== 1) throw new ConflictException('El saldo cambió; vuelve a intentar');
+
+      let revolvingUsedAfter = roundMoney(obligation.account.revolvingUsed);
+      if (obligation.facilityType === CreditFacilityType.REVOLVING) {
+        revolvingUsedAfter = Math.max(0, roundMoney(revolvingUsedAfter - amount));
+        const accountClaim = await tx.creditAccount.updateMany({
+          where: { id: obligation.accountId, tenantId: session.tenantId, revolvingUsed: obligation.account.revolvingUsed },
+          data: { revolvingUsed: new Prisma.Decimal(revolvingUsedAfter) },
+        });
+        if (accountClaim.count !== 1) throw new ConflictException('El cupo cambió; vuelve a intentar');
+      }
+
+      const note = await tx.creditNote.create({
+        data: {
+          tenantId: session.tenantId,
+          obligationId: obligation.id,
+          amount: new Prisma.Decimal(amount),
+          reason: input.reason.trim(),
+          notes: input.notes?.trim() || null,
+          recordedById: session.id,
+        },
+      });
+      await tx.creditLedgerEntry.create({
+        data: {
+          tenantId: session.tenantId,
+          accountId: obligation.accountId,
+          obligationId: obligation.id,
+          actorId: session.id,
+          type: CreditLedgerEntryType.CREDIT_NOTE,
+          facilityType: obligation.facilityType,
+          amount: new Prisma.Decimal(-amount),
+          balanceAfter: new Prisma.Decimal(nextBalance),
+          revolvingUsedAfter: new Prisma.Decimal(revolvingUsedAfter),
+          notes: `Nota de crédito: ${input.reason.trim()}`,
+          metadata: { creditNoteId: note.id, reason: input.reason.trim() },
+        },
+      });
+      await tx.commerceAuditLog.create({
+        data: {
+          tenantId: session.tenantId,
+          actorId: session.id,
+          entityType: 'CREDIT_OBLIGATION',
+          entityId: obligation.id,
+          action: 'CREDIT_NOTE_ISSUED',
+          payload: { creditNoteId: note.id, amount, reason: input.reason.trim(), balanceAfter: nextBalance, revolvingUsedAfter },
+        },
+      });
+
+      const refreshed = await tx.creditObligation.findFirstOrThrow({
+        where: { id: obligation.id, tenantId: session.tenantId },
+        include: this.obligationInclude,
+      });
+      return { obligation: this.toObligationResponse(refreshed), creditNote: note };
     });
   }
 

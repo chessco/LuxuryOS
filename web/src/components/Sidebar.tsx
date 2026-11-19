@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 
@@ -16,6 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
     const atelierSettings = JSON.parse(localStorage.getItem('atelier_settings') || '{}');
     const atelierName = atelierSettings.name || 'Business Suite';
     const { variant, mode, toggleMode } = useTheme();
+    const [isCreditMenuOpen, setIsCreditMenuOpen] = useState(false);
     const userRole = user.role === 'TENANT_ADMIN' 
         ? 'Atelier Manager' 
         : (user.role === 'JOYERO'
@@ -43,10 +44,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 { name: 'Cotizaciones', icon: 'request_quote', path: '/quotes' },
                 { name: 'Apartados', icon: 'loyalty', path: '/orders?type=LAYAWAY' },
                 { name: 'Pedidos', icon: 'receipt_long', path: '/orders' },
-                { name: 'Clientes', icon: 'person_search', path: '/clients' },
                 { name: 'Reportes', icon: 'analytics', path: '/reports' },
                 { name: 'Finanzas', icon: 'account_balance_wallet', path: '/finance' },
             ]
+        },
+        {
+            title: 'Crédito',
+            items: [
+                { name: 'Cartera', icon: 'account_balance_wallet', path: '/pos?workspace=credit' },
+                { name: 'Clientes', icon: 'person_search', path: '/clients' },
+            ],
         },
         { title: 'Inventario', items: [
             { name: 'Caja POS', icon: 'point_of_sale', path: '/pos' },
@@ -156,10 +163,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 <nav className="flex flex-col gap-6 flex-1 overflow-y-auto no-scrollbar pb-6">
                     {filteredNavigation.map((section) => (
                         <div key={section.title} className="flex flex-col gap-1">
-                            <h3 className="px-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-2">
-                                {section.title}
-                            </h3>
-                            <div className="flex flex-col gap-1">
+                            {section.title === 'Crédito' ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCreditMenuOpen((open) => !open)}
+                                    aria-expanded={isCreditMenuOpen}
+                                    aria-controls="credit-submenu"
+                                    className="mb-2 flex w-full items-center justify-between px-4 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 hover:text-muted-foreground"
+                                >
+                                    <span>Crédito</span>
+                                    <span className="material-symbols-outlined text-base" aria-hidden="true">
+                                        {isCreditMenuOpen ? 'expand_less' : 'expand_more'}
+                                    </span>
+                                </button>
+                            ) : (
+                                <h3 className="px-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-2">
+                                    {section.title}
+                                </h3>
+                            )}
+                            <div id={section.title === 'Crédito' ? 'credit-submenu' : undefined} className={`flex flex-col gap-1 ${section.title === 'Crédito' && !isCreditMenuOpen ? 'hidden' : ''}`}>
                                 {section.items.map((item) => {
                                     const isActive = item.path.includes('?')
                                         ? location.search.includes(item.path.split('?')[1])

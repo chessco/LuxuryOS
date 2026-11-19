@@ -3,6 +3,8 @@ import { PaymentsService } from './payments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { CreditService } from '../commerce/credit.service';
+import { REVOLVING_CREDIT_PAYMENT_METHOD } from './payments.service';
 
 describe('PaymentsService', () => {
   let service: PaymentsService;
@@ -21,12 +23,16 @@ describe('PaymentsService', () => {
     },
     $transaction: jest.fn((callback) => callback(mockPrisma)),
   };
+  const mockCredit = {
+    applyOrderRevolvingCreditInTx: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentsService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: CreditService, useValue: mockCredit },
       ],
     }).compile();
 
@@ -79,6 +85,59 @@ describe('PaymentsService', () => {
           }),
         }),
       );
+    });
+
+    it('draws revolving credit only for an order owned by a linked reseller', async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({
+        id: 'ord-reseller-1',
+        tenantId: 'tenant-1',
+        specifications: { orderCode: 'REP-99' },
+        totalAmount: new Prisma.Decimal(1000),
+        paidAmount: new Prisma.Decimal(200),
+        balance: new Prisma.Decimal(800),
+        client: { type: 'RESELLER', resellerUserId: 'reseller-1' },
+      });
+      mockPrisma.payment.create.mockResolvedValue({ id: 'pay-credit-1' });
+      mockPrisma.order.update.mockResolvedValue({ id: 'ord-reseller-1' });
+
+      await service.recordPayment(
+        'ord-reseller-1',
+        500,
+        REVOLVING_CREDIT_PAYMENT_METHOD,
+        'Caja Centro',
+        'user-ventas',
+        'tenant-1',
+      );
+
+      expect(mockCredit.applyOrderRevolvingCreditInTx).toHaveBeenCalledWith(
+        mockPrisma,
+        expect.objectContaining({
+          orderId: 'ord-reseller-1',
+          orderCode: 'REP-99',
+          resellerId: 'reseller-1',
+          amount: 500,
+        }),
+      );
+      expect(mockPrisma.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ method: REVOLVING_CREDIT_PAYMENT_METHOD }),
+        }),
+      );
+    });
+
+    it('rejects revolving credit for a non-reseller order', async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({
+        id: 'ord-retail-1',
+        totalAmount: new Prisma.Decimal(1000),
+        paidAmount: new Prisma.Decimal(0),
+        balance: new Prisma.Decimal(1000),
+        client: { type: 'RETAIL', resellerUserId: null },
+      });
+
+      await expect(
+        service.recordPayment('ord-retail-1', 500, REVOLVING_CREDIT_PAYMENT_METHOD, undefined, 'user-ventas', 'tenant-1'),
+      ).rejects.toThrow('sólo está disponible para órdenes de un revendedor vinculado');
+      expect(mockCredit.applyOrderRevolvingCreditInTx).not.toHaveBeenCalled();
     });
   });
 

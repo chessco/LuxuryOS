@@ -1,10 +1,16 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { CreditService } from '../commerce/credit.service';
+
+export const REVOLVING_CREDIT_PAYMENT_METHOD = 'REVOLVING_CREDIT';
 
 @Injectable()
 export class PaymentsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private credit: CreditService,
+    ) { }
 
     async recordPayment(
         orderId: string,
@@ -23,15 +29,41 @@ export class PaymentsService {
                     id: orderId,
                     ...(tenantId ? { tenantId } : {}),
                 },
+                include: {
+                    client: {
+                        select: { type: true, resellerUserId: true },
+                    },
+                },
             });
             if (!order) throw new BadRequestException('Orden no encontrada');
+
+            const normalizedMethod = String(method || '').trim().toUpperCase();
+            if (normalizedMethod === REVOLVING_CREDIT_PAYMENT_METHOD) {
+                if (order.client.type !== 'RESELLER' || !order.client.resellerUserId) {
+                    throw new BadRequestException('El crédito revolvente sólo está disponible para órdenes de un revendedor vinculado');
+                }
+                if (new Prisma.Decimal(amount).gt(order.balance.add(new Prisma.Decimal(0.01)))) {
+                    throw new BadRequestException('El crédito revolvente no puede exceder el saldo pendiente de la orden');
+                }
+                const orderCode = String((order.specifications as any)?.orderCode || order.id);
+                await this.credit.applyOrderRevolvingCreditInTx(tx, {
+                    tenantId: order.tenantId,
+                    actorId: userId,
+                    orderId: order.id,
+                    orderCode,
+                    resellerId: order.client.resellerUserId,
+                    currency: 'MXN',
+                    amount,
+                    reference,
+                });
+            }
 
             // Crear registro de pago
             const payment = await tx.payment.create({
                 data: {
                     orderId,
                     amount: new Prisma.Decimal(amount),
-                    method,
+                    method: normalizedMethod || method,
                     reference,
                     recordedBy: userId,
                 },
@@ -156,6 +188,9 @@ export class PaymentsService {
             }
 
             const order = payment.order;
+            if (payment.method === REVOLVING_CREDIT_PAYMENT_METHOD || data.method === REVOLVING_CREDIT_PAYMENT_METHOD) {
+                throw new BadRequestException('Un pago con crédito revolvente es inmutable; registra un ajuste crediticio en Caja Cared');
+            }
             const oldAmount = payment.amount;
             const newAmount = data.amount !== undefined ? new Prisma.Decimal(data.amount) : oldAmount;
             const diff = newAmount.sub(oldAmount);
@@ -201,6 +236,9 @@ export class PaymentsService {
             }
 
             const order = payment.order;
+            if (payment.method === REVOLVING_CREDIT_PAYMENT_METHOD) {
+                throw new BadRequestException('Un pago con crédito revolvente no se elimina; registra un ajuste crediticio en Caja Cared');
+            }
 
             // Recalcular balance restando el monto del pago eliminado
             const newPaidAmount = order.paidAmount.sub(payment.amount);

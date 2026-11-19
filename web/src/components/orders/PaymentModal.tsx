@@ -13,6 +13,7 @@ interface PaymentModalProps {
     payments?: any[];
     pieceType?: string;
     isReadyForDelivery?: boolean;
+    isReseller?: boolean;
     onRegisterPayment: (amount: number, method: string) => Promise<void>;
 }
 
@@ -20,6 +21,7 @@ const METHOD_LABELS: Record<string, string> = {
     CARD: 'Tarjeta',
     CASH: 'Efectivo',
     TRANSFER: 'Transferencia',
+    REVOLVING_CREDIT: 'Crédito revolvente',
 };
 
 const formatMoney = (n: number) =>
@@ -36,6 +38,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     payments,
     pieceType,
     isReadyForDelivery,
+    isReseller = false,
     onRegisterPayment
 }) => {
     const [amount, setAmount] = useState(pendingAmount > 0 ? String(pendingAmount) : '');
@@ -59,6 +62,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         : previousPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     const amountValue = parseFloat(amount) || 0;
     const remainingAfter = Math.max(0, pendingAmount - amountValue);
+    const paymentMethods = [
+        { id: 'CARD', label: 'Tarjeta de Crédito / Débito', icon: 'credit_card' },
+        { id: 'CASH', label: 'Efectivo / Cash', icon: 'payments' },
+        { id: 'TRANSFER', label: 'Transferencia Bancaria', icon: 'account_balance' },
+        ...(isReseller ? [{ id: 'REVOLVING_CREDIT', label: 'Crédito Revolvente · 30 días', icon: 'credit_score' }] : []),
+    ];
 
     const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
         if (e?.preventDefault) e.preventDefault();
@@ -231,11 +240,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <div className="space-y-4">
                                 <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-[0.2em] px-1 transition-colors">Método de Pago</label>
                                 <div className="grid grid-cols-1 gap-3">
-                                    {[
-                                        { id: 'CARD', label: 'Tarjeta de Crédito / Débito', icon: 'credit_card' },
-                                        { id: 'CASH', label: 'Efectivo / Cash', icon: 'payments' },
-                                        { id: 'TRANSFER', label: 'Transferencia Bancaria', icon: 'account_balance' }
-                                    ].map((m) => (
+                                    {paymentMethods.map((m) => (
                                         <button
                                             key={m.id}
                                             type="button"
@@ -248,6 +253,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                         </button>
                                     ))}
                                 </div>
+                                {method === 'REVOLVING_CREDIT' && (
+                                    <p className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-[10px] font-bold text-indigo-600 dark:text-indigo-300">
+                                        Se validará el cupo disponible del revendedor y se generará una disposición a 30 días.
+                                    </p>
+                                )}
                             </div>
                         </form>
 

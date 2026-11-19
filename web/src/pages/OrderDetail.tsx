@@ -1450,6 +1450,7 @@ const OrderDetail: React.FC = () => {
                         paidAmount={parseValue(order.paidAmount)}
                         payments={order.payments}
                         pieceType={order.pieceType}
+                        isReseller={String(order.client?.type || '').toUpperCase() === 'RESELLER'}
                         isReadyForDelivery={
                             ['REPAIR_COMPLETED', 'READY_FOR_PICKUP', 'READY', 'LISTO', 'TERMINADO'].includes(String(order.status || '').toUpperCase()) ||
                             order.type === 'STANDARD'

@@ -28,6 +28,8 @@ Owns workshop and store orders (`REPAIR`, `MANUFACTURE`, `DESIGN`, `LASER`, `LAY
   - When `'leftGold' in specifications`, `leftGold` must be boolean, and `leftGold === true` requires non-empty `leftGoldItems[]` with `karats` and `grams > 0`.
 - **QR & WhatsApp payload**: `sendOrderWhatsApp` encodes the tracking URL (`trackingUrl`) for public customer tracking, while `NotificationService` -> `PitayaCoreWhatsAppProvider` extracts any image/QR URL from message body into media payload fields.
 - **Permission invariants**: `JOYERO` cannot create orders (`POST /kanban/orders`); physical customer delivery via status move requires QR scan (`viaQrDelivery`) or admin role; `DISENADOR` cannot mark orders ready/delivered.
+- **Revolving credit payment**: a payment with method `REVOLVING_CREDIT` is accepted only for an order whose client is `RESELLER` and is linked to a reseller user with an active MXN credit line. It atomically records the order payment, a 30-day revolving obligation, cupo consumption, and ledger/audit entries. These payments are immutable through the regular payment edit/delete endpoints.
+- **Credit notes**: administrators can reduce an open credit obligation with an immutable reasoned note. The note reduces the obligation balance and releases the same amount from a revolving facility; it is recorded separately from a cash payment in the credit ledger and audit trail.
 
 ## Global Side Effects
 - Transactional Prisma writes to `Order`, `OrderNumberSequence`, `Payment`, `OrderNote`, and `QueueTicket`.

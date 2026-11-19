@@ -1042,6 +1042,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ isOpen, onClose,
                     paidAmount={paidAmount}
                     payments={paymentsHistory}
                     pieceType={pieceName}
+                    isReseller={String(foundOrder.client?.type || '').toUpperCase() === 'RESELLER'}
                     isReadyForDelivery={
                         (foundOrder.status || foundOrder.stage || '').toUpperCase() === 'REPAIR_COMPLETED' ||
                         (foundOrder.status || foundOrder.stage || '').toUpperCase() === 'READY_FOR_PICKUP' ||

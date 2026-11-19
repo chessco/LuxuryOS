@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import api, { resolveMediaUrl } from '../services/api';
 
 type CommerceSaleStatus = 'DRAFT' | 'PENDING_PAYMENT' | 'PAID' | 'CANCELLED' | 'EXPIRED';
@@ -117,6 +118,15 @@ type CreditPaymentEntry = {
     recordedAt: string;
 };
 
+type CreditNoteEntry = {
+    id: string;
+    amount: number;
+    reason: string;
+    notes: string | null;
+    recordedByName: string | null;
+    createdAt: string;
+};
+
 type CreditObligationItem = {
     id: string;
     code: string;
@@ -148,6 +158,7 @@ type CreditObligationItem = {
     createdAt: string;
     updatedAt: string;
     payments: CreditPaymentEntry[];
+    creditNotes?: CreditNoteEntry[];
 };
 
 type CreditAccountSummary = {
@@ -758,15 +769,22 @@ const CreditFinancingPanel: React.FC<CreditFinancingPanelProps> = ({
 };
 
 const PosSales: React.FC = () => {
+    const location = useLocation();
     const userRole = useMemo(() => getLoggedUserRole(), []);
     const isCreditAdmin = userRole === 'TENANT_ADMIN' || userRole === 'SYSTEM_ADMIN';
 
-    const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>('SALES');
+    const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(() =>
+        new URLSearchParams(location.search).get('workspace') === 'credit' ? 'CREDIT' : 'SALES',
+    );
     const [sales, setSales] = useState<CommerceSale[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [nowMs, setNowMs] = useState(() => Date.now());
+
+    useEffect(() => {
+        setWorkspaceTab(new URLSearchParams(location.search).get('workspace') === 'credit' ? 'CREDIT' : 'SALES');
+    }, [location.search]);
 
     // Filters & table controls
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('PENDING_PAYMENT');
@@ -852,6 +870,11 @@ const PosSales: React.FC = () => {
     const [obligationPayReference, setObligationPayReference] = useState('');
     const [obligationPayNotes, setObligationPayNotes] = useState('');
     const [obligationPaySubmitting, setObligationPaySubmitting] = useState(false);
+    const [creditNoteAmount, setCreditNoteAmount] = useState('');
+    const [creditNoteReason, setCreditNoteReason] = useState('');
+    const [creditNoteNotes, setCreditNoteNotes] = useState('');
+    const [creditNoteSubmitting, setCreditNoteSubmitting] = useState(false);
+    const [creditNoteError, setCreditNoteError] = useState('');
     const [obligationPayError, setObligationPayError] = useState('');
     const obligationPayRef = useRef<{ fingerprint: string; key: string } | null>(null);
 
@@ -992,6 +1015,10 @@ const PosSales: React.FC = () => {
         setObligationPayReference('');
         setObligationPayNotes('');
         setObligationPayError('');
+        setCreditNoteAmount('');
+        setCreditNoteReason('');
+        setCreditNoteNotes('');
+        setCreditNoteError('');
     }, [selectedObligation?.id, selectedObligation?.balanceDue]);
 
     useEffect(() => {
@@ -1648,6 +1675,38 @@ const PosSales: React.FC = () => {
             setLimitNotes('');
         }
         setIsLimitModalOpen(true);
+    };
+
+    const handleCreateCreditNote = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!selectedObligation) return;
+        const amount = roundMoney(Number(creditNoteAmount));
+        if (!Number.isFinite(amount) || amount <= 0 || amount > roundMoney(selectedObligation.balanceDue)) {
+            setCreditNoteError('Ingresa un importe válido que no exceda el saldo pendiente.');
+            return;
+        }
+        if (creditNoteReason.trim().length < 3) {
+            setCreditNoteError('Indica el motivo de la nota de crédito.');
+            return;
+        }
+        setCreditNoteSubmitting(true);
+        setCreditNoteError('');
+        try {
+            await api.post(`/commerce/credit/obligations/${selectedObligation.id}/credit-notes`, {
+                amount,
+                reason: creditNoteReason.trim(),
+                notes: creditNoteNotes.trim() || undefined,
+            });
+            setCreditNoteAmount('');
+            setCreditNoteReason('');
+            setCreditNoteNotes('');
+            await loadCreditPortfolio();
+        } catch (err: any) {
+            const message = err?.response?.data?.message || err?.message || 'No fue posible emitir la nota de crédito.';
+            setCreditNoteError(Array.isArray(message) ? message.join(', ') : String(message));
+        } finally {
+            setCreditNoteSubmitting(false);
+        }
     };
 
     const handleSaveCreditAccount = async (event: React.FormEvent) => {
@@ -3673,10 +3732,45 @@ const PosSales: React.FC = () => {
                                 </div>
                             )}
 
+                            {(selectedObligation.creditNotes || []).length > 0 && (
+                                <div>
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">
+                                        Notas de crédito ({selectedObligation.creditNotes?.length || 0})
+                                    </h3>
+                                    <ul className="space-y-2">
+                                        {(selectedObligation.creditNotes || []).map((note) => (
+                                            <li key={note.id} className="flex items-center justify-between rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-2.5 text-xs">
+                                                <div>
+                                                    <span className="font-black uppercase">{note.reason}</span>
+                                                    <p className="text-muted-foreground text-[11px]">{formatDateTime(note.createdAt)}{note.recordedByName ? ` · Por: ${note.recordedByName}` : ''}</p>
+                                                </div>
+                                                <span className="font-black text-indigo-500">−{money(note.amount, selectedObligation.currency)}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
                             {obligationPayError && (
                                 <div role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-400">
                                     {obligationPayError}
                                 </div>
+                            )}
+
+                            {isCreditAdmin && selectedObligation.status !== 'PAID' && selectedObligation.status !== 'CANCELLED' && (
+                                <form onSubmit={handleCreateCreditNote} className="space-y-3 border-t border-border pt-5">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <h3 className="text-xs font-black uppercase tracking-widest text-foreground">Emitir nota de crédito</h3>
+                                        <span className="text-[10px] text-indigo-500 font-bold">Reduce saldo y libera cupo</span>
+                                    </div>
+                                    {creditNoteError && <div role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">{creditNoteError}</div>}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <input type="number" step="0.01" min="0.01" max={selectedObligation.balanceDue} value={creditNoteAmount} onChange={(e) => setCreditNoteAmount(e.target.value)} placeholder={`Monto · ${selectedObligation.currency}`} className="h-11 rounded-xl border border-border bg-background px-3 text-sm font-black focus:border-indigo-500 focus:outline-none" required />
+                                        <input type="text" value={creditNoteReason} onChange={(e) => setCreditNoteReason(e.target.value)} placeholder="Motivo obligatorio" className="h-11 rounded-xl border border-border bg-background px-3 text-sm focus:border-indigo-500 focus:outline-none" required />
+                                    </div>
+                                    <input type="text" value={creditNoteNotes} onChange={(e) => setCreditNoteNotes(e.target.value)} placeholder="Observaciones opcionales" className="w-full h-11 rounded-xl border border-border bg-background px-3 text-sm focus:border-indigo-500 focus:outline-none" />
+                                    <button type="submit" disabled={creditNoteSubmitting} className="w-full h-11 rounded-xl border border-indigo-500/40 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 text-xs font-black uppercase tracking-widest hover:bg-indigo-500/20 disabled:opacity-50">{creditNoteSubmitting ? 'Emitiendo nota…' : 'Aplicar nota de crédito'}</button>
+                                </form>
                             )}
 
                             {selectedObligation.status !== 'PAID' && selectedObligation.status !== 'CANCELLED' && (
