@@ -87,3 +87,6 @@ EGM artifact directory: .dev/docs
 - Contratos de componentes (*Peanuts & Hay*):
   - `api/src/orders/README.md` (`dto/README.md`, `strategies/README.md`)
   - `api/src/queue/README.md` (`dto/README.md`, `providers/README.md`)
+  - `api/src/commerce/README.md` (`dto/README.md`)
+  - `api/src/reseller-pos/README.md`
+  - `web/src/components/orders/README.md`

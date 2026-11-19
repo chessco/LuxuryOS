@@ -18,6 +18,9 @@ Mapa central para ubicar las especificaciones, reglas operativas, contratos y re
 
 - [api/src/orders/README.md](../../api/src/orders/README.md) — Blueprint del dominio de órdenes (`OrdersController`, `PublicOrdersController`, `OrdersService`, consecutivos inmutables `OrderNumberSequence` y borrado lógico) con contratos hijos en `./dto/README.md` y `./strategies/README.md`.
 - [api/src/queue/README.md](../../api/src/queue/README.md) — Blueprint de fila de turnos y mensajería WhatsApp (`QueueController`, `NotificationService`, `NotificationStatusController`, `WhatsAppWebhookController`) con contratos hijos en `./dto/README.md` y `./providers/README.md`.
+- [api/src/commerce/README.md](../../api/src/commerce/README.md) — Blueprint de comercio compartido e inventario compare-and-swap (`InternalPosController`, `CreditController`, `CommerceService`, `CreditService`, `ReservationExpiryService`) con contratos hijos en `./dto/README.md`.
+- [api/src/reseller-pos/README.md](../../api/src/reseller-pos/README.md) — Contratos y aislamiento del canal `RESELLER_POS` (`ResellerPosController`, `ResellerPosService`, `reseller-pos.contract.ts`).
+- [web/src/components/orders/README.md](../../web/src/components/orders/README.md) — Contratos de UI crítica de órdenes (`LabelPrintModal` AirPrint iPad/iPhone/Windows, `ClientWhatsAppModal`, `CameraCaptureModal`, `DeletedOrdersModal`, `QRScannerModal`).
 
 ## Reportes de Deriva (`egm-drift-report`)
 
