@@ -189,5 +189,10 @@ export class OrdersController {
     async sendOrderWhatsApp(@Param('id') id: string, @Request() req) {
         return this.ordersService.sendOrderWhatsApp(req.user.tenantId, id);
     }
+
+    @Post('orders/:id/resend-creation-whatsapp')
+    async resendCreationWhatsApp(@Param('id') id: string, @Request() req) {
+        return this.ordersService.sendOrderWhatsApp(req.user.tenantId, id, 'ORDER_CREATED_RESEND');
+    }
 }
 

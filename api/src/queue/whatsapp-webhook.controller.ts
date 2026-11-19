@@ -11,6 +11,12 @@ interface PitayaCoreInboundMessage {
     receivedAt?: string;
 }
 
+interface PitayaCoreMessageAck {
+    tenantId: string;
+    messageId: string;
+    ack: number;
+}
+
 @Controller('webhooks/whatsapp')
 export class WhatsAppWebhookController {
     constructor(
@@ -98,5 +104,57 @@ export class WhatsAppWebhookController {
 
         console.log(`[WhatsApp Inbound] Stored message ${messageId} for tenant ${tenantSetting.tenantId}`);
         return { status: 'stored' };
+    }
+
+    @Post('ack')
+    async receiveAckFromPitayaCore(
+        @Headers('x-api-key') apiKey: string,
+        @Body() body: PitayaCoreMessageAck,
+    ) {
+        const pitayaTenantId = String(body?.tenantId || '').trim();
+        const messageId = String(body?.messageId || '').trim();
+        const ack = body?.ack;
+        if (!pitayaTenantId || !messageId || typeof ack !== 'number' || !Number.isInteger(ack) || (ack !== -1 && ack < 1) || ack > 4) {
+            return { status: 'ignored' };
+        }
+
+        const tenantSetting = await this.prisma.setting.findFirst({
+            where: { key: 'pitayacore_tenant_id', value: pitayaTenantId },
+            select: { tenantId: true },
+        });
+        if (!tenantSetting) throw new UnauthorizedException('Unknown PitayaCore tenant');
+
+        const expectedKey = await this.settings.getSetting(
+            tenantSetting.tenantId,
+            'pitayacore_api_key',
+            this.configService.get<string>('PITAYACORE_API_KEY') || 'pitaya_internal_secret_2026',
+        );
+        if (!expectedKey || apiKey !== expectedKey) {
+            throw new UnauthorizedException('Invalid PitayaCore callback key');
+        }
+
+        // El ACK puede llegar antes de que termine de guardarse el envío.
+        const where = {
+            tenantId: tenantSetting.tenantId,
+            channel: 'WHATSAPP',
+            providerMessageId: messageId,
+        };
+        const existing = await this.prisma.notificationLog.findFirst({
+            where,
+            select: { id: true, status: true },
+        });
+        if (!existing) return { status: 'pending' };
+
+        const nextStatus = ack === -1 ? 'FAILED' : ack >= 2 ? 'DELIVERED' : 'SENT';
+        if (existing.status === 'DELIVERED' || (existing.status === 'FAILED' && ack !== -1)) {
+            return { status: 'unchanged' };
+        }
+        if (existing.status !== nextStatus) {
+            await this.prisma.notificationLog.updateMany({
+                where: { id: existing.id, status: { notIn: ['DELIVERED', 'FAILED'] } },
+                data: { status: nextStatus },
+            });
+        }
+        return { status: nextStatus };
     }
 }

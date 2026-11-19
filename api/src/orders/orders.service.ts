@@ -52,7 +52,7 @@ const STATUS_ORDER: Record<string, number> = {
   CANCELLED: 4,
 };
 
-type OrderWhatsAppContext = 'WORKFLOW' | 'ORDER_CREATED';
+type OrderWhatsAppContext = 'WORKFLOW' | 'ORDER_CREATED' | 'ORDER_CREATED_RESEND';
 
 @Injectable()
 export class OrdersService {
@@ -361,13 +361,30 @@ export class OrdersService {
   private async assertClientInTenant(
     tenantId: string,
     clientId?: string | null,
+    fallbackPhone?: string,
+    requirePhone = false,
   ) {
-    if (!clientId) return;
+    if (!clientId || !String(clientId).trim()) {
+      throw new BadRequestException(
+        'El cliente es obligatorio para registrar la orden.',
+      );
+    }
     const client = await this.prisma.client.findFirst({
       where: { id: clientId, tenantId },
-      select: { id: true },
+      select: { id: true, phone: true },
     });
     if (!client) throw new BadRequestException('El cliente indicado no existe');
+    if (requirePhone && ('phone' in client || fallbackPhone !== undefined)) {
+      const digits = String(client.phone || fallbackPhone || '').replace(
+        /\D/g,
+        '',
+      );
+      if (digits.length < 10) {
+        throw new BadRequestException(
+          'El teléfono del cliente es obligatorio (mínimo 10 dígitos) para registrar la orden.',
+        );
+      }
+    }
   }
 
   /**
@@ -452,7 +469,41 @@ export class OrdersService {
 
   async createOrder(tenantId: string, data: CreateOrderDto, userId?: string) {
     if (data.type === 'QUOTE') throw new BadRequestException('Use el módulo de cotizaciones');
-    await this.assertClientInTenant(tenantId, data.clientId);
+    await this.assertClientInTenant(
+      tenantId,
+      data.clientId,
+      data.specifications?.clientPhone || data.specifications?.phone,
+      true,
+    );
+    if (
+      data.specifications &&
+      typeof data.specifications === 'object' &&
+      'leftGold' in data.specifications
+    ) {
+      if (typeof data.specifications.leftGold !== 'boolean') {
+        throw new BadRequestException(
+          'Indica si el cliente dejó oro (Sí o No) antes de registrar la orden.',
+        );
+      }
+      if (data.specifications.leftGold === true) {
+        const goldItems = Array.isArray(data.specifications.leftGoldItems)
+          ? data.specifications.leftGoldItems
+          : [];
+        const allGoldItemsValid =
+          goldItems.length > 0 &&
+          goldItems.every((entry: any) => {
+            const karats = String(entry?.karats || '').trim();
+            const grams = Number(entry?.grams);
+            return karats.length > 0 && Number.isFinite(grams) && grams > 0;
+          });
+        if (!allGoldItemsValid) {
+          throw new BadRequestException(
+            'Captura los kilates y la cantidad en gramos de cada partida de oro.',
+          );
+        }
+      }
+    }
+
     if (
       !data.promisedAt &&
       !data.dueDate &&
@@ -1527,7 +1578,7 @@ export class OrdersService {
     const isReady = statusLabel === 'TERMINADO' || statusLabel === 'LISTO';
 
     // Solo los eventos relevantes para el cliente generan un WhatsApp.
-    if (!isReceived && !isReady) {
+    if (context === 'WORKFLOW' && !isReceived && !isReady) {
       console.log(
         `[sendOrderWhatsApp] Omitido: estatus sin aviso al cliente. Estatus actual: ${statusLabel}`,
       );
@@ -1646,7 +1697,7 @@ export class OrdersService {
         : '';
 
     let message = '';
-    if (context === 'ORDER_CREATED') {
+    if (context === 'ORDER_CREATED' || context === 'ORDER_CREATED_RESEND') {
       message = `Hola, *${customerName}*
 
 Queremos que formes parte de cada etapa de tu proceso, por eso ahora puedes consultar su avance cuando lo desees.

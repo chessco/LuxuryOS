@@ -43,6 +43,9 @@ const isAppleMobileDevice = () => typeof navigator !== 'undefined' && (
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 );
 
+const isIphoneDevice = () =>
+    typeof navigator !== 'undefined' && /iPhone|iPod/i.test(navigator.userAgent);
+
 interface LabelPrintModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -52,6 +55,8 @@ interface LabelPrintModalProps {
 export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClose, order }) => {
     const barcodeRef = useRef<SVGSVGElement>(null);
     const [sending, setSending] = useState(false);
+    const [preparingIphonePdf, setPreparingIphonePdf] = useState(false);
+    const iphonePdfCacheRef = useRef<{ key: string; file: File } | null>(null);
 
     const pieces: any[] = order?.specifications?.items && order.specifications.items.length > 0
         ? order.specifications.items
@@ -318,16 +323,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         thickness: order?.thickness || '-'
     };
 
-    const printLabelViaIframe = async () => {
-        const printElement = document.getElementById('print-label-area');
-        if (!printElement) {
-            window.print();
-            return;
-        }
-
-        const labelHtml = printElement.innerHTML;
-
-        // Limpiar portales o estilos previos de impresión
+    const createLabelMeasurementPortal = (labelHtml: string) => {
         document.getElementById('ios-print-portal')?.remove();
         document.getElementById('thermal-print-dynamic-style')?.remove();
         document.getElementById('thermal-label-print-frame')?.remove();
@@ -348,10 +344,110 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         document.body.appendChild(portal);
 
         const portalContent = document.getElementById('print-label-portal-content');
-        const heightPx = portalContent?.getBoundingClientRect().height || portalContent?.scrollHeight || printElement.scrollHeight || 280;
-        // Convertir px a mm (96 px = 25.4 mm) + 1mm de margen de corte.
-        // Mínimo 64mm (> 62mm de ancho) para que WebKit/AirPrint siempre mantenga orientación vertical (Portrait).
-        const heightMm = Math.max(64, Math.ceil((heightPx * 25.4) / 96) + 1);
+        return { portal, portalContent };
+    };
+
+    const generateAirPrintPdfBlob = async (portalContent: HTMLElement): Promise<Blob> => {
+        if (document.fonts?.ready) await document.fonts.ready;
+        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+            import('html2canvas'),
+            import('jspdf'),
+        ]);
+        const canvas = await html2canvas(portalContent, {
+            backgroundColor: '#ffffff',
+            scale: 2,
+            useCORS: true,
+            logging: false,
+        });
+        const imageWidthMm = 58;
+        const imageHeightMm = (canvas.height / canvas.width) * imageWidthMm;
+        const pageHeightMm = Math.max(25, Math.ceil(imageHeightMm + 2));
+        const imageXmm = (62 - imageWidthMm) / 2;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [62, pageHeightMm], compress: true });
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', imageXmm, 1, imageWidthMm, imageHeightMm, undefined, 'FAST');
+        return pdf.output('blob');
+    };
+
+    const buildIphonePdfFile = async (): Promise<File | null> => {
+        const printElement = document.getElementById('print-label-area');
+        if (!printElement) return null;
+        const { portal, portalContent } = createLabelMeasurementPortal(printElement.innerHTML);
+        try {
+            if (!portalContent) throw new Error('No se pudo preparar la etiqueta para AirPrint');
+            const pdfBlob = await generateAirPrintPdfBlob(portalContent);
+            const safeCode = String(orderCode || 'Orden').replace(/[^a-zA-Z0-9_-]+/g, '-');
+            return new File([pdfBlob], `Etiqueta-${safeCode}.pdf`, {
+                type: 'application/pdf',
+            });
+        } finally {
+            portal.remove();
+        }
+    };
+
+    const shareOrDownloadIphonePdf = (pdfFile: File) => {
+        const downloadFallback = () => {
+            const pdfUrl = URL.createObjectURL(pdfFile);
+            const link = document.createElement('a');
+            link.href = pdfUrl;
+            link.download = pdfFile.name;
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(pdfUrl), 600000);
+        };
+
+        if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+            navigator
+                .share({
+                    files: [pdfFile],
+                    title: `Etiqueta ${orderCode}`,
+                })
+                .catch((error: any) => {
+                    if (error?.name === 'AbortError') return;
+                    if (error?.name === 'NotAllowedError') {
+                        alert('Etiqueta PDF lista. Toca "Imprimir" nuevamente para abrir AirPrint.');
+                        return;
+                    }
+                    downloadFallback();
+                });
+            return;
+        }
+
+        downloadFallback();
+    };
+
+    const printLabelViaIframe = async () => {
+        const cacheKey = `${order?.id || ''}-${labelCodeType}`;
+
+        if (isIphoneDevice()) {
+            if (iphonePdfCacheRef.current?.key === cacheKey) {
+                shareOrDownloadIphonePdf(iphonePdfCacheRef.current.file);
+                return;
+            }
+            setPreparingIphonePdf(true);
+            try {
+                const file = await buildIphonePdfFile();
+                if (!file) throw new Error('No se pudo preparar la etiqueta para AirPrint');
+                iphonePdfCacheRef.current = { key: cacheKey, file };
+                shareOrDownloadIphonePdf(file);
+            } catch (error) {
+                console.error('iPhone AirPrint PDF generation failed', error);
+                alert('No se pudo preparar la etiqueta PDF en iPhone. Intenta nuevamente.');
+            } finally {
+                setPreparingIphonePdf(false);
+            }
+            return;
+        }
+
+        const printElement = document.getElementById('print-label-area');
+        if (!printElement) {
+            window.print();
+            return;
+        }
+
+        const labelHtml = printElement.innerHTML;
+        const { portal, portalContent } = createLabelMeasurementPortal(labelHtml);
 
         const isAppleMobile = isAppleMobileDevice();
 
@@ -359,25 +455,9 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             const pdfWindow = window.open('', '_blank');
             try {
                 if (!pdfWindow) throw new Error('Safari bloqueo la ventana de la etiqueta');
-                if (document.fonts?.ready) await document.fonts.ready;
-                const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-                    import('html2canvas'),
-                    import('jspdf'),
-                ]);
                 if (!portalContent) throw new Error('No se pudo preparar la etiqueta para AirPrint');
-                const canvas = await html2canvas(portalContent, {
-                    backgroundColor: '#ffffff',
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                });
-                const imageWidthMm = 58;
-                const imageHeightMm = (canvas.height / canvas.width) * imageWidthMm;
-                const pageHeightMm = Math.max(25, Math.ceil(imageHeightMm + 2));
-                const imageXmm = (62 - imageWidthMm) / 2;
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [62, pageHeightMm], compress: true });
-                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', imageXmm, 1, imageWidthMm, imageHeightMm, undefined, 'FAST');
-                const pdfUrl = URL.createObjectURL(pdf.output('blob'));
+                const pdfBlob = await generateAirPrintPdfBlob(portalContent);
+                const pdfUrl = URL.createObjectURL(pdfBlob);
                 pdfWindow.location.replace(pdfUrl);
                 setTimeout(() => URL.revokeObjectURL(pdfUrl), 600000);
             } catch (error) {
@@ -585,6 +665,34 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
         printLabelViaIframe();
     };
 
+    // Pre-generación en iPhone para abrir la hoja nativa AirPrint en el mismo toque del usuario
+    useEffect(() => {
+        if (!isOpen || !order || !isIphoneDevice()) {
+            iphonePdfCacheRef.current = null;
+            setPreparingIphonePdf(false);
+            return;
+        }
+        let cancelled = false;
+        const cacheKey = `${order.id}-${labelCodeType}`;
+        const timer = setTimeout(async () => {
+            try {
+                setPreparingIphonePdf(true);
+                const file = await buildIphonePdfFile();
+                if (!cancelled && file) {
+                    iphonePdfCacheRef.current = { key: cacheKey, file };
+                }
+            } catch (err) {
+                console.warn('No se pudo pregenerar PDF en iPhone', err);
+            } finally {
+                if (!cancelled) setPreparingIphonePdf(false);
+            }
+        }, 150);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [isOpen, order?.id, labelCodeType]);
+
     // Impresión directa sin previsualización al abrir la etiqueta
     useEffect(() => {
         if (!isOpen || !order || isAppleMobileDevice()) return;
@@ -608,10 +716,10 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
             ? 'fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 overflow-y-auto'
             : 'fixed top-0 left-0 -z-50 opacity-0 pointer-events-none overflow-hidden'}
             aria-hidden={!showApplePrintDialog}>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md overflow-hidden flex flex-col shadow-2xl text-left">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md max-h-[90dvh] overflow-hidden flex flex-col shadow-2xl text-left">
                 
                 {/* Modal Header */}
-                <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50">
+                <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 shrink-0">
                     <div>
                         <h3 className="text-white text-sm font-black uppercase tracking-widest">Etiqueta de Pedido</h3>
                         <p className="text-zinc-500 text-[9px] font-black uppercase tracking-wider mt-1">Preconfigurada para Brother QL-810W (DK-2205)</p>
@@ -625,7 +733,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 </div>
 
                 {/* Modal Body */}
-                <div className="p-8 flex flex-col items-center justify-center gap-5 bg-zinc-950/20 overflow-y-auto max-h-[70vh]">
+                <div className="p-6 sm:p-8 flex-1 min-h-0 flex flex-col items-center justify-start gap-5 bg-zinc-950/20 overflow-y-auto">
                     
                     {/* Brother DK-2205 Specs Pill */}
                     <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-800/80 border border-zinc-700/60 text-[10px] font-bold text-zinc-300 shadow-sm">
@@ -781,7 +889,7 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                 </div>
 
                 {/* Modal Footer Actions */}
-                <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 grid grid-cols-2 gap-4">
+                <div className="p-5 sm:p-6 border-t border-zinc-800 bg-zinc-900/50 grid grid-cols-2 gap-4 shrink-0">
                     <button 
                         type="button" 
                         onClick={onClose} 
@@ -791,10 +899,11 @@ export const LabelPrintModal: React.FC<LabelPrintModalProps> = ({ isOpen, onClos
                     </button>
                     <button
                         onClick={handlePrint}
-                        className="py-3 bg-amber-500 hover:bg-amber-600 text-black rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"
+                        disabled={preparingIphonePdf && isIphoneDevice() && !iphonePdfCacheRef.current}
+                        className="py-3 bg-amber-500 hover:bg-amber-600 text-black rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60"
                     >
                         <span className="material-symbols-outlined text-[16px]">print</span>
-                        <span>Imprimir</span>
+                        <span>{preparingIphonePdf && isIphoneDevice() && !iphonePdfCacheRef.current ? 'Preparando...' : 'Imprimir'}</span>
                     </button>
                 </div>
 

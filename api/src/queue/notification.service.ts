@@ -224,7 +224,8 @@ Por favor pasa al módulo de atención en *${atelierName}*. ✨`;
           to: recipient,
           dedupeKey,
           providerMessageId: (messageId || 'SENT').substring(0, 180),
-          status: messageId ? 'SENT' : 'LOGGED',
+          // La aceptación local del gateway aún no es ACK_SERVER de WhatsApp.
+          status: messageId ? 'ACCEPTED' : 'LOGGED',
         },
       })
       .catch((err) => console.error('Failed to log notification', err));

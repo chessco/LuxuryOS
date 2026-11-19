@@ -1098,6 +1098,66 @@ const OrderDetail: React.FC = () => {
                 </div>
             </section>
 
+            {/* Oro dejado por el cliente */}
+            {order.specifications?.leftGold !== undefined && (
+                <section className="bg-card border border-amber-500/25 rounded-[32px] p-6 sm:p-8 backdrop-blur-sm shadow-sm transition-colors mb-10">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3.5">
+                            <div className="size-11 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-500">
+                                <span className="material-symbols-outlined text-[24px]">diamond</span>
+                            </div>
+                            <div>
+                                <h3 className="text-foreground text-sm sm:text-base font-black uppercase tracking-wider">
+                                    ¿Dejó Oro el Cliente?
+                                </h3>
+                                <p className="text-muted-foreground text-xs font-medium">
+                                    Registro de oro entregado por el cliente para esta orden
+                                </p>
+                            </div>
+                        </div>
+                        <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-black uppercase tracking-wider border ${
+                                order.specifications.leftGold
+                                    ? 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                                    : 'bg-muted text-muted-foreground border-border'
+                            }`}
+                        >
+                            <span className="material-symbols-outlined text-[15px]">
+                                {order.specifications.leftGold ? 'check_circle' : 'cancel'}
+                            </span>
+                            {order.specifications.leftGold
+                                ? `Sí dejó oro · ${Number(
+                                      order.specifications.leftGoldTotalGrams ||
+                                          (Array.isArray(order.specifications.leftGoldItems)
+                                              ? order.specifications.leftGoldItems.reduce(
+                                                    (sum: number, g: any) => sum + (Number(g.grams) || 0),
+                                                    0,
+                                                )
+                                              : 0),
+                                  ).toLocaleString('es-MX')} gr`
+                                : 'No dejó oro'}
+                        </span>
+                    </div>
+
+                    {order.specifications.leftGold &&
+                        Array.isArray(order.specifications.leftGoldItems) &&
+                        order.specifications.leftGoldItems.length > 0 && (
+                            <div className="flex flex-wrap gap-3 mt-5 pt-5 border-t border-border">
+                                {order.specifications.leftGoldItems.map((goldItem: any, idx: number) => (
+                                    <div
+                                        key={idx}
+                                        className="inline-flex items-center gap-2 rounded-2xl bg-amber-500/10 border border-amber-500/25 px-4 py-2 text-xs font-black text-foreground"
+                                    >
+                                        <span className="text-amber-500">{goldItem.karats}</span>
+                                        <span className="text-muted-foreground">·</span>
+                                        <span className="font-mono">{Number(goldItem.grams).toLocaleString('es-MX')} gr</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                </section>
+            )}
+
             {/* Dynamic Operational Panel - Only for System & Admin */}
             {isAuthorized && (
                 <div className="space-y-10 mb-10">
@@ -1504,6 +1564,7 @@ const OrderDetail: React.FC = () => {
                 isOpen={isWhatsAppModalOpen}
                 onClose={() => setIsWhatsAppModalOpen(false)}
                 client={order?.client}
+                orderId={order?.id}
                 orderCode={order?.orderCode}
             />
 

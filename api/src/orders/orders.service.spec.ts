@@ -303,6 +303,23 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
       expect(sentMessage()).not.toContain('Hola, *Ana López*');
     });
 
+    it('resends the creation message for an order already in the workshop', async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(
+        makeOrder({ status: 'IN_REPAIR' }),
+      );
+
+      const result = await service.sendOrderWhatsApp(
+        'tenant-1',
+        'order-whatsapp-1',
+        'ORDER_CREATED_RESEND',
+      );
+
+      expect(result).toEqual({ success: true });
+      expect(sentMessage()).toContain('Hola, *Ana López*');
+      expect(sentMessage()).toContain('✦ Orden: REP-10');
+      expect(mockPrisma.notificationLog.create).not.toHaveBeenCalled();
+    });
+
     it('keeps the completed-order notification unchanged', async () => {
       mockPrisma.order.findUnique.mockResolvedValue(
         makeOrder({ status: 'REPAIR_COMPLETED' }),
@@ -535,6 +552,131 @@ Gracias por confiar en nuestras manos el cuidado de tus piezas.`);
       expect(result.specifications.envelopeImages).toContain(
         'https://example.com/photo.jpg',
       );
+    });
+
+    it('should reject createOrder when clientId is missing or client lacks a 10-digit phone', async () => {
+      const baseDto: any = {
+        type: 'REPAIR',
+        pieceType: 'ANILLO',
+        value: 800,
+        promisedAt: '2026-12-01T00:00:00.000Z',
+        size: '7',
+        thickness: '2mm',
+        imageUrl: 'https://example.com/photo.jpg',
+        assignedTo: 'jeweler-1',
+      };
+
+      await expect(
+        service.createOrder('tenant-1', baseDto, 'user-1'),
+      ).rejects.toThrow('El cliente es obligatorio para registrar la orden.');
+      expect(mockPrisma.order.create).not.toHaveBeenCalled();
+
+      mockPrisma.client.findFirst.mockResolvedValue({
+        id: 'client-no-phone',
+        phone: null,
+      });
+
+      await expect(
+        service.createOrder(
+          'tenant-1',
+          { ...baseDto, clientId: 'client-no-phone' },
+          'user-1',
+        ),
+      ).rejects.toThrow(
+        'El teléfono del cliente es obligatorio (mínimo 10 dígitos) para registrar la orden.',
+      );
+      expect(mockPrisma.order.create).not.toHaveBeenCalled();
+
+      mockPrisma.client.findFirst.mockResolvedValue({
+        id: 'client-with-phone',
+        phone: '6441234567',
+      });
+      mockPrisma.orderNumberSequence.upsert.mockResolvedValue({ currentValue: 2 });
+      mockPrisma.order.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'order-with-phone', ...data }),
+      );
+
+      const validResult: any = await service.createOrder(
+        'tenant-1',
+        { ...baseDto, clientId: 'client-with-phone' },
+        'user-1',
+      );
+      expect(validResult.id).toBe('order-with-phone');
+    });
+
+    it('should validate leftGold and multiple leftGoldItems (karats + grams) when creating an order', async () => {
+      mockPrisma.client.findFirst.mockResolvedValue({
+        id: 'client-with-phone',
+        phone: '6441234567',
+      });
+      mockPrisma.orderNumberSequence.upsert.mockResolvedValue({ currentValue: 3 });
+      mockPrisma.order.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'order-gold-1', ...data }),
+      );
+
+      const baseDto: any = {
+        type: 'REPAIR',
+        pieceType: 'ANILLO',
+        value: 800,
+        clientId: 'client-with-phone',
+        promisedAt: '2026-12-01T00:00:00.000Z',
+        size: '7',
+        thickness: '2mm',
+        imageUrl: 'https://example.com/photo.jpg',
+        assignedTo: 'jeweler-1',
+      };
+
+      await expect(
+        service.createOrder(
+          'tenant-1',
+          {
+            ...baseDto,
+            specifications: { leftGold: true, leftGoldItems: [] },
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow(
+        'Captura los kilates y la cantidad en gramos de cada partida de oro.',
+      );
+
+      await expect(
+        service.createOrder(
+          'tenant-1',
+          {
+            ...baseDto,
+            specifications: {
+              leftGold: true,
+              leftGoldItems: [{ karats: '14 K', grams: 0 }],
+            },
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow(
+        'Captura los kilates y la cantidad en gramos de cada partida de oro.',
+      );
+
+      const multiGoldResult: any = await service.createOrder(
+        'tenant-1',
+        {
+          ...baseDto,
+          specifications: {
+            leftGold: true,
+            leftGoldItems: [
+              { karats: '14 K', grams: 5 },
+              { karats: '18 K', grams: 4 },
+            ],
+            leftGoldTotalGrams: 9,
+          },
+        },
+        'user-1',
+      );
+
+      expect(multiGoldResult.id).toBe('order-gold-1');
+      expect(multiGoldResult.specifications.leftGold).toBe(true);
+      expect(multiGoldResult.specifications.leftGoldItems).toEqual([
+        { karats: '14 K', grams: 5 },
+        { karats: '18 K', grams: 4 },
+      ]);
     });
   });
 

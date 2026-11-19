@@ -364,6 +364,19 @@ const Orders: React.FC = () => {
                 });
             }
 
+            const selectedPhoneDigits = String(selectedClient?.phone || '').replace(/\D/g, '');
+            const resolvedOrderPhone = (
+                (selectedPhoneDigits.length >= 10 ? selectedClient?.phone : '') ||
+                newOrder.newClientPhone ||
+                newOrder.clientPhone ||
+                prefillClientPhone ||
+                ''
+            ).trim();
+            if (resolvedOrderPhone.replace(/\D/g, '').length < 10) {
+                alert('El teléfono del cliente es obligatorio (mínimo 10 dígitos) para registrar la orden.');
+                return;
+            }
+
             // 4. If still not found, create new client
             if (!selectedClient) {
                 if (!clientNameUpper) {
@@ -373,13 +386,24 @@ const Orders: React.FC = () => {
                 try {
                     selectedClient = await ClientsService.create({
                         name: clientNameUpper,
-                        phone: newOrder.newClientPhone?.trim() || prefillClientPhone?.trim() || undefined,
+                        phone: resolvedOrderPhone,
                         email: newOrder.newClientEmail?.trim() || undefined
                     });
                     await fetchClients();
                 } catch (clientError) {
                     console.error("Auto client creation failed", clientError);
                     alert("Error al registrar automáticamente el nuevo cliente.");
+                    return;
+                }
+            } else if (selectedPhoneDigits.length < 10) {
+                try {
+                    selectedClient = await ClientsService.update(selectedClient.id, {
+                        phone: resolvedOrderPhone,
+                    });
+                    await fetchClients();
+                } catch (clientUpdateError) {
+                    console.error("Client phone update failed", clientUpdateError);
+                    alert("Error al guardar el teléfono obligatorio del cliente.");
                     return;
                 }
             }
@@ -457,6 +481,9 @@ const Orders: React.FC = () => {
                     assignedDesigner: newOrder.requiresDesign ? (newOrder.assignedTo || '').trim() : undefined,
                     requiresDesign: Boolean(newOrder.requiresDesign || orderType === 'DESIGN'),
                     designStatus: (newOrder.requiresDesign || orderType === 'DESIGN') ? 'PENDING_DESIGN' : undefined,
+                    leftGold: Boolean(newOrder.leftGold),
+                    leftGoldItems: Array.isArray(newOrder.leftGoldItems) ? newOrder.leftGoldItems : [],
+                    leftGoldTotalGrams: Number(newOrder.leftGoldTotalGrams || 0),
                 }
             };
 
@@ -1102,6 +1129,10 @@ const NewOrderDrawer: React.FC<{
     const [advanceAmount, setAdvanceAmount] = useState<string>('');
     const [advanceMethod, setAdvanceMethod] = useState<string>('Efectivo');
     const [advanceReference, setAdvanceReference] = useState<string>('');
+    const [leftGoldAnswer, setLeftGoldAnswer] = useState<'' | 'YES' | 'NO'>('');
+    const [leftGoldItems, setLeftGoldItems] = useState<Array<{ karats: string; grams: string }>>([
+        { karats: '', grams: '' },
+    ]);
 
     useEffect(() => {
         UsersService.getAll().then((allUsers: any[]) => {
@@ -1205,15 +1236,42 @@ const NewOrderDrawer: React.FC<{
         }
     };
 
+    const handleLeftGoldItemChange = (
+        index: number,
+        field: 'karats' | 'grams',
+        value: string,
+    ) => {
+        setValidationError(null);
+        setLeftGoldItems((prev) =>
+            prev.map((entry, idx) => (idx === index ? { ...entry, [field]: value } : entry)),
+        );
+    };
+
+    const addLeftGoldItem = () => {
+        setValidationError(null);
+        setLeftGoldItems((prev) => [...prev, { karats: '', grams: '' }]);
+    };
+
+    const removeLeftGoldItem = (index: number) => {
+        setValidationError(null);
+        setLeftGoldItems((prev) =>
+            prev.length > 1 ? prev.filter((_, idx) => idx !== index) : prev,
+        );
+    };
+
     const handleQuickAddClient = async () => {
         if (!newClientData.name.trim()) {
             alert("El nombre del cliente es obligatorio.");
             return;
         }
+        if (newClientData.phone.replace(/\D/g, '').length < 10) {
+            alert("El teléfono del cliente es obligatorio (mínimo 10 dígitos).");
+            return;
+        }
         try {
             const created = await ClientsService.create({
                 name: newClientData.name.trim(),
-                phone: newClientData.phone.trim() || undefined,
+                phone: newClientData.phone.trim(),
                 email: newClientData.email.trim() || undefined
             });
             
@@ -1282,6 +1340,19 @@ const NewOrderDrawer: React.FC<{
             return;
         }
 
+        const selectedPhoneDigits = String(selectedClientInfo?.phone || '').replace(/\D/g, '');
+        const effectiveClientPhone = (
+            (selectedPhoneDigits.length >= 10 ? selectedClientInfo?.phone : '') ||
+            formData.newClientPhone ||
+            newClientData.phone ||
+            initialClientPhone ||
+            ''
+        ).trim();
+        if (effectiveClientPhone.replace(/\D/g, '').length < 10) {
+            failValidation('El teléfono del cliente es obligatorio (mínimo 10 dígitos) para registrar la orden.', 'new-client-phone');
+            return;
+        }
+
         // Strict validation: Ensure all required fields for each item are filled
         for (let i = 0; i < items.length; i++) {
             const item = items[i];
@@ -1344,12 +1415,49 @@ const NewOrderDrawer: React.FC<{
             return;
         }
 
+        if (leftGoldAnswer !== 'YES' && leftGoldAnswer !== 'NO') {
+            failValidation('Indica si el cliente dejó oro (Sí o No) antes de registrar la orden.', 'left-gold-section');
+            return;
+        }
+
+        const normalizedLeftGoldItems: Array<{ karats: string; grams: number }> = [];
+        if (leftGoldAnswer === 'YES') {
+            if (leftGoldItems.length === 0) {
+                failValidation('Agrega al menos una partida de oro con sus kilates y gramos.', 'left-gold-section');
+                return;
+            }
+            for (let i = 0; i < leftGoldItems.length; i++) {
+                const entry = leftGoldItems[i];
+                const cleanKarats = String(entry.karats || '').trim();
+                if (!cleanKarats) {
+                    failValidation(`Selecciona o especifica los kilates en la partida de oro #${i + 1}.`, 'left-gold-section');
+                    return;
+                }
+                const gramsNum = parseFloat(String(entry.grams ?? '').replace(/[^0-9.]/g, ''));
+                if (!Number.isFinite(gramsNum) || gramsNum <= 0) {
+                    failValidation(`Captura la cantidad en gramos (mayor a 0) en la partida de oro #${i + 1}.`, 'left-gold-section');
+                    return;
+                }
+                normalizedLeftGoldItems.push({
+                    karats: cleanKarats.toUpperCase(),
+                    grams: Math.round(gramsNum * 100) / 100,
+                });
+            }
+        }
+        const leftGoldTotalGrams =
+            Math.round(
+                normalizedLeftGoldItems.reduce((sum, entry) => sum + entry.grams, 0) * 100,
+            ) / 100;
+
         // Sync first item to top-level fields for backward compatibility
         const mainItem = items[0] || {};
         const requiresDesign = Boolean(formData.requiresDesign || orderType === 'DESIGN');
         const parsedAdvance = parseMoney(advanceAmount);
         const submissionData = {
             ...formData,
+            leftGold: leftGoldAnswer === 'YES',
+            leftGoldItems: normalizedLeftGoldItems,
+            leftGoldTotalGrams,
             advanceAmount: parsedAdvance > 0 ? parsedAdvance : undefined,
             advanceMethod: parsedAdvance > 0 ? advanceMethod : undefined,
             advanceReference: parsedAdvance > 0 && advanceReference ? advanceReference.trim() : undefined,
@@ -1360,9 +1468,9 @@ const NewOrderDrawer: React.FC<{
             } : undefined,
             requiresDesign,
             selectedClientId: selectedClientInfo?.id,
-            clientPhone: selectedClientInfo?.phone || initialClientPhone || newClientData.phone,
-            newClientPhone: newClientData.phone || initialClientPhone,
-            newClientEmail: newClientData.email,
+            clientPhone: effectiveClientPhone,
+            newClientPhone: formData.newClientPhone || newClientData.phone || initialClientPhone,
+            newClientEmail: formData.newClientEmail || newClientData.email,
             ...mainItem,
             // RF-08: los montos de la orden son la suma de todas las piezas
             value: laborTotal,
@@ -1378,6 +1486,9 @@ const NewOrderDrawer: React.FC<{
                 designStatus: requiresDesign ? 'PENDING_DESIGN' : undefined,
                 assignedDesigner: requiresDesign ? (formData.assignedTo || undefined) : undefined,
                 assignedJeweler: !requiresDesign ? (formData.assignedTo || undefined) : undefined,
+                leftGold: leftGoldAnswer === 'YES',
+                leftGoldItems: normalizedLeftGoldItems,
+                leftGoldTotalGrams,
             },
             shouldPrintLabel: printLabel
         };
@@ -1531,13 +1642,14 @@ const NewOrderDrawer: React.FC<{
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1.5">
-                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-wider">Teléfono (Opcional)</label>
+                                            <label className="text-muted-foreground text-[9px] font-black uppercase tracking-wider">Teléfono *</label>
                                             <input
                                                 type="text"
                                                 value={newClientData.phone}
                                                 onChange={(e) => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
-                                                placeholder="Ej: 33 1234 5678"
+                                                placeholder="Ej: 644 123 4567"
                                                 className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-base sm:text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
+                                                required
                                             />
                                         </div>
                                         <div className="space-y-1.5">
@@ -1766,6 +1878,24 @@ const NewOrderDrawer: React.FC<{
                                             )}
                                         </div>
 
+                                        {(!selectedClientInfo.phone || selectedClientInfo.phone.replace(/\D/g, '').length < 10) && (
+                                            <div className="space-y-1.5 pt-2 border-t border-emerald-500/15">
+                                                <label className="text-amber-500 text-[9px] font-black uppercase tracking-wider">
+                                                    Teléfono del cliente * (obligatorio, mínimo 10 dígitos)
+                                                </label>
+                                                <input
+                                                    id="new-client-phone"
+                                                    type="text"
+                                                    name="newClientPhone"
+                                                    value={formData.newClientPhone || ''}
+                                                    onChange={handleChange}
+                                                    placeholder="Ej: 644 123 4567"
+                                                    required
+                                                    className="w-full bg-muted/50 border border-amber-500/40 rounded-xl px-3 py-2.5 text-base sm:text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
+                                                />
+                                            </div>
+                                        )}
+
                                         {/* Botón Historial de Reparaciones (RF-04) */}
                                         <button
                                             type="button"
@@ -1786,13 +1916,15 @@ const NewOrderDrawer: React.FC<{
                                         </p>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-1.5">
-                                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-wider">Teléfono (Opcional)</label>
+                                                <label className="text-muted-foreground text-[9px] font-black uppercase tracking-wider">Teléfono *</label>
                                                 <input
+                                                    id="new-client-phone"
                                                     type="text"
                                                     name="newClientPhone"
                                                     value={formData.newClientPhone || ''}
                                                     onChange={handleChange}
-                                                    placeholder="Ej: 33 1234 5678"
+                                                    placeholder="Ej: 644 123 4567"
+                                                    required
                                                     className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-base sm:text-xs text-foreground focus:border-indigo-500 outline-none transition-all"
                                                 />
                                             </div>
@@ -2284,6 +2416,149 @@ const NewOrderDrawer: React.FC<{
                                     placeholder="Seleccionar prioridad..."
                                     otherPlaceholder="Especificar otra prioridad..."
                                 />
+                            </div>
+
+                            {/* ¿Dejó Oro? (Obligatorio al final de la orden) */}
+                            <div
+                                id="left-gold-section"
+                                tabIndex={-1}
+                                className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-4 outline-none"
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <label className="text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                        <span className="material-symbols-outlined text-[16px]">diamond</span>
+                                        ¿Dejó Oro?
+                                    </label>
+                                    <span className="text-red-500 text-[10px] font-bold uppercase tracking-wider">
+                                        * Obligatorio
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setValidationError(null);
+                                            setLeftGoldAnswer('YES');
+                                        }}
+                                        className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${
+                                            leftGoldAnswer === 'YES'
+                                                ? 'bg-amber-500 text-black border-amber-500 shadow-sm'
+                                                : 'bg-background text-muted-foreground border-border hover:text-foreground'
+                                        }`}
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                        Sí, dejó oro
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setValidationError(null);
+                                            setLeftGoldAnswer('NO');
+                                        }}
+                                        className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 ${
+                                            leftGoldAnswer === 'NO'
+                                                ? 'bg-foreground text-background border-foreground shadow-sm'
+                                                : 'bg-background text-muted-foreground border-border hover:text-foreground'
+                                        }`}
+                                    >
+                                        <span className="material-symbols-outlined text-[16px]">cancel</span>
+                                        No dejó oro
+                                    </button>
+                                </div>
+
+                                {leftGoldAnswer === 'YES' && (
+                                    <div className="space-y-3 pt-2 border-t border-amber-500/20">
+                                        {leftGoldItems.map((goldItem, goldIndex) => (
+                                            <div
+                                                key={goldIndex}
+                                                className="p-3 rounded-xl bg-background/80 border border-border space-y-3"
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                                                        Partida #{goldIndex + 1}
+                                                    </span>
+                                                    {leftGoldItems.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeLeftGoldItem(goldIndex)}
+                                                            className="text-red-500 hover:text-red-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[14px]">delete</span>
+                                                            Quitar
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-wider">
+                                                            Kilates *
+                                                        </label>
+                                                        <SelectWithOther
+                                                            value={goldItem.karats}
+                                                            onChange={(val) =>
+                                                                handleLeftGoldItemChange(goldIndex, 'karats', val)
+                                                            }
+                                                            options={['10 K', '14 K', '18 K', '21.6 K', '24 K']}
+                                                            placeholder="Seleccionar kilates..."
+                                                            otherPlaceholder="Especificar otro kilataje o ley..."
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-muted-foreground text-[9px] font-black uppercase tracking-wider">
+                                                            Cantidad (Gramos) *
+                                                        </label>
+                                                        <div className="relative">
+                                                            <input
+                                                                type="text"
+                                                                inputMode="decimal"
+                                                                value={goldItem.grams}
+                                                                onChange={(e) =>
+                                                                    handleLeftGoldItemChange(
+                                                                        goldIndex,
+                                                                        'grams',
+                                                                        e.target.value.replace(/[^0-9.]/g, ''),
+                                                                    )
+                                                                }
+                                                                placeholder="Ej. 5.0"
+                                                                required
+                                                                className="w-full bg-muted/50 border border-border rounded-xl py-3 pl-4 pr-10 text-base sm:text-sm font-bold text-foreground focus:border-amber-500 outline-none"
+                                                            />
+                                                            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-black uppercase text-muted-foreground">
+                                                                gr
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                            <button
+                                                type="button"
+                                                onClick={addLeftGoldItem}
+                                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-dashed border-amber-500/50 hover:border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-300 text-[10px] font-black uppercase tracking-wider transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[15px]">add_circle</span>
+                                                Agregar otro kilataje
+                                            </button>
+                                            <span className="text-xs font-mono font-black text-amber-600 dark:text-amber-400">
+                                                Total Oro:{' '}
+                                                {(
+                                                    Math.round(
+                                                        leftGoldItems.reduce(
+                                                            (sum, it) =>
+                                                                sum + (parseFloat(it.grams) || 0),
+                                                            0,
+                                                        ) * 100,
+                                                    ) / 100
+                                                ).toLocaleString('es-MX')}{' '}
+                                                gr
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

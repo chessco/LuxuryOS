@@ -70,6 +70,11 @@ export const OrdersService = {
         return response.data;
     },
 
+    async resendCreationWhatsApp(id: string): Promise<{ success: boolean; reason?: string; url?: string }> {
+        const response = await api.post(`/kanban/orders/${encodeURIComponent(id)}/resend-creation-whatsapp`);
+        return response.data;
+    },
+
     async deliverOrderViaQr(id: string) {
         const cleanId = encodeURIComponent((id || '').trim());
         const response = await api.post(`/kanban/orders/${cleanId}/deliver`);

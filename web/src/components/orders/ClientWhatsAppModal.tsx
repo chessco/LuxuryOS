@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChatService } from '../../services/chat.service';
+import { OrdersService } from '../../services/orders.service';
 import { socketService } from '../../services/socket.service';
 
 interface ClientWhatsAppModalProps {
@@ -12,9 +13,20 @@ interface ClientWhatsAppModalProps {
         phone?: string;
     } | null;
     orderCode?: string;
+    orderId?: string;
 }
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
+
+const getDeliveryIndicator = (status: string, providerMessageId?: string) => {
+    if (providerMessageId === 'WA_LINK') return { icon: 'open_in_new', label: 'Enlace generado; requiere envío manual', color: 'text-emerald-100' };
+    if (status === 'DELIVERED') return { icon: 'done_all', label: 'Entregado al teléfono', color: 'text-sky-200' };
+    if (status === 'SENT') return { icon: 'done', label: 'Enviado a WhatsApp; entrega al teléfono pendiente', color: 'text-emerald-100' };
+    if (status === 'ACCEPTED') return { icon: 'schedule', label: 'Aceptado por el gateway; esperando confirmación de WhatsApp', color: 'text-emerald-100' };
+    if (status === 'FAILED') return { icon: 'error', label: 'WhatsApp informó un error de envío', color: 'text-red-200' };
+    if (status === 'LOGGED') return { icon: 'error', label: 'No se pudo confirmar el envío; mensaje guardado en la base de datos', color: 'text-red-200' };
+    return { icon: 'schedule', label: 'Estado de envío sin confirmar', color: 'text-emerald-100' };
+};
 
 const renderWithLinks = (text: string, linkClassName: string): React.ReactNode[] =>
     String(text ?? '').split(URL_REGEX).map((part, i) => {
@@ -33,12 +45,16 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
     isOpen,
     onClose,
     client,
-    orderCode
+    orderCode,
+    orderId
 }) => {
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [isResendingCreation, setIsResendingCreation] = useState(false);
+    const [sendFeedback, setSendFeedback] = useState('');
+    const [sendLink, setSendLink] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const clientName = client?.name || 'Cliente';
@@ -47,6 +63,11 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
     const formattedPhone = cleanPhone.length === 12 && cleanPhone.startsWith('52')
         ? `+52 ${cleanPhone.substring(2, 5)} ${cleanPhone.substring(5, 8)} ${cleanPhone.substring(8)}`
         : `+${cleanPhone}`;
+
+    useEffect(() => {
+        setSendFeedback('');
+        setSendLink('');
+    }, [isOpen, orderId]);
 
     const loadMessages = async () => {
         if (!cleanPhone) return;
@@ -88,28 +109,41 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
         if (!newMessage.trim() || !cleanPhone || isSending) return;
 
         const content = newMessage.trim();
-        setNewMessage('');
         setIsSending(true);
 
-        // Optimistic UI push
-        const tempMsg = {
-            id: `temp-${Date.now()}`,
-            content,
-            direction: 'OUTBOUND',
-            status: 'SENT',
-            createdAt: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, tempMsg]);
-
         try {
-            await ChatService.sendWhatsAppMessage(cleanPhone, content, clientName);
-            // Refresh real messages
+            const result = await ChatService.sendWhatsAppMessage(cleanPhone, content, clientName);
+            setNewMessage('');
+            setSendLink(result.url || '');
+            setSendFeedback(result.success
+                ? result.url ? 'Se generó un enlace de WhatsApp; debes abrirlo y enviarlo manualmente.' : 'Aceptado por el gateway de WhatsApp. La entrega al teléfono no está confirmada.'
+                : 'No se pudo confirmar el envío. Revisa el estado del mensaje en el historial antes de reintentar.');
             await loadMessages();
         } catch (error) {
             console.error('Error al enviar WhatsApp:', error);
-            alert('No se pudo enviar el mensaje por WhatsApp. Verifica la conexión con el servidor.');
+            setSendFeedback('No se pudo comprobar el envío. Revisa la conexión e inténtalo de nuevo.');
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const handleResendCreation = async () => {
+        if (!orderId || !cleanPhone || isResendingCreation) return;
+        setIsResendingCreation(true);
+        setSendFeedback('');
+        setSendLink('');
+        try {
+            const result = await OrdersService.resendCreationWhatsApp(orderId);
+            setSendLink(result.url || '');
+            setSendFeedback(result.success
+                ? result.url ? 'Se generó un enlace de WhatsApp; debes abrirlo y enviarlo manualmente.' : 'Aviso de alta aceptado por el gateway de WhatsApp. La entrega al teléfono no está confirmada.'
+                : result.reason || 'No se pudo confirmar el reenvío. Revisa el historial antes de intentarlo de nuevo.');
+            await loadMessages();
+        } catch (error) {
+            console.error('Error al reenviar el aviso de alta:', error);
+            setSendFeedback('No se pudo comprobar el reenvío del aviso de alta.');
+        } finally {
+            setIsResendingCreation(false);
         }
     };
 
@@ -160,7 +194,6 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
                                         <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold tracking-wider font-mono">
                                             {formattedPhone}
                                         </span>
-                                        <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                         <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest hidden sm:inline">
                                             Canal PitayaCore WA
                                         </span>
@@ -193,7 +226,13 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
                         {/* Banner de Información */}
                         <div className="px-6 py-2.5 bg-muted/40 border-b border-border/60 flex items-center justify-between text-[10px] font-bold text-muted-foreground">
                             <span>Conversación directa exclusiva de este cliente</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-wider">Sincronizado en tiempo real</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-wider">Historial actualizado automáticamente</span>
+                        </div>
+                        <div className="px-6 py-2 border-b border-border/60 flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-semibold text-muted-foreground" aria-label="Significado de los estados de WhatsApp">
+                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">schedule</span>Aceptado</span>
+                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">done</span>Enviado</span>
+                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">done_all</span>En el teléfono</span>
+                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-red-500">error</span>Error</span>
                         </div>
 
                         {/* Messages History */}
@@ -260,9 +299,10 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
                                                                 ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                                                 : ''}
                                                         </span>
-                                                        {isOutbound && (
-                                                            <span className="material-symbols-outlined text-[13px]">done_all</span>
-                                                        )}
+                                                        {isOutbound && (() => {
+                                                            const indicator = getDeliveryIndicator(msg.status, msg.providerMessageId);
+                                                            return <span title={indicator.label} aria-label={indicator.label} className={`material-symbols-outlined text-[15px] ${indicator.color}`}>{indicator.icon}</span>;
+                                                        })()}
                                                     </div>
                                                 </div>
                                             </div>
@@ -274,6 +314,14 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
 
                         {/* Input Footer */}
                         <form onSubmit={handleSendMessage} className="p-4 sm:p-6 border-t border-border bg-muted/20">
+                            {orderId && (
+                                <button type="button" onClick={handleResendCreation} disabled={!cleanPhone || isResendingCreation || isSending}
+                                    className="mb-3 rounded-xl border border-emerald-500/40 px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 disabled:opacity-50">
+                                    {isResendingCreation ? 'Reenviando aviso de alta...' : 'Reenviar mensaje de alta de la orden'}
+                                </button>
+                            )}
+                            {sendFeedback && <p role="status" className="mb-3 text-xs font-semibold text-foreground">{sendFeedback}</p>}
+                            {sendLink && <a href={sendLink} target="_blank" rel="noopener noreferrer" className="mb-3 block text-xs font-bold text-emerald-600 underline">Abrir enlace para enviar en WhatsApp</a>}
                             <div className="flex items-center gap-3">
                                 <input
                                     type="text"

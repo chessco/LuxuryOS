@@ -2,6 +2,13 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../queue/notification.service';
 
+const normalizeWhatsAppPhone = (value: string): string => {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (digits.length === 10) return `52${digits}`;
+    if (/^521\d{10}$/.test(digits)) return `52${digits.slice(3)}`;
+    return digits;
+};
+
 @Injectable()
 export class ChatService {
     constructor(
@@ -144,8 +151,7 @@ export class ChatService {
             const rawPhone = log.to || log.ticket?.customerPhone || '';
             if (!rawPhone) continue;
 
-            const cleanDigits = rawPhone.replace(/\D/g, '');
-            const key = cleanDigits.length === 10 ? `52${cleanDigits}` : cleanDigits;
+            const key = normalizeWhatsAppPhone(rawPhone);
 
             if (!convMap.has(key)) {
                 const matchedClient = clients.find(c => {
@@ -178,8 +184,7 @@ export class ChatService {
 
         for (const c of clients) {
             if (!c.phone) continue;
-            const cDigits = c.phone.replace(/\D/g, '');
-            const key = cDigits.length === 10 ? `52${cDigits}` : cDigits;
+            const key = normalizeWhatsAppPhone(c.phone);
 
             if (!convMap.has(key)) {
                 const formattedPhone = key.length === 12 && key.startsWith('52')
@@ -202,8 +207,9 @@ export class ChatService {
     }
 
     async getWhatsAppMessages(tenantId: string, phone: string) {
-        const cleanDigits = phone.replace(/\D/g, '');
-        const searchKey = cleanDigits.length === 10 ? `52${cleanDigits}` : cleanDigits;
+        const cleanDigits = String(phone || '').replace(/\D/g, '');
+        if (cleanDigits.length < 10) return [];
+        const searchKey = normalizeWhatsAppPhone(cleanDigits);
 
         const logs = await this.prisma.notificationLog.findMany({
             where: {
@@ -217,8 +223,9 @@ export class ChatService {
         });
 
         const filtered = logs.filter(log => {
-            const rawPhone = (log.to || log.ticket?.customerPhone || '').replace(/\D/g, '');
-            return rawPhone.endsWith(cleanDigits) || searchKey.endsWith(rawPhone);
+            const rawPhone = normalizeWhatsAppPhone(log.to || log.ticket?.customerPhone || '');
+            if (rawPhone.length < 10) return false;
+            return rawPhone === searchKey;
         });
 
         return filtered.map(log => {
@@ -231,13 +238,14 @@ export class ChatService {
                 content: rawContent,
                 direction: log.templateKey === 'INBOUND_REPLY' || log.status === 'RECEIVED' ? 'INBOUND' : 'OUTBOUND',
                 status: log.status,
+                providerMessageId: log.providerMessageId,
                 createdAt: log.createdAt
             };
         });
     }
 
     async sendWhatsAppMessage(tenantId: string, phone: string, content: string, clientName?: string) {
-        const success = await this.notificationService.sendCustomMessage(tenantId, phone, content);
-        return { success, phone, content, createdAt: new Date() };
+        const result = await this.notificationService.sendCustomMessage(tenantId, phone, content);
+        return { ...result, phone, content, createdAt: new Date() };
     }
 }

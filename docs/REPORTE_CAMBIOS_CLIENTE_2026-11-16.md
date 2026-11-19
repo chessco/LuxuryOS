@@ -365,6 +365,52 @@ La mejora fue implementada y validada mediante:
 
 **Estado al 18 de noviembre de 2026:** mejora aprobada, implementada y preparada para preflight. Su publicación en producción queda pendiente del respaldo, validación de migraciones y despliegue controlado.
 
+## 15. Confirmación de entrega y control de mensajes de WhatsApp
+
+### 15.1 Situación identificada
+
+En la operación de mensajería con clientes se detectaron tres oportunidades de mejora para dar visibilidad real sobre las notificaciones enviadas por WhatsApp:
+
+- Al aceptar un mensaje el servicio local de envío, la interfaz lo mostraba de inmediato con doble palomita aunque WhatsApp todavía no hubiera confirmado la entrega en el teléfono del cliente.
+- Si una orden ya había avanzado a taller, no existía una acción directa dentro del historial para reenviar manualmente el mensaje inicial de bienvenida con el código y enlace de seguimiento.
+- Registros antiguos sin número telefónico o con prefijos mixtos podían filtrarse o mezclarse al consultar el historial de una conversación.
+
+### 15.2 Estados reales de entrega
+
+Se incorporó seguimiento de confirmaciones (ACK) desde el servicio de mensajería y estados diferenciados dentro del historial de conversación con el cliente:
+
+- **Aceptado:** el gateway local recibió la solicitud de envío, pendiente de confirmación de WhatsApp.
+- **Enviado:** confirmación de servidor de WhatsApp (`ACK_SERVER`).
+- **En el teléfono:** entrega confirmada en el dispositivo del cliente (`ACK_DEVICE` o superior).
+- **Error / Enlace manual:** aviso claro cuando WhatsApp reporta fallo de entrega o cuando el envío requiere abrir un enlace manual.
+
+Los mensajes salientes ahora muestran el ícono, color y leyenda correspondiente a su estado real, eliminando confirmaciones optimistas engañosas.
+
+### 15.3 Reenvío del mensaje de alta de la orden
+
+Dentro de la ventana de conversación por WhatsApp en el detalle de la orden se agregó el botón **"Reenviar mensaje de alta de la orden"**:
+
+- Permite volver a enviar el aviso de bienvenida con folio y liga de seguimiento público aunque la pieza ya esté en reparación o producción.
+- Conserva el flujo intacto para envíos manuales y muestra retroalimentación clara sobre si el mensaje fue aceptado por el gateway o requiere envío mediante enlace.
+
+### 15.4 Datos obligatorios en órdenes, registro de oro entregado y aislamiento por teléfono
+
+Para garantizar trazabilidad operativa y comunicación confiable con cada cliente:
+
+- **Cliente y teléfono obligatorios en creación de órdenes:** tanto la selección/registro del **cliente** como su **número telefónico válido (mínimo 10 dígitos)** pasaron a ser obligatorios desde el formulario y en la API. Si se selecciona un cliente existente sin teléfono registrado, la captura exige completar y guardar su número antes de registrar la orden.
+- **Captura obligatoria de *"¿Dejó Oro?"* al final de la orden:** al registrar una orden el operador debe indicar de forma obligatoria si el cliente dejó o no oro; en caso afirmativo permite capturar una o varias partidas indicando el **kilataje** (`10 K`, `14 K`, `18 K`, `21.6 K`, `24 K` u **`Otros...`** para leyes/kilatajes personalizados) y la **cantidad en gramos**, mostrando el desglose y total en el detalle de la orden.
+- **Aislamiento y normalización de conversaciones:** se estandarizó la normalización de números telefónicos (números nacionales de 10 dígitos y formato legado `521...` -> `52...`) al listar y consultar mensajes, evitando que registros sin teléfono válido aparezcan mezclados en otras conversaciones.
+- Las fotografías y códigos QR continúan enviándose como multimedia nativa con la liga de seguimiento público intacta.
+
+### 15.5 Validación y estado
+
+La mejora fue implementada y verificada mediante:
+
+- Pruebas automatizadas de confirmación de entrega (ACK), estado inicial de salida, reenvío de mensaje de alta en órdenes ya iniciadas en taller, obligatoriedad de cliente, teléfono y captura multi-partida de oro al crear órdenes, y filtrado estricto por teléfono.
+- Sin cambios destructivos ni migraciones adicionales requeridas en base de datos para este módulo.
+
+**Estado al 18 de noviembre de 2026:** implementación verificada en entorno local (pendiente de commit en rama `codex/order-audit-sequences` y posterior despliegue controlado junto con la Sección 14).
+
 ---
 
 **Conclusión:** LuxuryOS cuenta ahora con una base comercial más completa, controles de seguridad adicionales y un proceso de despliegue preparado para proteger la continuidad operativa y los datos existentes del negocio.

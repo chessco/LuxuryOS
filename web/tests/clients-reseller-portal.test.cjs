@@ -45,3 +45,25 @@ test('Orders.tsx retains AGENTS.md dual piece photography and mandatory jeweler 
   assert.match(ordersPageSource, /id="assigned-jeweler"/);
   assert.match(ordersPageSource, /failValidation\('Selecciona un Joyero antes de registrar la orden\.', 'assigned-jeweler'\)/);
 });
+
+test('Orders.tsx requires both client and 10-digit client phone when creating orders', () => {
+  assert.match(ordersPageSource, /Selecciona o registra el cliente antes de continuar\./);
+  assert.match(
+    ordersPageSource,
+    /El teléfono del cliente es obligatorio \(mínimo 10 dígitos\) para registrar la orden\./,
+  );
+  assert.doesNotMatch(ordersPageSource, /Teléfono \(Opcional\)/);
+  assert.match(ordersPageSource, /id="new-client-phone"/);
+});
+
+test('Orders.tsx requires mandatory ¿Dejó Oro? selection with multi-entry karats (with Otro) and grams', () => {
+  assert.match(ordersPageSource, /¿Dejó Oro\?/);
+  assert.match(ordersPageSource, /id="left-gold-section"/);
+  assert.match(
+    ordersPageSource,
+    /Indica si el cliente dejó oro \(Sí o No\) antes de registrar la orden\./,
+  );
+  assert.match(ordersPageSource, /leftGoldItems/);
+  assert.match(ordersPageSource, /Agregar otro kilataje/);
+  assert.match(ordersPageSource, /options=\{\['10 K', '14 K', '18 K', '21\.6 K', '24 K'\]\}/);
+});
