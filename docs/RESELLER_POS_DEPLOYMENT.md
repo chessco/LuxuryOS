@@ -2,9 +2,9 @@
 
 ## Seguridad de migraciones
 
-Los tres despliegues de producción se activan manualmente desde GitHub Actions. Un push a `main` no publica cambios: primero se debe verificar el estado real de MySQL y revisar las migraciones pendientes. El orden de activación es API, Revendedores y, por último, web.
+Cada push a `main` activa **Deploy Production** en GitHub Actions. El flujo conserva el orden API, Revendedores y, por último, web; un fallo bloquea las etapas posteriores. Los tres workflows individuales siguen disponibles para operaciones manuales.
 
-Ejecutar **Deploy API to Hetzner** primero en modo `preflight`. Revisar que `prisma migrate status` sólo muestra las migraciones previstas para esta entrega y comparar el resultado de `prisma migrate diff` con la base real. Si aparece una diferencia histórica ajena al POS, detenerse y reconciliarla mediante una migración nueva. El preflight rechaza diferencias que eliminan tablas o columnas y crea un respaldo consistente en `/opt/pitaya/backups/luxuryos/`; comprueba `gzip -t` y muestra su SHA-256. Después de revisar el resultado, ejecutar el mismo workflow en modo `deploy`, que repite las comprobaciones y el respaldo antes de `prisma migrate deploy`.
+La etapa API ejecuta el preflight antes de cada despliegue: revisa `prisma migrate status`, compara `prisma migrate diff` con la base real y crea un respaldo consistente en `/opt/pitaya/backups/luxuryos/`, validado con `gzip -t` y SHA-256. Si aparece una diferencia histórica ajena al POS, una migración fallida o una operación destructiva, se detiene el pipeline y no se publican las etapas posteriores.
 
 Los flujos de API aplican exclusivamente `prisma migrate deploy`. Está prohibido usar `prisma db push` contra producción.
 
@@ -30,4 +30,4 @@ El DNS de `revendedor.pitayacode.io` debe apuntar a Hetzner. El frontend usa `ht
 2. Iniciar sesión con un usuario `REVENDEDOR` en `https://revendedor.pitayacode.io`.
 3. Verificar `GET /reseller/profile` y `GET /reseller/catalog`.
 4. Confirmar que el mismo usuario recibe `403` en una ruta privada de joyería.
-5. Mantener como rollback la aplicación anterior y el respaldo MySQL de `20261110T032507Z`.
+5. Mantener como rollback la aplicación anterior y el respaldo MySQL más reciente generado por el preflight.

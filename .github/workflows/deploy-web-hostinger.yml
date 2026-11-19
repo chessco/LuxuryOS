@@ -2,6 +2,7 @@ name: Deploy Web to Hostinger
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: deploy-web-hostinger

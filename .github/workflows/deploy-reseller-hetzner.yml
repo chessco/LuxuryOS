@@ -2,6 +2,7 @@ name: Deploy Revendedores to Hetzner
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: deploy-revendedores-hetzner

@@ -11,6 +11,13 @@ on:
         options:
           - preflight
           - deploy
+  workflow_call:
+    inputs:
+      mode:
+        description: 'Modo de despliegue reutilizable'
+        required: false
+        type: string
+        default: deploy
 
 concurrency:
   group: deploy-api-hetzner

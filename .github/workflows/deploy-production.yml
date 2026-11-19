@@ -1,0 +1,31 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  api:
+    name: Preflight and deploy API
+    uses: ./.github/workflows/deploy-api-hetzner.yml
+    with:
+      mode: deploy
+    secrets: inherit
+
+  reseller:
+    name: Deploy reseller web
+    needs: api
+    uses: ./.github/workflows/deploy-reseller-hetzner.yml
+    secrets: inherit
+
+  web:
+    name: Deploy LuxuryOS web
+    needs: reseller
+    uses: ./.github/workflows/deploy-web-hostinger.yml
+    secrets: inherit
