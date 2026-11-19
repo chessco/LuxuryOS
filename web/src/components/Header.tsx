@@ -137,7 +137,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu }) => {
             try {
                 currentRole = String(JSON.parse(localStorage.getItem('user') || '{}').role || '').toUpperCase();
             } catch {}
-            if (currentRole !== 'SYSTEM_ADMIN') {
+            if (!['SYSTEM_ADMIN', 'TENANT_ADMIN'].includes(currentRole)) {
                 setWhatsappAlert(null);
                 return;
             }

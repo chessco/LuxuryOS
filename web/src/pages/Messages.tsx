@@ -7,6 +7,16 @@ import { ClientsService } from '../services/clients.service';
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
 
+const getDeliveryIndicator = (status: string, providerMessageId?: string) => {
+    if (providerMessageId === 'WA_LINK') return { icon: 'open_in_new', label: 'Enlace generado; requiere envío manual', color: 'text-emerald-100' };
+    if (status === 'DELIVERED') return { icon: 'done_all', label: 'Entregado al teléfono', color: 'text-sky-200' };
+    if (status === 'SENT') return { icon: 'done', label: 'Enviado a WhatsApp; entrega al teléfono pendiente', color: 'text-emerald-100' };
+    if (status === 'ACCEPTED') return { icon: 'schedule', label: 'Aceptado por el gateway; esperando confirmación de WhatsApp', color: 'text-emerald-100' };
+    if (status === 'FAILED') return { icon: 'error', label: 'WhatsApp informó un error de envío', color: 'text-red-200' };
+    if (status === 'LOGGED') return { icon: 'error', label: 'No se pudo confirmar el envío; mensaje guardado en la base de datos', color: 'text-red-200' };
+    return { icon: 'schedule', label: 'Estado de envío sin confirmar', color: 'text-emerald-100' };
+};
+
 const renderWithLinks = (text: string, linkClassName: string): React.ReactNode[] =>
     String(text ?? '').split(URL_REGEX).map((part, i) => {
         if (i % 2 === 0) return part;
@@ -653,7 +663,10 @@ export const Messages: React.FC = () => {
                                                                 isOutbound ? 'text-emerald-100' : 'text-muted-foreground'
                                                             }`}>
                                                                 <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                                {isOutbound && <span className="material-symbols-outlined text-[12px]">done_all</span>}
+                                                                {isOutbound && (() => {
+                                                                    const indicator = getDeliveryIndicator(msg.status, msg.providerMessageId);
+                                                                    return <span title={indicator.label} aria-label={indicator.label} className={`material-symbols-outlined text-[15px] ${indicator.color}`}>{indicator.icon}</span>;
+                                                                })()}
                                                             </div>
                                                         </div>
                                                     </div>

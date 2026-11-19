@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { NotificationsService, WhatsAppStatus } from '../services/notifications.service';
 
 const IntegrationsPage: React.FC = () => {
     const [settings, setSettings] = useState<Record<string, string>>({
@@ -12,9 +13,13 @@ const IntegrationsPage: React.FC = () => {
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [whatsappStatus, setWhatsappStatus] = useState<WhatsAppStatus | null>(null);
 
     useEffect(() => {
         fetchSettings();
+        NotificationsService.getWhatsAppStatus()
+            .then(setWhatsappStatus)
+            .catch(() => {});
     }, []);
 
     const fetchSettings = async () => {
@@ -232,10 +237,17 @@ const IntegrationsPage: React.FC = () => {
                                     {!saving && <span className="material-symbols-outlined text-sm">save</span>}
                                 </button>
                                 
-                                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
-                                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Servicio Activo</span>
-                                </div>
+                                {whatsappStatus && !whatsappStatus.connected ? (
+                                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500">
+                                        <span className="size-2 rounded-full bg-red-500 animate-pulse"></span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Canal sin conexión en PitayaCore (Revisar QR)</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                                        <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Servicio Activo</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
