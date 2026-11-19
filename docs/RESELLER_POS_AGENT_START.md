@@ -90,6 +90,8 @@ LuxuryOS/
 
 No es obligatorio mover todos los archivos actuales a esta estructura antes de comenzar. La implementación puede iniciar agregando `api/src/reseller-pos`, `packages/commerce-contracts` y `reseller-web` de forma incremental.
 
+> **Estado actual implementado:** Los servicios y controladores compartidos y de revendedores viven directamente en `api/src/commerce/` (`commerce.service.ts`, `credit.service.ts`, `reservation-expiry.service.ts`, `internal-pos.controller.ts`, `credit.controller.ts`) y `api/src/reseller-pos/` (`reseller-pos.controller.ts`, `reseller-pos.service.ts`), sin subcarpetas `catalog/`, `inventory/`, `pricing/`, `commissions/` ni `reports/`. Tampoco existe el directorio `packages/`; los contratos compartidos viven en `api/src/reseller-pos/reseller-pos.contract.ts` y `docs/contracts/reseller-pos.openapi.yaml`.
+
 ## 4. Separación por canal de venta
 
 Toda venta debe identificar explícitamente su canal:
@@ -142,19 +144,25 @@ El canal nunca debe determinarse únicamente en el frontend. El API debe validar
 - Reportes administrativos.
 - Preparación para inventario asignado por revendedor, si el negocio lo requiere.
 
-## 6. Contratos API propuestos
+## 6. Contratos API (`ResellerPosController`)
 
-Los nombres finales deben validarse con el código existente, pero el límite funcional esperado es:
+Los límites HTTP implementados actualmente en `api/src/reseller-pos/reseller-pos.controller.ts` y los pendientes de MVP 3 son:
 
 ```text
+# Implementados
+GET  /reseller/profile
 GET  /reseller/catalog
+POST /reseller/catalog          # Solo TENANT_ADMIN / SYSTEM_ADMIN
 GET  /reseller/inventory
-POST /reseller/quotes
-POST /reseller/sales
+GET  /reseller/credit
 GET  /reseller/sales
 GET  /reseller/sales/:id
+POST /reseller/sales
+POST /reseller/sales/:id/cancel
+
+# Pendientes (MVP 3)
+POST /reseller/quotes
 GET  /reseller/commissions
-GET  /reseller/profile
 ```
 
 El frontend nunca debe acceder directamente a Prisma ni a la base de datos.
@@ -213,14 +221,14 @@ La base local construida solo con las migraciones históricas no materializa tod
 - Cared es responsable de procesar los pagos.
 - El inventario inicial será compartido, con reserva durante checkout y descuento atómico al confirmar el pago.
 - El POS se identificará operativamente como **Revendedores** y se publicará en `revendedor.pitayacode.io`.
+- **Permisos y flujo de cancelaciones:** Implementado mediante `POST /reseller/sales/:id/cancel` y `CommerceService.cancelSale` con liberación transaccional de reservas.
+- **Ventas a crédito y sus límites:** Implementado crédito dual (`REVOLVING` y `NON_REVOLVING` a 30 días en `CreditService` / `CreditController`), liquidación en 4 modos en `web/src/pages/PosSales.tsx` y vista de solo lectura `"Mi crédito"` en `reseller-web/src/App.tsx`.
 
 ### Pendientes
 
-- Fórmula y reglas de comisiones; se definirán cuando se implemente ese módulo.
-- Permisos y flujo de cancelaciones y devoluciones.
-- Ventas a crédito y sus límites.
+- Fórmula, reglas y endpoint de comisiones (MVP 3: `POST /reseller/quotes`, `GET /reseller/commissions`).
 
-Las decisiones pendientes no bloquean la fundación, catálogo ni autenticación del módulo, pero deben resolverse antes de publicar el checkout productivo.
+Las decisiones pendientes no bloquean la fundación, catálogo, crédito ni cancelaciones ya desplegados, pero deben resolverse antes de liberar el módulo de comisiones (MVP 3).
 
 ## 10. Checklist antes de codificar
 

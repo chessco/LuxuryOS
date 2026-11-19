@@ -3,7 +3,7 @@
 ## Notificaciones de WhatsApp y Códigos QR
 
 ### 1. Extracción y Limpieza de URLs de Imagen (`cleanContent`)
-- **Regla Crítica:** En el proveedor de WhatsApp (`api/src/queue/providers/whatsapp.provider.ts`), las URLs de imágenes/códigos QR (`api.qrserver.com`, etc.) **NUNCA** deben permanecer en el texto del mensaje (`content`).
+- **Regla Crítica:** En `PitayaCoreWhatsAppProvider.sendMessage` (`api/src/queue/providers/whatsapp.provider.ts`), las URLs de imágenes/códigos QR (`api.qrserver.com`, etc.) **NUNCA** deben permanecer en el texto del mensaje (`content`) — mientras que el modo `LINKS` genera enlaces `wa.me` directamente en `NotificationService.sendCustomMessage`.
 - **Comportamiento requerido:**
   - Extraer la URL de la imagen: `const imageUrl = imgMatch ? imgMatch[0] : undefined;`
   - Limpiar el texto:
@@ -40,14 +40,19 @@
 - Al pulsar guardar sin Joyero, mostrar un mensaje visible y desplazar/enfocar el campo `assigned-jeweler`; no dejar el botón sin respuesta.
 - Diseño mantiene su flujo separado de asignación de diseñador y las ventas no requieren Joyero.
 
-## Impresión de etiquetas Brother QL-810W en iPad
+### 6. Cliente, teléfono (10 dígitos) y "¿Dejó Oro?" obligatorios
+- Toda orden debe asociarse a un cliente válido del tenant con teléfono de al menos 10 dígitos (`assertClientInTenant(..., true)`).
+- La sección **"¿Dejó Oro?"** al final del formulario es obligatoria (`specifications.leftGold: boolean`; si es `true`, requiere `specifications.leftGoldItems[]` con `karats` y `grams > 0`), validada tanto en `web/src/pages/Orders.tsx` como en `api/src/orders/orders.service.ts`.
+
+## Impresión de etiquetas Brother QL-810W en iPad y iPhone
 
 ### Regla crítica de AirPrint
 - No alterar el flujo Apple/AirPrint de `web/src/components/orders/LabelPrintModal.tsx` sin autorización explícita del usuario.
 - En iPad/iPhone está prohibido imprimir la página de LuxuryOS mediante `window.print()`.
 - La etiqueta debe renderizarse con `html2canvas` y generarse como PDF con `jsPDF`.
 - El PDF debe medir exactamente 62 mm de ancho y conservar escala de impresión de 100%.
-- `window.open()` debe ejecutarse directamente desde el botón **Imprimir**, dentro del gesto del usuario.
+- En iPad, `window.open()` debe ejecutarse directamente desde el botón **Imprimir**, dentro del gesto del usuario.
+- **Variante autorizada exclusiva para iPhone (`isIphoneDevice()`):** Pregenera el PDF de 62 mm (`buildIphonePdfFile`) y al pulsar **Imprimir** invoca `navigator.share({ files: [pdfFile] })` para abrir la hoja nativa de compartir/AirPrint (con descarga directa del PDF como respaldo si Web Share con archivos no está disponible), conservando intactos el flujo de iPad (`window.open()`) y el de Windows/Chrome (`iframe`).
 - La impresión automática del `useEffect` debe omitirse en dispositivos Apple móviles.
 - No sustituir este flujo por CSS `@page`, un portal HTML o `window.location.assign()`.
 - El flujo de Windows/Chrome mediante iframe debe conservarse.
@@ -73,3 +78,12 @@ Ese documento define la arquitectura, límites de datos, estructura objetivo, fa
 ## Conservación del stack de LuxuryOS
 
 Todo desarrollo nuevo debe mantener el stack existente: NestJS + TypeScript + Prisma + MySQL 8 en backend, y Vite + React + TypeScript en frontend. Next.js pertenece al proyecto externo ProBuyer, no a LuxuryOS. No introducir Next.js, otro framework backend, PostgreSQL ni plataformas comerciales externas para módulos de LuxuryOS sin autorización explícita.
+
+## Elephant-Goldfish Model (EGM)
+
+EGM artifact directory: .dev/docs
+
+- Índice de especificaciones y arquitectura: `docs/designs/SITEMAP.md`
+- Contratos de componentes (*Peanuts & Hay*):
+  - `api/src/orders/README.md` (`dto/README.md`, `strategies/README.md`)
+  - `api/src/queue/README.md` (`dto/README.md`, `providers/README.md`)

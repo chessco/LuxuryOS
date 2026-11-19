@@ -49,6 +49,7 @@ coverage/
 .gemini/
 .agent/
 .antigravity/
+.dev/
 
 # Zip and archive files
 *.zip
