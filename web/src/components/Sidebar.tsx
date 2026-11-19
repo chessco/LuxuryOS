@@ -17,6 +17,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
     const atelierName = atelierSettings.name || 'Business Suite';
     const { variant, mode, toggleMode } = useTheme();
     const [isCreditMenuOpen, setIsCreditMenuOpen] = useState(false);
+    const [isInventoryMenuOpen, setIsInventoryMenuOpen] = useState(false);
+    const [isQueueMenuOpen, setIsQueueMenuOpen] = useState(false);
     const userRole = user.role === 'TENANT_ADMIN' 
         ? 'Atelier Manager' 
         : (user.role === 'JOYERO'
@@ -163,17 +165,31 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                 <nav className="flex flex-col gap-6 flex-1 overflow-y-auto no-scrollbar pb-6">
                     {filteredNavigation.map((section) => (
                         <div key={section.title} className="flex flex-col gap-1">
-                            {section.title === 'Crédito' ? (
+                            {section.title === 'Crédito' || section.title === 'Inventario' || section.title === 'Fila y Turnos' ? (
                                 <button
                                     type="button"
-                                    onClick={() => setIsCreditMenuOpen((open) => !open)}
-                                    aria-expanded={isCreditMenuOpen}
-                                    aria-controls="credit-submenu"
+                                    onClick={() => {
+                                        if (section.title === 'Crédito') setIsCreditMenuOpen((open) => !open);
+                                        if (section.title === 'Inventario') setIsInventoryMenuOpen((open) => !open);
+                                        if (section.title === 'Fila y Turnos') setIsQueueMenuOpen((open) => !open);
+                                    }}
+                                    aria-expanded={
+                                        section.title === 'Crédito'
+                                            ? isCreditMenuOpen
+                                            : section.title === 'Inventario'
+                                                ? isInventoryMenuOpen
+                                                : isQueueMenuOpen
+                                    }
+                                    aria-controls={`${section.title.toLowerCase().replaceAll(' ', '-')}-submenu`}
                                     className="mb-2 flex w-full items-center justify-between px-4 text-left text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 hover:text-muted-foreground"
                                 >
-                                    <span>Crédito</span>
+                                    <span>{section.title}</span>
                                     <span className="material-symbols-outlined text-base" aria-hidden="true">
-                                        {isCreditMenuOpen ? 'expand_less' : 'expand_more'}
+                                        {(section.title === 'Crédito' && isCreditMenuOpen) ||
+                                        (section.title === 'Inventario' && isInventoryMenuOpen) ||
+                                        (section.title === 'Fila y Turnos' && isQueueMenuOpen)
+                                            ? 'expand_less'
+                                            : 'expand_more'}
                                     </span>
                                 </button>
                             ) : (
@@ -181,7 +197,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen, onClose }) => {
                                     {section.title}
                                 </h3>
                             )}
-                            <div id={section.title === 'Crédito' ? 'credit-submenu' : undefined} className={`flex flex-col gap-1 ${section.title === 'Crédito' && !isCreditMenuOpen ? 'hidden' : ''}`}>
+                            <div
+                                id={`${section.title.toLowerCase().replaceAll(' ', '-')}-submenu`}
+                                className={`flex flex-col gap-1 ${
+                                    (section.title === 'Crédito' && !isCreditMenuOpen) ||
+                                    (section.title === 'Inventario' && !isInventoryMenuOpen) ||
+                                    (section.title === 'Fila y Turnos' && !isQueueMenuOpen)
+                                        ? 'hidden'
+                                        : ''
+                                }`}
+                            >
                                 {section.items.map((item) => {
                                     const isActive = item.path.includes('?')
                                         ? location.search.includes(item.path.split('?')[1])
