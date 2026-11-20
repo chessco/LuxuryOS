@@ -18,16 +18,6 @@ interface ClientWhatsAppModalProps {
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
 
-const getDeliveryIndicator = (status: string, providerMessageId?: string) => {
-    if (providerMessageId === 'WA_LINK') return { icon: 'open_in_new', label: 'Enlace generado; requiere envío manual', color: 'text-emerald-100' };
-    if (status === 'DELIVERED') return { icon: 'done_all', label: 'Entregado al teléfono', color: 'text-sky-200' };
-    if (status === 'SENT') return { icon: 'done', label: 'Enviado a WhatsApp; entrega al teléfono pendiente', color: 'text-emerald-100' };
-    if (status === 'ACCEPTED') return { icon: 'schedule', label: 'Aceptado por el gateway; esperando confirmación de WhatsApp', color: 'text-emerald-100' };
-    if (status === 'FAILED') return { icon: 'error', label: 'WhatsApp informó un error de envío', color: 'text-red-200' };
-    if (status === 'LOGGED') return { icon: 'error', label: 'No se pudo confirmar el envío; mensaje guardado en la base de datos', color: 'text-red-200' };
-    return { icon: 'schedule', label: 'Estado de envío sin confirmar', color: 'text-emerald-100' };
-};
-
 const renderWithLinks = (text: string, linkClassName: string): React.ReactNode[] =>
     String(text ?? '').split(URL_REGEX).map((part, i) => {
         if (i % 2 === 0) return part;
@@ -228,13 +218,6 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
                             <span>Conversación directa exclusiva de este cliente</span>
                             <span className="text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-wider">Historial actualizado automáticamente</span>
                         </div>
-                        <div className="px-6 py-2 border-b border-border/60 flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-semibold text-muted-foreground" aria-label="Significado de los estados de WhatsApp">
-                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">schedule</span>Aceptado</span>
-                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">done</span>Enviado</span>
-                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">done_all</span>En el teléfono</span>
-                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-red-500">error</span>Error</span>
-                        </div>
-
                         {/* Messages History */}
                         <div
                             ref={scrollRef}
@@ -299,10 +282,6 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
                                                                 ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                                                                 : ''}
                                                         </span>
-                                                        {isOutbound && (() => {
-                                                            const indicator = getDeliveryIndicator(msg.status, msg.providerMessageId);
-                                                            return <span title={indicator.label} aria-label={indicator.label} className={`material-symbols-outlined text-[15px] ${indicator.color}`}>{indicator.icon}</span>;
-                                                        })()}
                                                     </div>
                                                 </div>
                                             </div>
