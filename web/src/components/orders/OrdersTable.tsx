@@ -4,6 +4,7 @@ import { getStatusLabel, formatOrderCode } from '../../pages/Orders';
 import { OrdersService } from '../../services/orders.service';
 import { getTrafficLight, getUrgencyScore } from '../../utils/trafficLight';
 import { ClientHistoryModal } from './ClientHistoryModal';
+import { DeleteOrderModal } from './DeleteOrderModal';
 
 interface OrdersTableProps {
     orders: any[];
@@ -181,6 +182,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
     const isDeliveredFilter = activeFilter === 'Entregados' || activeFilter === 'Entregado';
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     const [historyClientModal, setHistoryClientModal] = useState<{ id?: string; name: string } | null>(null);
+    const [orderToDelete, setOrderToDelete] = useState<{ id: string; number?: string } | null>(null);
 
     const user = React.useMemo(() => {
         try {
@@ -595,24 +597,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                                         onPointerDown={stopPropagationTouch}
                                     >
                                         <button
-                                            onClick={async (e) => {
+                                            type="button"
+                                            onClick={(e) => {
                                                 e.stopPropagation();
-                                                if (window.confirm("¿Retirar esta orden del tablero? Se conservará completa en la bitácora de eliminaciones.")) {
-                                                    const reason = window.prompt('Indica el motivo de eliminación:');
-                                                    if (reason === null) return;
-                                                    if (!reason.trim()) {
-                                                        alert('El motivo de eliminación es obligatorio.');
-                                                        return;
-                                                    }
-                                                    try {
-                                                        await OrdersService.deleteOrder(order.id, reason.trim());
-                                                        alert("Orden retirada y conservada en la bitácora.");
-                                                        if (onOrderDeleted) onOrderDeleted();
-                                                    } catch (err) {
-                                                        console.error(err);
-                                                        alert("Error al eliminar el pedido.");
-                                                    }
-                                                }
+                                                setOrderToDelete({
+                                                    id: order.id,
+                                                    number: order.orderCode || formatOrderCode(order),
+                                                });
                                             }}
                                             onTouchStart={stopPropagationTouch}
                                             onTouchEnd={stopPropagationTouch}
@@ -641,6 +632,19 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, activeFilter, 
                 clientId={historyClientModal?.id}
                 clientName={historyClientModal?.name}
             />
+
+            {orderToDelete && (
+                <DeleteOrderModal
+                    isOpen={Boolean(orderToDelete)}
+                    orderId={orderToDelete.id}
+                    orderNumber={orderToDelete.number}
+                    onClose={() => setOrderToDelete(null)}
+                    onDeleted={() => {
+                        setOrderToDelete(null);
+                        if (onOrderDeleted) onOrderDeleted();
+                    }}
+                />
+            )}
         </div>
     );
 };

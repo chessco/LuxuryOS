@@ -21,6 +21,7 @@ import { getTrafficLight, TrafficLightColor } from '../utils/trafficLight';
 import RingSizeInput from '../components/orders/RingSizeInput';
 import WidgetDock from '../components/widgets/WidgetDock';
 import { DeletedOrdersModal } from '../components/orders/DeletedOrdersModal';
+import { DeleteOrderModal } from '../components/orders/DeleteOrderModal';
 
 const isAppleMobileDevice = () => typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
@@ -211,6 +212,7 @@ const Orders: React.FC = () => {
     const [isLabelPrintOpen, setIsLabelPrintOpen] = useState(false);
     const [cameraPieceIndex, setCameraPieceIndex] = useState<number | null>(null);
     const [isDeletedOrdersOpen, setIsDeletedOrdersOpen] = useState(false);
+    const [orderToDelete, setOrderToDelete] = useState<{ id: string; number?: string } | null>(null);
 
     useEffect(() => {
         if (autoOpenNew && !isJoyero) {
@@ -520,21 +522,13 @@ const Orders: React.FC = () => {
         }
     };
 
-    const handleDeleteOrder = async (id: string) => {
-        const reason = window.prompt('Indica el motivo de eliminación. La orden se conservará en la bitácora:');
-        if (reason === null) return;
-        if (!reason.trim()) {
-            alert('El motivo de eliminación es obligatorio.');
-            return;
-        }
-        try {
-            await OrdersService.deleteOrder(id, reason.trim());
-            alert("Orden retirada del tablero y conservada en la bitácora.");
-            fetchBoard();
-        } catch (error) {
-            console.error(error);
-            alert("Error al eliminar el pedido.");
-        }
+    const handleDeleteOrder = (id: string) => {
+        const found = orders.find((o) => o.id === id);
+        // El motivo de eliminación es obligatorio para retirar pedidos a la bitácora
+        setOrderToDelete({
+            id,
+            number: found ? (found.orderCode || formatOrderCode(found)) : undefined,
+        });
     };
 
     const handleDragStart = (event: DragStartEvent) => {
@@ -1034,6 +1028,19 @@ const Orders: React.FC = () => {
                 isOpen={isDeletedOrdersOpen}
                 onClose={() => setIsDeletedOrdersOpen(false)}
             />
+
+            {orderToDelete && (
+                <DeleteOrderModal
+                    isOpen={Boolean(orderToDelete)}
+                    orderId={orderToDelete.id}
+                    orderNumber={orderToDelete.number}
+                    onClose={() => setOrderToDelete(null)}
+                    onDeleted={() => {
+                        setOrderToDelete(null);
+                        fetchBoard();
+                    }}
+                />
+            )}
 
             <LabelPrintModal
                 isOpen={isLabelPrintOpen}
@@ -2687,12 +2694,10 @@ const SortableKanbanCard: React.FC<{ order: OrderMock, isBig?: boolean, onDelete
                     onMouseDown={(e) => {
                         e.stopPropagation();
                     }}
-                    onClick={async (e) => {
+                    onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
-                        if (window.confirm("¿Seguro que deseas eliminar permanentemente este pedido? Esta acción no se puede deshacer y borrará todos los pagos asociados.")) {
-                            onDelete(order.id);
-                        }
+                        onDelete(order.id);
                     }}
                     className="absolute top-3 right-3 size-7 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white flex items-center justify-center border border-red-500/20 opacity-0 group-hover/sortable:opacity-100 transition-all active:scale-95 z-20 shadow-md"
                     title="Eliminar Pedido"

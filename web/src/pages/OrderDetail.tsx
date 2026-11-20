@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { OrdersService } from '../services/orders.service';
 import { UsersService } from '../services/users.service';
@@ -14,12 +14,14 @@ import { DesignStageCard } from '../components/orders/DesignStageCard';
 import { ClientHistoryModal } from '../components/orders/ClientHistoryModal';
 import { QRScannerModal } from '../components/orders/QRScannerModal';
 import CameraCaptureModal from '../components/orders/CameraCaptureModal';
+import { DeleteOrderModal } from '../components/orders/DeleteOrderModal';
 import { getStatusLabel, formatOrderCode } from './Orders';
 import { RBACService } from '../services/rbac.service';
 import { resolveMediaUrl } from '../services/api';
 
 const OrderDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
     const user = React.useMemo(() => {
         try {
             const raw = localStorage.getItem('user');
@@ -33,6 +35,7 @@ const OrderDetail: React.FC = () => {
     const [order, setOrder] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [editingPayment, setEditingPayment] = useState<any | null>(null);
     const [editPaymentAmount, setEditPaymentAmount] = useState<string>('');
     const [editPaymentMethod, setEditPaymentMethod] = useState<string>('Efectivo');
@@ -444,25 +447,8 @@ const OrderDetail: React.FC = () => {
         }
     };
 
-    const handleDeleteOrder = async () => {
-        if (!id) return;
-        if (!window.confirm("¿Retirar esta orden? Se conservará completa en la bitácora de eliminaciones.")) {
-            return;
-        }
-        const reason = window.prompt('Indica el motivo de eliminación:');
-        if (reason === null) return;
-        if (!reason.trim()) {
-            alert('El motivo de eliminación es obligatorio.');
-            return;
-        }
-        try {
-            await OrdersService.deleteOrder(id, reason.trim());
-            alert("Orden retirada y conservada en la bitácora.");
-            window.location.href = "/orders";
-        } catch (error) {
-            console.error(error);
-            alert("Error al eliminar el pedido.");
-        }
+    const handleDeleteOrder = () => {
+        setIsDeleteModalOpen(true);
     };
 
     const userRoleUpper = String(user?.role || '').toUpperCase();
@@ -787,10 +773,11 @@ const OrderDetail: React.FC = () => {
                             <>
                                 <span className="hidden sm:block h-8 w-px bg-border" aria-hidden="true"></span>
                                 <button
+                                    type="button"
                                     onClick={handleDeleteOrder}
                                     aria-label="Borrar pedido"
                                     title="Borrar pedido"
-                                    className={`${headerBtn} bg-transparent border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10`}
+                                    className={`${headerBtn} bg-transparent border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 cursor-pointer`}
                                 >
                                     <span className="material-symbols-outlined text-[20px]" aria-hidden="true">delete</span>
                                     <span className="hidden 2xl:inline">Borrar</span>
@@ -1588,6 +1575,18 @@ const OrderDetail: React.FC = () => {
                     isOpen
                     onClose={() => setIsQRScannerOpen(false)}
                     onOrderUpdated={fetchOrder}
+                />
+            )}
+
+            {order && (
+                <DeleteOrderModal
+                    isOpen={isDeleteModalOpen}
+                    orderId={order.id}
+                    orderNumber={order.orderCode || formatOrderCode(order)}
+                    onClose={() => setIsDeleteModalOpen(false)}
+                    onDeleted={() => {
+                        navigate('/orders');
+                    }}
                 />
             )}
 
