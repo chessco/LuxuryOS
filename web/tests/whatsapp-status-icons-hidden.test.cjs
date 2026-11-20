@@ -14,5 +14,7 @@ test('oculta indicadores visuales de entrega de WhatsApp', () => {
     const source = fs.readFileSync(path.join(webRoot, relativePath), 'utf8');
     assert.doesNotMatch(source, /getDeliveryIndicator/);
     assert.doesNotMatch(source, /Significado de los estados de WhatsApp/);
+    assert.doesNotMatch(source, /No se pudo confirmar el reenv/);
+    assert.doesNotMatch(source, /Aceptado por el gateway de WhatsApp/);
   }
 });

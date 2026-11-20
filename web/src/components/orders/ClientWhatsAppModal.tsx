@@ -43,7 +43,6 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [isResendingCreation, setIsResendingCreation] = useState(false);
-    const [sendFeedback, setSendFeedback] = useState('');
     const [sendLink, setSendLink] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +54,6 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
         : `+${cleanPhone}`;
 
     useEffect(() => {
-        setSendFeedback('');
         setSendLink('');
     }, [isOpen, orderId]);
 
@@ -105,13 +103,9 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
             const result = await ChatService.sendWhatsAppMessage(cleanPhone, content, clientName);
             setNewMessage('');
             setSendLink(result.url || '');
-            setSendFeedback(result.success
-                ? result.url ? 'Se generó un enlace de WhatsApp; debes abrirlo y enviarlo manualmente.' : 'Aceptado por el gateway de WhatsApp. La entrega al teléfono no está confirmada.'
-                : 'No se pudo confirmar el envío. Revisa el estado del mensaje en el historial antes de reintentar.');
             await loadMessages();
         } catch (error) {
             console.error('Error al enviar WhatsApp:', error);
-            setSendFeedback('No se pudo comprobar el envío. Revisa la conexión e inténtalo de nuevo.');
         } finally {
             setIsSending(false);
         }
@@ -120,18 +114,13 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
     const handleResendCreation = async () => {
         if (!orderId || !cleanPhone || isResendingCreation) return;
         setIsResendingCreation(true);
-        setSendFeedback('');
         setSendLink('');
         try {
             const result = await OrdersService.resendCreationWhatsApp(orderId);
             setSendLink(result.url || '');
-            setSendFeedback(result.success
-                ? result.url ? 'Se generó un enlace de WhatsApp; debes abrirlo y enviarlo manualmente.' : 'Aviso de alta aceptado por el gateway de WhatsApp. La entrega al teléfono no está confirmada.'
-                : result.reason || 'No se pudo confirmar el reenvío. Revisa el historial antes de intentarlo de nuevo.');
             await loadMessages();
         } catch (error) {
             console.error('Error al reenviar el aviso de alta:', error);
-            setSendFeedback('No se pudo comprobar el reenvío del aviso de alta.');
         } finally {
             setIsResendingCreation(false);
         }
@@ -299,7 +288,6 @@ export const ClientWhatsAppModal: React.FC<ClientWhatsAppModalProps> = ({
                                     {isResendingCreation ? 'Reenviando aviso de alta...' : 'Reenviar mensaje de alta de la orden'}
                                 </button>
                             )}
-                            {sendFeedback && <p role="status" className="mb-3 text-xs font-semibold text-foreground">{sendFeedback}</p>}
                             {sendLink && <a href={sendLink} target="_blank" rel="noopener noreferrer" className="mb-3 block text-xs font-bold text-emerald-600 underline">Abrir enlace para enviar en WhatsApp</a>}
                             <div className="flex items-center gap-3">
                                 <input
