@@ -248,4 +248,47 @@ export class ChatService {
         const result = await this.notificationService.sendCustomMessage(tenantId, phone, content);
         return { ...result, phone, content, createdAt: new Date() };
     }
+
+    async deleteWhatsAppConversation(tenantId: string, phone: string): Promise<{ deletedCount: number }> {
+        const cleanDigits = String(phone || '').replace(/\D/g, '');
+        if (!cleanDigits) {
+            return { deletedCount: 0 };
+        }
+        const searchKey = normalizeWhatsAppPhone(cleanDigits);
+
+        const logs = await this.prisma.notificationLog.findMany({
+            where: {
+                tenantId,
+                channel: 'WHATSAPP',
+            },
+            select: {
+                id: true,
+                to: true,
+                ticket: {
+                    select: { customerPhone: true },
+                },
+            },
+        });
+
+        const matchingIds = logs
+            .filter((log) => {
+                const rawPhone = normalizeWhatsAppPhone(log.to || log.ticket?.customerPhone || '');
+                return !!rawPhone && rawPhone === searchKey;
+            })
+            .map((log) => log.id);
+
+        if (matchingIds.length === 0) {
+            return { deletedCount: 0 };
+        }
+
+        const result = await this.prisma.notificationLog.deleteMany({
+            where: {
+                tenantId,
+                channel: 'WHATSAPP',
+                id: { in: matchingIds },
+            },
+        });
+
+        return { deletedCount: result.count };
+    }
 }

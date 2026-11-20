@@ -49,8 +49,11 @@ export const Messages: React.FC = () => {
     const [isNewWaChatOpen, setIsNewWaChatOpen] = useState(false);
     const [availableClients, setAvailableClients] = useState<any[]>([]);
     const [customWaPhone, setCustomWaPhone] = useState('');
+    const [waConvToDelete, setWaConvToDelete] = useState<any | null>(null);
+    const [isDeletingWaConv, setIsDeletingWaConv] = useState(false);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const canDeleteWaConversations = String(user?.email || '').trim().toLowerCase() === 'system@pitayacode.io';
     const isJoyero = 
         user.role === 'JOYERO' || 
         String(user.role || '').toUpperCase() === 'JOYERO' ||
@@ -200,6 +203,27 @@ export const Messages: React.FC = () => {
         } catch (error) {
             console.error("Failed to send WhatsApp message", error);
             alert("No se pudo enviar el mensaje por WhatsApp.");
+        }
+    };
+
+    const handleConfirmDeleteWaConversation = async () => {
+        if (!waConvToDelete || isDeletingWaConv) return;
+        setIsDeletingWaConv(true);
+        const targetPhone = waConvToDelete.cleanPhone;
+        try {
+            await ChatService.deleteWhatsAppConversation(targetPhone);
+            if (selectedWaPhone === targetPhone) {
+                setSelectedWaPhone(null);
+                setWaMessages([]);
+            }
+            const data = await ChatService.getWhatsAppConversations();
+            setWaConversations(data);
+            setWaConvToDelete(null);
+        } catch (error) {
+            console.error("Failed to delete WhatsApp conversation", error);
+            alert("No se pudo eliminar la conversación de WhatsApp.");
+        } finally {
+            setIsDeletingWaConv(false);
         }
     };
 
@@ -535,38 +559,57 @@ export const Messages: React.FC = () => {
                                     const partnerInitial = conv.clientName.substring(0, 2).toUpperCase();
 
                                     return (
-                                        <button
-                                            key={conv.cleanPhone}
-                                            onClick={() => setSelectedWaPhone(conv.cleanPhone)}
-                                            className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all group ${isSelected ? 'bg-emerald-600 text-white shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}
-                                        >
-                                            <div className={`size-11 rounded-2xl flex items-center justify-center font-black text-xs relative shrink-0 ${isSelected ? 'bg-white text-emerald-700' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'}`}>
-                                                {partnerInitial}
-                                                <span className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] ring-2 ring-card">
-                                                    <span className="material-symbols-outlined text-[10px]">chat</span>
-                                                </span>
-                                            </div>
-
-                                            <div className="flex-1 text-left overflow-hidden">
-                                                <div className="flex justify-between items-center mb-0.5">
-                                                    {/* IDENTIFICADOR: Nombre del Cliente */}
-                                                    <span className={`font-black text-xs uppercase truncate ${isSelected ? 'text-white' : 'text-foreground'}`}>
-                                                        {conv.clientName}
-                                                    </span>
-                                                    <span className={`text-[8px] font-black uppercase ${isSelected ? 'text-emerald-100' : 'opacity-40'}`}>
-                                                        {conv.updatedAt ? new Date(conv.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                        <div key={conv.cleanPhone} className="relative group">
+                                            <button
+                                                onClick={() => setSelectedWaPhone(conv.cleanPhone)}
+                                                className={`w-full p-4 ${canDeleteWaConversations ? 'pr-12' : ''} rounded-2xl flex items-center gap-4 transition-all ${isSelected ? 'bg-emerald-600 text-white shadow-lg' : 'hover:bg-muted text-muted-foreground'}`}
+                                            >
+                                                <div className={`size-11 rounded-2xl flex items-center justify-center font-black text-xs relative shrink-0 ${isSelected ? 'bg-white text-emerald-700' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'}`}>
+                                                    {partnerInitial}
+                                                    <span className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] ring-2 ring-card">
+                                                        <span className="material-symbols-outlined text-[10px]">chat</span>
                                                     </span>
                                                 </div>
 
-                                                <p className={`text-[10px] font-bold tracking-wider mb-1 ${isSelected ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                                    📱 {conv.formattedPhone}
-                                                </p>
+                                                <div className="flex-1 text-left overflow-hidden">
+                                                    <div className="flex justify-between items-center mb-0.5">
+                                                        {/* IDENTIFICADOR: Nombre del Cliente */}
+                                                        <span className={`font-black text-xs uppercase truncate ${isSelected ? 'text-white' : 'text-foreground'}`}>
+                                                            {conv.clientName}
+                                                        </span>
+                                                        <span className={`text-[8px] font-black uppercase ${isSelected ? 'text-emerald-100' : 'opacity-40'}`}>
+                                                            {conv.updatedAt ? new Date(conv.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                        </span>
+                                                    </div>
 
-                                                <p className={`text-[10px] truncate font-medium ${isSelected ? 'text-white/80' : 'opacity-60'}`}>
-                                                    {conv.lastMessage?.replace(/https?:\/\/[^\s]+/g, '📷 [Código]').trim()}
-                                                </p>
-                                            </div>
-                                        </button>
+                                                    <p className={`text-[10px] font-bold tracking-wider mb-1 ${isSelected ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                                        📱 {conv.formattedPhone}
+                                                    </p>
+
+                                                    <p className={`text-[10px] truncate font-medium ${isSelected ? 'text-white/80' : 'opacity-60'}`}>
+                                                        {conv.lastMessage?.replace(/https?:\/\/[^\s]+/g, '📷 [Código]').trim()}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                            {canDeleteWaConversations && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setWaConvToDelete(conv);
+                                                    }}
+                                                    title="Borrar conversación"
+                                                    aria-label={`Borrar conversación de ${conv.clientName}`}
+                                                    className={`absolute right-2.5 top-1/2 -translate-y-1/2 size-8 rounded-xl flex items-center justify-center transition-all ${
+                                                        isSelected
+                                                            ? 'text-white/80 hover:text-white hover:bg-white/15'
+                                                            : 'text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100'
+                                                    }`}
+                                                >
+                                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                </button>
+                                            )}
+                                        </div>
                                     );
                                 })
                             )}
@@ -601,6 +644,18 @@ export const Messages: React.FC = () => {
                                         <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest">
                                             Canal PitayaCore WA
                                         </div>
+                                        {canDeleteWaConversations && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setWaConvToDelete(selectedWaConv)}
+                                                title="Borrar conversación"
+                                                aria-label="Borrar conversación"
+                                                className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all"
+                                            >
+                                                <span className="material-symbols-outlined text-[15px]">delete</span>
+                                                <span className="hidden sm:inline">Borrar</span>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
@@ -825,6 +880,66 @@ export const Messages: React.FC = () => {
                                             </button>
                                         ))}
                                     </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+            {/* Delete WhatsApp Conversation Confirmation Modal */}
+            <AnimatePresence>
+                {waConvToDelete && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => !isDeletingWaConv && setWaConvToDelete(null)}
+                            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="delete-wa-conv-title"
+                            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+                        >
+                            <div className="w-full max-w-md bg-card border border-border rounded-[28px] shadow-2xl overflow-hidden pointer-events-auto p-6 space-y-5">
+                                <div className="flex items-start gap-4">
+                                    <div className="size-11 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center shrink-0">
+                                        <span className="material-symbols-outlined">delete_forever</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 id="delete-wa-conv-title" className="text-foreground font-black uppercase tracking-wider text-sm">
+                                            ¿Borrar conversación?
+                                        </h3>
+                                        <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed">
+                                            Se eliminará el historial de mensajes de WhatsApp de{' '}
+                                            <span className="font-bold text-foreground">{waConvToDelete.clientName}</span>{' '}
+                                            (<span className="font-mono">{waConvToDelete.formattedPhone}</span>). Esta acción no se puede deshacer.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-3 pt-2">
+                                    <button
+                                        type="button"
+                                        disabled={isDeletingWaConv}
+                                        onClick={() => setWaConvToDelete(null)}
+                                        className="px-4 py-2.5 rounded-xl border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={isDeletingWaConv}
+                                        onClick={handleConfirmDeleteWaConversation}
+                                        className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {isDeletingWaConv ? 'Borrando...' : 'Borrar conversación'}
+                                    </button>
                                 </div>
                             </div>
                         </motion.div>

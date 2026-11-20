@@ -31,5 +31,10 @@ export const ChatService = {
     sendWhatsAppMessage: async (phone: string, content: string, clientName?: string) => {
         const response = await api.post('/chat/whatsapp/send', { phone, content, clientName });
         return response.data;
+    },
+
+    deleteWhatsAppConversation: async (phone: string) => {
+        const response = await api.delete('/chat/whatsapp/conversations', { params: { phone } });
+        return response.data;
     }
 };
